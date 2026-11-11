@@ -1,0 +1,16 @@
+node_modules/
+client/ext/
+client/shots/
+client/dist/*.bin
+*.log
+.env
+.DS_Store
+
+# local deploy files: never commit keys or packaged copies
+*.key
+*.key.pub
+*.pem
+*.bundle
+*.tar.gz
+/deploy.sh
+/deploy-to-oracle.cmd

@@ -1,0 +1,42 @@
+name: Deploy to Oracle
+
+# Every push to main ships the game to the Oracle server. Run it by hand from the Actions tab too.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# never run two deploys at once; a newer push waits for the current one to finish
+concurrency:
+  group: deploy-oracle
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package the code
+        run: git archive --format=tar.gz -o sniper-app.tar.gz HEAD
+
+      - name: Set up SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Upload
+        run: |
+          ssh -i ~/.ssh/deploy_key opc@"$HOST" 'mkdir -p ~/sniper-deploy'
+          scp -i ~/.ssh/deploy_key sniper-app.tar.gz deploy/deploy.sh opc@"$HOST":~/sniper-deploy/
+
+      - name: Deploy
+        run: ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 opc@"$HOST" 'bash ~/sniper-deploy/deploy.sh'
+
+      - name: Check it from the internet
+        run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors "http://$HOST/healthz"

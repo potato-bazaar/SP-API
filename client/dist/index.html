@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Sniper City</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,800&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+HK:wght@900&display=swap">
@@ -155,6 +154,47 @@ h1 em{font-style:inherit;color:var(--blood);display:block}
 }
 @media (max-height:440px) and (min-width:700px){ .rules{grid-template-columns:repeat(4,minmax(0,1fr))} }
 @media (orientation:portrait){ #touch{--tb:calc(var(--u)*30)} #sinfo{bottom:calc(50% - var(--u)*47)} #breath{bottom:calc(50% - var(--u)*49)} }
+
+/* ---------- online */
+#online{background:linear-gradient(90deg,rgba(5,5,5,.94) 0,rgba(5,5,5,.8) 50%,rgba(5,5,5,.35) 100%)} #online .wrap{margin-left:calc(var(--u)*4)}
+.narrow{max-width:min(30em,100%)!important}
+.sh{margin:0;font:italic 800 calc(var(--u)*4 + 20px)/0.9 var(--display);text-transform:uppercase}
+.field{display:block;margin-top:calc(var(--u)*1.4 + 8px)} .field .lab{display:block;margin-bottom:6px}
+input#nm,.code-in{font:700 calc(var(--u)*1.2 + 14px)/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--paper);background:rgba(5,5,5,.6);border:1px solid var(--ash);padding:.6em .7em;width:min(16em,100%);outline:none}
+input#nm:focus,.code-in:focus{border-color:var(--paper)} .code-in{width:7.5em;letter-spacing:.35em}
+.or{margin-top:calc(var(--u)*1.4 + 8px)} #netstat{margin-top:12px;min-height:1.2em} #netstat.bad{color:var(--blood)}
+#lobby{background:rgba(5,5,5,.86);justify-content:flex-start;overflow:hidden}
+.lob{width:min(64em,100%);margin:0 auto;height:100%;display:flex;flex-direction:column;min-height:0}
+.lob-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 28px}
+.bigcode{font:700 calc(var(--u)*3 + 22px)/1 var(--mono);letter-spacing:.24em;color:var(--paper)}
+.lob-share{display:flex;gap:10px;flex-wrap:wrap} .lob-mode{margin-left:auto;color:var(--silver)}
+.lob-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:calc(var(--u)*2 + 12px);margin-top:calc(var(--u)*1.2 + 8px);flex:1;min-height:0;overflow:auto;align-content:start;padding-right:4px}
+.lob-teams{display:grid;gap:14px;align-content:start} .lob-teams.two{grid-template-columns:1fr 1fr}
+.tcol{border-top:2px solid var(--ash);padding-top:8px} .tcol.t0{border-color:var(--paper)} .tcol.t1{border-color:var(--blood)}
+.tcol h3{margin:0 0 8px;font:700 calc(var(--u)*.6 + 12px)/1 var(--display);letter-spacing:.24em;display:flex;justify-content:space-between;align-items:center}
+.tcol h3 button{font:700 11px/1 var(--display);letter-spacing:.18em;border:1px solid var(--ash);padding:4px 7px;color:var(--silver)}
+.who{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(242,242,239,.08);font:600 calc(var(--u)*.5 + 13px)/1.1 var(--display);letter-spacing:.08em}
+.who .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .who.me .n{color:var(--paper);text-decoration:underline;text-underline-offset:3px}
+.who .st{font:700 11px/1 var(--display);letter-spacing:.18em;color:var(--ash)} .who .st.ok{color:var(--paper)} .who .st.host{color:var(--blood)} .who.off{opacity:.45}
+.who.bot .n{color:var(--ash)} .who button{font:700 13px/1 var(--mono);color:var(--ash);padding:2px 6px}
+.empty{color:rgba(242,242,239,.25);font:600 12px/1 var(--display);letter-spacing:.2em;padding:8px 0}
+.lob-sh{margin-bottom:8px} #lhostonly{color:var(--ash)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid rgba(242,242,239,.08)}
+.row>.lab{color:var(--silver)} .seg{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.seg button{font:700 calc(var(--u)*.3 + 11px)/1 var(--display);letter-spacing:.14em;border:1px solid rgba(242,242,239,.25);padding:6px 9px;color:var(--silver);min-width:2.6em}
+.seg button[aria-pressed=true]{background:var(--paper);color:var(--ink);border-color:var(--paper)} .seg button:disabled{cursor:default} .seg button:disabled:not([aria-pressed=true]){opacity:.35}
+.lob-go{margin-top:calc(var(--u)*1 + 8px);padding-top:calc(var(--u)*1 + 6px);border-top:1px solid rgba(242,242,239,.12)} .lob-left{display:flex;flex-direction:column;min-width:0} #lnote{color:var(--silver)}
+#toast{position:absolute;left:50%;bottom:calc(var(--u)*3 + 20px);transform:translateX(-50%);background:var(--blood-deep);color:var(--paper);font:600 14px/1.35 var(--display);letter-spacing:.06em;padding:10px 16px;max-width:min(90%,34em);text-align:center;z-index:5}
+#score{margin-top:6px;color:var(--silver);white-space:nowrap} #score b{font-weight:700;color:var(--silver)} #score b.w{color:var(--paper)} #score b.r{color:var(--blood)} #score i{font-style:normal;color:var(--ash)}
+#tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#tags .tag{position:absolute;left:0;top:0;margin:-22px 0 0 0;transform-origin:0 0;font:700 11px/1 var(--display);letter-spacing:.18em;color:var(--paper);white-space:nowrap;translate:-50% 0;text-shadow:0 0 3px #000,0 0 6px #000}
+#tags .tag::after{content:"";display:block;width:0;height:0;margin:3px auto 0;border:4px solid transparent;border-top-color:currentColor}
+#tags .tag.foe{color:var(--blood)}
+table.board{margin:0 auto;border-collapse:collapse;font:400 calc(var(--u)*.4 + 12px)/1.6 var(--mono);color:var(--silver)}
+table.board th{font:700 11px/1 var(--display);letter-spacing:.2em;color:var(--ash);text-align:left;padding:4px 12px} table.board td{padding:2px 12px;text-align:left}
+table.board tr.me td{color:var(--paper);font-weight:700} table.board tr.t1 td:nth-child(2){color:var(--blood)} table.board s{text-decoration:none;color:var(--ash);font-size:.8em}
+@media (max-width:760px){ .lob-body{grid-template-columns:1fr} .lob-mode{margin-left:0} }
+@media (max-height:440px){ #online .tag{display:none} .field,.or{margin-top:8px} #online .go{margin-top:8px} .sh{font-size:calc(var(--u)*3 + 16px)} .bigcode{font-size:calc(var(--u)*3 + 18px)} .lob-body{margin-top:8px} .who{padding:4px 0} .row{padding:4px 0} }
 @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
 </style>
 
@@ -174,7 +214,8 @@ h1 em{font-style:inherit;color:var(--blood);display:block}
       <div id="pips"></div>
       <div id="kills" class="lab">0 eliminations</div>
     </div>
-    <div id="clock"><div id="time">00:00</div><div id="phase" class="lab">weapons locked</div></div>
+    <div id="clock"><div id="time">00:00</div><div id="phase" class="lab">weapons locked</div><div id="score" class="lab" hidden></div></div>
+    <div id="tags"></div>
     <canvas id="map" width="300" height="300" aria-hidden="true"></canvas>
     <div id="feed" aria-live="polite"></div>
     <div id="banner"><b></b><span class="lab"></span></div>
@@ -214,6 +255,7 @@ h1 em{font-style:inherit;color:var(--blood);display:block}
       </ul>
       <div class="go">
         <button id="deploy" class="btn red" type="button" disabled>Deploy</button>
+        <button id="online-btn" class="btn" type="button" hidden disabled>Play online</button>
         <button id="aib" class="tog" type="button" aria-label="Rival skill">RIVALS · MARKSMAN</button>
         <div id="load"><div id="loadtxt" class="lab">loading the district</div><div id="loadbar"><i></i></div></div>
         <i class="brk"></i>
@@ -239,12 +281,48 @@ h1 em{font-style:inherit;color:var(--blood);display:block}
     <div id="rsub" class="lab"></div>
     <div id="stats"></div>
     <div id="rlog"></div>
-    <div class="go" style="justify-content:center"><button id="again" class="btn red" type="button">Redeploy</button></div>
+    <div class="go" style="justify-content:center"><button id="again" class="btn red" type="button">Redeploy</button><button id="tolobby" class="btn red" type="button" hidden>Back to lobby</button><span id="rwait" class="lab" hidden>waiting for the host to reopen the lobby</span><button id="rleave" class="btn" type="button" hidden>Leave room</button></div>
   </div>
 
+  <div id="online" class="screen" hidden>
+    <div class="wrap narrow">
+      <h2 class="sh">Play online</h2>
+      <p class="tag">Make a room and send the code to your friends, or type a code you were sent.</p>
+      <label class="field"><span class="lab">your name</span><input id="nm" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="SNIPER"></label>
+      <div class="go"><button id="mk" class="btn red" type="button">Create room</button></div>
+      <div class="or lab">or join one</div>
+      <div class="go"><input id="code" class="code-in" maxlength="5" autocomplete="off" spellcheck="false" placeholder="CODE" aria-label="room code"><button id="jn" class="btn" type="button">Join</button></div>
+      <div id="netstat" class="lab"></div>
+      <div class="go"><button id="ob-back" class="tog" type="button">BACK</button></div>
+    </div>
+  </div>
+
+  <div id="lobby" class="screen" hidden>
+    <div class="lob">
+      <div class="lob-head">
+        <div><div class="lab">room code</div><div id="lcode" class="bigcode">—</div></div>
+        <div class="lob-share"><button id="lcopy" class="tog" type="button">COPY INVITE LINK</button><button id="lcopyc" class="tog" type="button">COPY CODE</button></div>
+        <div id="lmode" class="lab lob-mode"></div>
+      </div>
+      <div class="lob-body">
+        <div class="lob-left"><div id="lteams" class="lob-teams"></div>
+        </div>
+        <div class="lob-set">
+          <div class="lab lob-sh">match rules <span id="lhostonly">· set by the host</span></div>
+          <div id="lset"></div>
+        </div>
+      </div>
+      <div class="go lob-go">
+        <button id="lstart" class="btn red" type="button">Start match</button>
+        <button id="lready" class="btn" type="button">Ready</button>
+        <button id="lleave" class="tog" type="button">LEAVE ROOM</button>
+        <span id="lnote" class="lab"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" hidden></div>
   <div id="fade"></div>
   <div id="err" hidden></div>
 </div>
 <script src="game.js" defer></script>
-
-</body></html>

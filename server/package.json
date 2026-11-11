@@ -1,0 +1,16 @@
+{
+  "name": "@sniper-city/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sniper City room + match server: invite-code rooms, authoritative matches, bots, lag-compensated hits.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.mjs",
+    "typecheck": "tsc -p jsconfig.json"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "three": "^0.187.0", "three-mesh-bvh": "^0.9.18", "ws": "^8.18.0", "zod": "^3.24.0" }
+}
