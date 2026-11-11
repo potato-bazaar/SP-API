@@ -1,0 +1,14 @@
+{
+  "name": "sniper-city",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["client", "server"],
+  "scripts": {
+    "start": "npm --workspace server start",
+    "dev": "npm --workspace server run dev",
+    "test": "npm --workspace server test",
+    "build:client": "npm --workspace client run build"
+  },
+  "engines": { "node": ">=20" }
+}

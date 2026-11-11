@@ -1,0 +1,7 @@
+node_modules/
+client/ext/
+client/shots/
+client/dist/*.bin
+*.log
+.env
+.DS_Store

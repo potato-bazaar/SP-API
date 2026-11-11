@@ -1,0 +1,4 @@
+const V = (x, y, z) => new THREE.Vector3(x, y, z); const p = g.player, inp = g.input, ar = g.arena;
+const drive = (s, f) => window.__drive(s, 1/60, f || (() => {}));
+const steps = [['_start', () => { g.start(); drive(2); g.hud.el.banner.style.opacity = 0; }]];
+ar.spawns.forEach((r, i) => steps.push([`spawn${i + 1}_${r.id}`, () => { p.pos.set(r.spawnPt[0], r.spawnPt[1] + 0.05, r.spawnPt[2]); p.vel.set(0, 0, 0); p.yaw = Math.atan2(r.spawnPt[0], r.spawnPt[2]); p.pitch = 0.06; p.roof = r.i; drive(0.3); g.hud.el.banner.style.opacity = 0; return { pt: r.spawnPt.map(v => +v.toFixed(1)), clear: [-0.4, 0, 0.4].map(a => { const d = Math.hypot(r.spawnPt[0], r.spawnPt[2]); const dx = -r.spawnPt[0] / d, dz = -r.spawnPt[2] / d; const c = Math.cos(a), s = Math.sin(a); const h = ar.raycast(V(r.spawnPt[0], r.spawnPt[1] + 1.6, r.spawnPt[2]), V(dx * c - dz * s, 0, dx * s + dz * c), 30); return h ? +h.distance.toFixed(1) : 99; }) }; }]));

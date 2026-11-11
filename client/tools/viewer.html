@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<style>html,body{margin:0;background:#888}canvas{display:block}</style></head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+const q = new URLSearchParams(location.search);
+const W = +(q.get('w')||1400), H = +(q.get('h')||900);
+const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+renderer.setSize(W,H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(q.get('bg')||'#9aa3ad');
+scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 2.2));
+const dl = new THREE.DirectionalLight(0xffffff, 2.5); dl.position.set(3,6,4); scene.add(dl);
+const cam = new THREE.PerspectiveCamera(+(q.get('fov')||40), W/H, 0.01, 100000);
+const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
+window.__log = [];
+const log = (...a)=>{ window.__log.push(a.join(' ')); };
+loader.load(q.get('m'), (g)=>{
+  const root = g.scene; scene.add(root); root.updateMatrixWorld(true);
+  window.__gltf = g; window.__scene = scene; window.__root = root; window.THREE = THREE; window.__renderer = renderer; window.__cam = cam;
+  if (g.animations.length && q.get('t')!==null){ const mx = new THREE.AnimationMixer(root); mx.clipAction(g.animations[+(q.get('clip')||0)]).play(); mx.setTime(+q.get('t')); root.updateMatrixWorld(true); }
+  const box = new THREE.Box3();
+  // skinned-aware bounds
+  root.traverse(o=>{ if(o.isMesh){ if(o.isSkinnedMesh){ o.computeBoundingBox(); const b=o.boundingBox.clone().applyMatrix4(o.matrixWorld); box.union(b);} else { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld)); } o.frustumCulled=false; } });
+  const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3());
+  window.__bbox = {min:box.min.toArray(), max:box.max.toArray(), size:size.toArray(), center:c.toArray()};
+  let tris=0, meshes=0; root.traverse(o=>{ if(o.isMesh){ meshes++; const gi=o.geometry.index; tris += (gi?gi.count:o.geometry.attributes.position.count)/3; }});
+  window.__stats = {tris, meshes};
+  window.__view = (name, opt={})=>{
+    const r = Math.max(size.x,size.y,size.z);
+    const d = (opt.dist||1.6)*r; const t = opt.target? new THREE.Vector3(...opt.target) : c.clone();
+    const dirs = {iso:[1,0.8,1], iso2:[-1,0.8,1], iso3:[-1,0.8,-1], iso4:[1,0.8,-1], top:[0.0001,1,0], front:[0,0,1], back:[0,0,-1], left:[-1,0,0], right:[1,0,0], low:[1,0.25,1]};
+    if (opt.pos) cam.position.set(...opt.pos); else { const v = new THREE.Vector3(...(dirs[name]||dirs.iso)).normalize().multiplyScalar(d); cam.position.copy(t).add(v); }
+    if (opt.fov) { cam.fov = opt.fov; }
+    cam.near = r/1000; cam.far = r*100; cam.updateProjectionMatrix();
+    cam.up.set(0,1,0); if (name==='top') cam.up.set(0,0,-1);
+    cam.lookAt(t); renderer.render(scene, cam);
+  };
+  window.__done = true;
+}, undefined, (e)=>{ window.__err = String(e); window.__done = true; });
+</script></body></html>

@@ -1,0 +1,4 @@
+const p = g.player, inp = g.input; const out = [];
+for (const L of [0, 2]) for (let i = 0; i < 3; i++) { g.level = L; g.start(); inp.keys.clear(); let k = 0; for (; k < 12; k++) { window.__drive(30, 1/30, () => { if (!p.alive) return false; }); await new Promise(r => setTimeout(r, 0)); if (!p.alive || g.state !== 'live') break; }
+  out.push(`L${L} match ${i}: chunks=${k} t=${g.time.toFixed(0)} state=${g.state} alive=${p.alive} hp=${p.hp.toFixed(0)} deathTime=${p.deathTime.toFixed(0)} level=${g.level} sig=${g.botSigmaPlayer} eye=${g.botEye} aim=${g.botAim} crowd=${g.botCrowd} rad=${Math.hypot(p.pos.x, p.pos.z).toFixed(0)} zr=${g.zone.r.toFixed(0)} outT=${(p.outT||0).toFixed(1)} winner=${g.winner && g.winner.name} log=${g.log.slice(-2).map(e => e.t.toFixed(0) + ' ' + e.k + '>' + e.v).join(', ')}`); }
+return out.join('\n');
