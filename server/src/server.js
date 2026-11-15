@@ -1,5 +1,7 @@
-// HTTP (serves the game client) + WebSocket (rooms and matches) on one port.
+// HTTP (serves the game client) + WebSocket (rooms and matches) on one port, plus the same over HTTPS when a
+// certificate is configured (TLS_CERT / TLS_KEY), so the game socket can skip Cloudflare.
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -32,52 +34,82 @@ function clientIp(req) {
   return peer;
 }
 const ROOT = path.resolve(DIST), INDEX = path.join(ROOT, 'index.html');
+// Direct game socket. Cloudflare routes some players far away (Airtel in India goes via Marseille: ~240 ms round trip
+// to a Mumbai server instead of ~45 ms), which is fine for the website but bad for a shooter. With these set, pages
+// served through Cloudflare tell the client to open its socket at GAME_WS_URL, a DNS-only host with our own certificate.
+const TLS_CERT = process.env.TLS_CERT || '', TLS_KEY = process.env.TLS_KEY || '', HTTPS_PORT = +(process.env.HTTPS_PORT || 443);
+const GAME_WS_URL = process.env.GAME_WS_URL || '';               // e.g. wss://play.quicksnipergame.com/ws
+const ACME_DIR = process.env.ACME_DIR || '';                      // Let's Encrypt HTTP-01 webroot (outside the app, which deploys wipe)
+function fromCloudflare(req) { let p = req.socket.remoteAddress || ''; if (p.startsWith('::ffff:')) p = p.slice(7); return !!p && CLOUDFLARE.check(p, net.isIPv6(p) ? 'ipv6' : 'ipv4'); }
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // ---------------------------------------------------------------- static client (gzip cached in memory)
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.webmanifest': 'application/manifest+json' };
 const cache = new Map();
-function staticFile(rel) {
+function staticFile(rel, wsUrl) {
   // Cache by the resolved file, not the request path: otherwise a/..%2Fgame.js, b/..%2Fgame.js, ... each store (and
   // gzip) another copy of the same file. The separator check also keeps a sibling such as client/dist-old out.
+  // index.html has one variant per socket address it points at (same origin, or GAME_WS_URL).
   const f = path.resolve(ROOT, rel); if (!f.startsWith(ROOT + path.sep)) return null;
-  if (cache.has(f)) return cache.get(f);
+  const index = f === INDEX; const key = index ? f + '\0' + (wsUrl || '') : f;
+  if (cache.has(key)) return cache.get(key);
   if (!fs.existsSync(f) || !fs.statSync(f).isFile()) return null;
-  let body = fs.readFileSync(f); const index = f === INDEX;
-  if (index) body = Buffer.from(page(body.toString('utf8')));
+  let body = fs.readFileSync(f);
+  if (index) body = Buffer.from(page(body.toString('utf8'), wsUrl));
   const gz = zlib.gzipSync(body, { level: 9 }); const etag = '"' + crypto.createHash('sha1').update(body).digest('base64url').slice(0, 16) + '"';
-  const e = { body, gz, etag, index, type: TYPES[path.extname(f)] || 'application/octet-stream' }; cache.set(f, e); return e;
+  const e = { body, gz, etag, index, type: TYPES[path.extname(f)] || 'application/octet-stream' }; cache.set(key, e); return e;
 }
 // The page tells the client where the room server is (sc:server) and pins relative URLs to the root so /r/CODE
 // invite links still load the assets. A full document keeps its own <head> (title, SEO and share tags) and gets
 // these two tags added to it; a body fragment (the artifact host's format) is wrapped in a document of our own.
-function page(fragment) {
+function page(fragment, wsUrl) {
   const head = /<head[^>]*>/i.exec(fragment);
   if (head) {
-    const extra = '<meta name="sc:server" content="same-origin">' + (/<base\s/i.test(fragment) ? '' : '<base href="/">');
+    const target = wsUrl ? wsUrl.replace(/[^\w:/.\-]/g, '') : 'same-origin';
+    const extra = `<meta name="sc:server" content="${target}">` + (/<base\s/i.test(fragment) ? '' : '<base href="/">');
     return fragment.slice(0, head.index + head[0].length) + extra + fragment.slice(head.index + head[0].length);
   }
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="sc:server" content="same-origin"><base href="/"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}[hidden]{display:none!important}</style></head><body>${fragment}</body></html>`;
 }
-const server = http.createServer((req, res) => {
+function serve(req, res) {
   // a malformed path (/%E0) makes decodeURIComponent throw; uncaught here, that would take the whole process down
   let rel; try { rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, ''); } catch { res.writeHead(400); res.end('bad request'); return; }
   if (rel === 'healthz') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: lobby.rooms.size, sessions: wss.clients.size, protocol: PROTOCOL })); return; }
+  // Let's Encrypt checks it controls the host by fetching a token file here (read fresh, never cached)
+  const acme = /^\.well-known\/acme-challenge\/([A-Za-z0-9_-]{16,128})$/.exec(rel);
+  if (acme) { const p = ACME_DIR && path.join(ACME_DIR, '.well-known', 'acme-challenge', acme[1]); if (p && fs.existsSync(p)) { res.writeHead(200, { 'content-type': 'text/plain' }); res.end(fs.readFileSync(p)); } else { res.writeHead(404); res.end('not found'); } return; }
   if (rel === '' || rel.startsWith('r/')) rel = 'index.html';   // /r/CODE invite links open the game
-  const f = staticFile(rel); if (!f) { res.writeHead(404); res.end('not found'); return; }
+  const f = staticFile(rel, GAME_WS_URL && fromCloudflare(req) ? GAME_WS_URL : ''); if (!f) { res.writeHead(404); res.end('not found'); return; }
   const h = { 'content-type': f.type, etag: f.etag, 'cache-control': f.index ? 'no-cache' : 'public, max-age=3600', 'x-content-type-options': 'nosniff' };
   if (req.headers['if-none-match'] === f.etag) { res.writeHead(304, h); res.end(); return; }
   if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { h['content-encoding'] = 'gzip'; h['content-length'] = f.gz.length; res.writeHead(200, h); res.end(req.method === 'HEAD' ? undefined : f.gz); }
   else { h['content-length'] = f.body.length; res.writeHead(200, h); res.end(req.method === 'HEAD' ? undefined : f.body); }
-});
+}
+const server = http.createServer(serve);
+// HTTPS twin: only when a certificate is configured and readable. Renewed certificates are picked up without a restart.
+let secure = null;
+function tlsFiles() { return { cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY) }; }
+if (TLS_CERT && TLS_KEY) {
+  try {
+    secure = https.createServer(tlsFiles(), serve);
+    fs.watchFile(TLS_CERT, { interval: 6 * 3600_000 }, () => { try { secure.setSecureContext(tlsFiles()); log('TLS certificate reloaded'); } catch (e) { log('TLS reload failed', e.message); } });
+  } catch (e) { log('HTTPS disabled:', e.message); secure = null; }
+}
 
 // ---------------------------------------------------------------- sockets
 const lobby = new Lobby({ log });
 const tokens = new Map();                 // token -> { id, seen } (lets a reconnect reclaim its slot)
 const TOKEN_TTL = 30 * 60_000;            // a token nobody has used for this long, and that holds no room slot, is forgotten
 const perIp = new Map();
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024, perMessageDeflate: false });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024, perMessageDeflate: false });
+// one socket server for both listeners: rooms and matches don't care whether a player came over http or https
+function upgrade(req, sock, head) {
+  let p; try { p = new URL(req.url, 'http://x').pathname; } catch { p = ''; }
+  if (p !== '/ws') { sock.destroy(); return; }
+  wss.handleUpgrade(req, sock, head, (ws) => wss.emit('connection', ws, req));
+}
+server.on('upgrade', upgrade); if (secure) secure.on('upgrade', upgrade);
 
 wss.on('connection', (ws, req) => {
   const ip = clientIp(req);
@@ -163,4 +195,5 @@ setInterval(() => {
 
 loadWorld(); log('world ready in', loadWorld().ms, 'ms;', 'serving', DIST);
 server.listen(PORT, () => log(`Sniper City server on :${PORT}  (ws path /ws)`));
+if (secure) secure.listen(HTTPS_PORT, () => log(`HTTPS on :${HTTPS_PORT}${GAME_WS_URL ? '  (Cloudflare pages send players to ' + GAME_WS_URL + ')' : ''}`));
 export { server, lobby };

@@ -53,6 +53,8 @@ After=network.target
 WorkingDirectory=$APP
 ExecStart=$NODE_DIR/bin/node server/src/server.js
 Environment=NODE_ENV=production PORT=80
+# per-server settings that must survive deploys (TLS_CERT, TLS_KEY, GAME_WS_URL, ACME_DIR); optional
+EnvironmentFile=-/etc/sniper.env
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 Restart=always
 User=$USER
