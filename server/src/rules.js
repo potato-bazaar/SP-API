@@ -14,6 +14,8 @@ export const SettingsSchema = z.object({
   scoreLimit: z.number().int().min(0).max(100).default(0),      // respawn mode: kills to win (0 = play to the clock)
   halo: z.boolean().default(true),                              // the closing zone
   angelGaze: z.boolean().default(true),                         // the angel's reveal at each contraction
+  angelShots: z.number().int().min(0).max(2).default(0),        // the angel fires at each contraction: 0 off, 1 light, 2 heavy
+  fog: z.boolean().default(false),                              // fog over the roofs: clients draw it, bots see far less
   headshotsOnly: z.boolean().default(false),
   friendlyFire: z.boolean().default(false),
 }).strict();

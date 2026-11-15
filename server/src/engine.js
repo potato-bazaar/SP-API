@@ -7,6 +7,7 @@ import { WEAPONS, fireShot } from '../../client/src/combat.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes } from '../../client/src/world.js';
 import { MODES } from './rules.js';
+import { ServerGear, freshKit, roofOf } from './gear.js';
 
 const V3 = THREE.Vector3; const clamp = (x, a, b) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t;
 const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
@@ -28,6 +29,7 @@ class Human {
     this.outT = 0; this.zoneAcc = 0; this.ammo = { rifle: { mag: WEAPONS.rifle.mag, reserve: WEAPONS.rifle.reserve, ready: 0 }, pistol: { mag: WEAPONS.pistol.mag, reserve: WEAPONS.pistol.reserve, ready: 0 } };
     this.reloadUntil = 0; this.reloadW = null; this.wpn = 'rifle'; this.ads = 0; this.protectUntil = 0; this.respawnAt = 0; this.deathTime = 0; this.link = -1;
     this.budget = 0; this.lastIn = 0; this.lastSeq = -1; this.valid = new V3(); this.strikes = 0;
+    this.kit = freshKit(true); this.meleeReady = 0; this.throwReady = 0; this.feignK = 0; this.lean = 0; this.gasT = null;
   }
   get moving() { return this.speed > 0.6; }
   eye(out = this._e) { return out.set(this.pos.x, this.pos.y + lerp(1.6, 1.0, this.crouchK), this.pos.z); }
@@ -46,6 +48,8 @@ export class Match {
     const Z = world.arena.zone; const k = settings.timeLimit / Z.duration; this.Z = { center: Z.center, duration: settings.timeLimit, phases: Z.phases.map(p => ({ ...p, t: p.t * k, shrink: (p.shrink || 0) * Math.min(1.6, k) })) };
     this.zone = { cx: Z.center[0], cz: Z.center[1], r: Z.r0, nextR: Z.r0, phase: 0, shrinking: false, toNext: 60, phaseAge: 0, dps: 0, total: Z.phases.length };
     this.angel = { eye: new V3(0, 71.5, 0), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
+    this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
+    this.gearSim = new ServerGear(this);             // gas, decoys, the hammer, the angel's strikes and shadow roof
     // actors
     this.humans = []; this.bots = []; const names = CALLSIGNS.slice().sort(() => Math.random() - 0.5); let bi = 0;
     for (const r of roster) {
@@ -73,7 +77,8 @@ export class Match {
   }
   _place(a, p, yaw, roof, protect) {
     if (a.human) { a.reset(); a.pos.copy(p); a.valid.copy(p); a.yaw = yaw; if (protect) a.protectUntil = this.time + 2.5; }
-    else { const k = a.kills, d = a.deaths || 0, s = a.shots, h = a.hits, hs = a.heads; a.reset(); a.kills = k; a.deaths = d; a.shots = s; a.hits = h; a.heads = hs; a.spawn(p, yaw, roof); a.protectUntil = protect ? this.time + 2.5 : 0; }
+    else { const k = a.kills, d = a.deaths || 0, s = a.shots, h = a.hits, hs = a.heads; a.reset(); a.kills = k; a.deaths = d; a.shots = s; a.hits = h; a.heads = hs; a.spawn(p, yaw, roof); a.protectUntil = protect ? this.time + 2.5 : 0;
+      a.kit = freshKit(false); a.meleeReady = 0; a.throwReady = 0; a.gasT = null; a._camp = null; }
     a.roofI = roof;
     this.events.push({ t: 'spawn', id: a.netId, p: [r2(p.x), r2(p.y), r2(p.z)], yaw: r3(yaw), roof, hp: 100 });
   }
@@ -98,11 +103,17 @@ export class Match {
     const Z = this.Z, z = this.zone, t = this.time; let i = 0; while (i + 1 < Z.phases.length && Z.phases[i + 1].t <= t) i++; const ph = Z.phases[i], prev = Z.phases[Math.max(0, i - 1)], next = Z.phases[i + 1];
     const age = t - ph.t; z.shrinking = i > 0 && age < ph.shrink; z.r = z.shrinking ? lerp(prev.r, ph.r, age / ph.shrink) : ph.r; z.nextR = z.shrinking ? ph.r : (next ? next.r : ph.r); z.toNext = next ? next.t - t : Z.duration - t; z.phaseAge = age; z.dps = ph.dps || 5; z.phase = i;
     if (!this.S.halo) { z.r = z.nextR = Z.phases[0].r; z.shrinking = false; z.dps = 0; }   // no halo: the angel still looks on the same beat
+    this.gearSim.phase(i);   // the angel's shadow moves to a new roof each phase
     if (dt <= 0) return;
     const sink = (1 - clamp(z.r / 30, 0, 1)) * 5; this.angel.eye.set(0, 71.5 - sink, 0);
     if (next && z.toNext <= 5.5 && this.gazeWarned < i) { this.gazeWarned = i; this.angel.state = 'warn'; if (this.S.angelGaze) for (const b of this.bots) b.hideFromAngel(this.angel.eye); }
-    if (i > 0 && this.gazeDone < i) { this.gazeDone = i; this.angel.state = 'look'; if (this.S.angelGaze) { this.angel.pulseOn = true; this.angel.pulseR = 0; for (const a of this.actors) a._gazed = false; } }
-    if (this.angel.pulseOn) { this.angel.pulseR += dt * 78; for (const a of this.actors) { if (!a.alive || a._gazed) continue; if (a.chest().distanceTo(this.angel.eye) <= this.angel.pulseR) { a._gazed = true; const seen = this.arena.los(this.angel.eye, a.chest()); if (seen) a.revealedUntil = this.time + 5.5; this.events.push({ t: 'gaze', id: a.netId, seen }); } } if (this.angel.pulseR > 260) this.angel.pulseOn = false; }
+    if (i > 0 && this.gazeDone < i) {
+      this.gazeDone = i; this.angel.state = 'look'; if (this.S.angelGaze) { this.angel.pulseOn = true; this.angel.pulseR = 0; for (const a of this.actors) a._gazed = false; }
+      // room rule "the angel fires": a volley of marked strikes, heavier from the fourth phase on
+      if (this.S.angelShots) this.gearSim.volley(i >= 3 ? Math.max(2, this.S.angelShots) : this.S.angelShots, this.angel.eye);
+    }
+    // the reveal skips whoever stands on the shadow roof
+    if (this.angel.pulseOn) { this.angel.pulseR += dt * 78; for (const a of this.actors) { if (!a.alive || a._gazed) continue; if (a.chest().distanceTo(this.angel.eye) <= this.angel.pulseR) { a._gazed = true; const seen = !this.gearSim.onShadow(a) && this.arena.los(this.angel.eye, a.chest()); if (seen) a.revealedUntil = this.time + 5.5; this.events.push({ t: 'gaze', id: a.netId, seen }); } } if (this.angel.pulseR > 260) this.angel.pulseOn = false; }
     if (this.S.halo) for (const a of this.actors) { if (!a.alive) continue; const out = Math.hypot(a.pos.x - z.cx, a.pos.z - z.cz) > z.r; if (out) { a.outT = (a.outT || 0) + dt; if (a.outT > 2.5) { a.zoneAcc = (a.zoneAcc || 0) + z.dps * dt; if (a.zoneAcc >= 3) { const d = a.zoneAcc; a.zoneAcc = 0; this.damage(a, d, null, { cause: 'zone' }); } } } else { a.outT = Math.max(0, (a.outT || 0) - dt * 2); a.zoneAcc = 0; } }
   }
   gazeHit() {}
@@ -128,8 +139,10 @@ export class Match {
   }
   kill(v, killer, info) {
     v.alive = false; v.hp = 0; v.deathTime = this.time; v.deaths = (v.deaths || 0) + 1; v.revealedUntil = -1;
-    const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : null;
-    const how = cause ? '' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
+    // cause: deaths with no one to credit (the client's death screen names them); how: the kill feed's label otherwise
+    const credited = killer && killer !== v;
+    const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : info.cause === 'angel' ? 'angel' : info.cause === 'gas' && !credited ? 'gas' : null;
+    const how = cause ? '' : info.cause === 'melee' ? 'hammer' : info.cause === 'gas' ? 'gas' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
     const friendly = killer && this.teams && killer.team === v.team && killer !== v;
     if (killer && killer !== v && killer.alive) { if (!friendly) killer.kills++; killer.hp = Math.min(100, killer.hp + 30); }
     if (!this.S.respawn) { const alive = this.actors.filter(a => a.alive).length; v.place = alive + 1; }
@@ -159,7 +172,22 @@ export class Match {
     a.yaw = Number.isFinite(m.yaw) ? m.yaw : a.yaw; a.pitch = Number.isFinite(m.pitch) ? clamp(m.pitch, -1.6, 1.6) : a.pitch; a.crouchK = clamp(+m.c || 0, 0, 1);
     a.mode = m.mode === 'link' || m.mode === 'mantle' ? m.mode : 'walk'; a.link = riding ? m.link : -1; a.speed = Math.hypot(a.vel.x, a.vel.z); a.wpn = m.w === 'pistol' ? 'pistol' : 'rifle'; a.ads = clamp(+m.ads || 0, 0, 1);
     a.roofI = this.arena.roofAt(nx, nz, ny);
+    a.lean = Number.isFinite(m.ln) ? clamp(m.ln, -1.5, 1.5) : 0; a.feignK = m.fd ? 1 : 0;   // shown to others; playing dead invites the heavy hammer hit
   }
+  /** a hammer swing: like a shot, judged against where the swinger saw everyone (lag) */
+  melee(id, m, lag) {
+    const a = this.byId.get(id); if (!a || !a.human) return;
+    if (!Array.isArray(m.d) || m.d.length !== 3 || !m.d.every(Number.isFinite)) return;
+    const dir = new V3(...m.d); if (dir.lengthSq() < 0.5) return; dir.normalize();
+    if (!this.gearSim.meleeAllowed(a)) return;
+    const back = clamp(lag, 0, HISTORY - 0.05); const saved = [];
+    if (back > 0.001) for (const o of this.actors) { if (o === a || !o.alive) continue; const pose = this._poseAt(o, this.time - back); if (pose) { saved.push([o, o.pos.clone(), o.crouchK]); o.pos.set(pose[1], pose[2], pose[3]); o.crouchK = pose[4]; } }
+    const hit = this.gearSim.meleeTarget(a, dir);
+    for (const [o, p, c] of saved) { o.pos.copy(p); o.crouchK = c; }
+    this.gearSim.meleeHit(a, hit, dir);
+  }
+  /** a gas or decoy can */
+  nade(id, m) { const a = this.byId.get(id); if (a && a.human) this.gearSim.throw(a, m.k, m.o, m.d); }
   fall(id, v) { const a = this.byId.get(id); if (!a || !a.alive || !Number.isFinite(v)) return; v = clamp(v, 0, 60); if (v > 14.5) this.damage(a, Math.min(100, (v - 14.5) * 8), null, { cause: 'fall' }); }
   reload(id, w) {
     const a = this.byId.get(id); if (!a || !a.alive) return; const W = WEAPONS[w]; if (!W) return; const st = a.ammo[w];
@@ -202,6 +230,7 @@ export class Match {
       if (a.pos.y < 9.5) this.damage(a, 999, null, { cause: 'drop' });
     }
     for (const b of this.bots) { b.update(dt); if (b.alive && b.pos.y < 9.5) this.damage(b, 999, null, { cause: 'drop' }); }
+    this.gearSim.update(dt);   // cans in flight, gas clouds, decoys, angel strikes, bots' gear
     if (this.S.respawn) for (const a of this.actors) if (!a.alive && a.respawnAt && this.time >= a.respawnAt) { a.respawnAt = 0; const s = this._respawnPoint(a); this._place(a, s.p, s.yaw, s.roof, true); }
     // pose history for lag compensation
     for (const a of this.actors) { const h = this.hist.get(a.netId); h.push([this.time, a.pos.x, a.pos.y, a.pos.z, a.crouchK]); while (h.length && h[0][0] < this.time - HISTORY) h.shift(); }
@@ -251,10 +280,11 @@ export class Match {
       let mode = 0, aimY, aimP, link = -1, lu = 0, ld = 0;
       if (o.human) { aimY = o.yaw; aimP = o.pitch; mode = M[o.mode] || 0; link = o.link; }
       else { aimY = o.aimYaw; aimP = o.aimPitch; if (o.link) { link = o.link.link.i; lu = o.link.t; ld = o.link.dir; mode = 1; } }
-      const flags = (o.alive ? 1 : 0) | (o.revealedUntil > this.time ? 2 : 0) | (o.human && o.wpn === 'pistol' ? 4 : 0) | ((o.human ? o.ads > 0.5 : o.state === 'engage') ? 8 : 0) | (o.protectUntil > this.time ? 16 : 0) | (!o.human && o.reloadT > 0 ? 32 : 0);
-      a.push([o.netId, r2(o.pos.x), r2(o.pos.y), r2(o.pos.z), r3(o.yaw), r3(aimY), r3(aimP), r2(o.crouchK), r2(o.speed || 0), mode, flags, Math.max(0, Math.ceil(o.hp)), link, r3(lu), ld]);
+      const flags = (o.alive ? 1 : 0) | (o.revealedUntil > this.time ? 2 : 0) | (o.human && o.wpn === 'pistol' ? 4 : 0) | ((o.human ? o.ads > 0.5 : o.state === 'engage') ? 8 : 0) | (o.protectUntil > this.time ? 16 : 0) | (!o.human && o.reloadT > 0 ? 32 : 0) | ((o.feignK || 0) > 0.5 ? 64 : 0);
+      a.push([o.netId, r2(o.pos.x), r2(o.pos.y), r2(o.pos.z), r3(o.yaw), r3(aimY), r3(aimP), r2(o.crouchK), r2(o.speed || 0), mode, flags, Math.max(0, Math.ceil(o.hp)), link, r3(lu), ld, r2(o.lean || 0)]);
     }
-    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext)], ang: this.angel.state, k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
+    // z[5]: the angel's shadow roof (the client's _netZone reads it)
+    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof], ang: this.angel.state, k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
   }
   drain() { const e = this.events; this.events = []; return e; }
 }

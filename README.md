@@ -23,7 +23,7 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 | Modes | free-for-all (2–8 places), 2 v 2, 4 v 4 (teams WHITE / RED, auto-balanced, players can switch) |
 | AI snipers | host picks how many (fills empty places, balanced across teams) and their skill: recruit / marksman / ghost |
 | Lives | one life (last sniper / last team standing) or respawn (3–12 s delay, 2.5 s spawn protection, win by kills or at the clock) |
-| Rules | time 3/5/7/10 min, score limit, halo on/off, angel gaze on/off, headshots only, friendly fire (teams) |
+| Rules | time 3/5/7/10 min, score limit, halo on/off, angel gaze on/off, the angel fires (off / light / heavy), fog on/off, headshots only, friendly fire (teams) |
 | Locking | rules change only in the lobby; once a match starts they are fixed. After results the host reopens the lobby |
 | Reconnect | refresh or a dropped connection keeps your place (and your sniper, mid-match) for 45 s |
 
@@ -44,11 +44,14 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 ## Protocol (JSON over one WebSocket)
 
 Client → server: `hello{name,token}` · `create{settings}` · `join{code}` · `leave` · `name` · `team` · `ready` ·
-`settings{patch}` · `kick` · `host` · `start` · `lobby` · `chat` · `ping` · in match: `in` · `fire` · `reload` · `fall`.
+`settings{patch}` · `kick` · `host` · `start` · `lobby` · `chat` · `ping` · in match: `in` · `fire` · `reload` · `fall` ·
+`melee{d}` · `nade{k: gas|decoy, o, d}`.
 Every message is validated with zod (`server/src/protocol.js`); 8 KB max, ~60 msgs/s per socket, 12 sockets per IP.
 
 Server → client: `welcome` · `room` (lobby state) · `start` (roster, rules, first snapshot) · `s` (snapshot + events:
-`spawn shot dmg hit kill gaze correct ammo deny free end`) · `error` · `notice` · `left` · `chat` · `pong`.
+`spawn shot dmg hit kill gaze correct ammo deny free end`, and gear events `throw gear fshot melee amark ahit`) ·
+`error` · `notice` · `left` · `chat` · `pong`. Snapshot rows carry lean at [15] and play-dead as flag 64; the zone
+array carries the angel's shadow roof at [5].
 
 ## Solo and online
 
@@ -57,8 +60,15 @@ and AWM, scope vision (thermal and night vision), the RPG-7, the rooftop dogs, t
 travel and drop. The kill cam, aim assist on touch screens and the city set dressing run in both.
 
 Online, the sidearm uses the server's original 9 mm numbers (`client/src/combat.js`); the Desert Eagle numbers apply
-in solo. The client already sends `melee` and `nade` and offers the `angelShots` and `fog` room rules, but the server
-does not support them yet: online it answers those with an error message.
+in solo.
+
+Gear online (`server/src/gear.js`, tuning and throw physics copied from the client's solo code): one gas and one decoy
+can per life (AI snipers one gas), the hammer (55 from the front, 200 from behind or on someone playing dead, judged
+with the same lag rewind as shots), the angel's shadow roof (no reveal and no strikes there), the room rule "the angel
+fires" (marked strikes at each contraction, heavier from the fourth) and fog (bots see 34 m instead of 210 m unless you
+fired in the last 3.5 s). Bots run from gas and strike marks, swing the hammer up close and gas a target that camps.
+Not on the server yet: the client's destructible cover, cable cuts and lamp shots (a can that clips a cover piece can
+land differently on screen than on the server).
 
 ## Deploy
 

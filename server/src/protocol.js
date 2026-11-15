@@ -22,10 +22,13 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('chat'), text: z.string().trim().min(1).max(140) }),
   z.object({ t: z.literal('ping'), c: z.number().finite(), r: z.number().min(0).max(5).optional() }),
   // in match
-  z.object({ t: z.literal('in'), seq: z.number().int().nonnegative(), p: v3, yaw: z.number().finite(), pitch: z.number().finite(), c: z.number().min(0).max(1), mode: z.enum(['walk', 'link', 'mantle']), link: z.number().int().min(-1).max(255).optional(), w: z.enum(['rifle', 'pistol']), ads: z.number().min(0).max(1) }),
+  // ln: lean offset, fd: playing dead (both shown to others; the engine clamps ln)
+  z.object({ t: z.literal('in'), seq: z.number().int().nonnegative(), p: v3, yaw: z.number().finite(), pitch: z.number().finite(), c: z.number().min(0).max(1), mode: z.enum(['walk', 'link', 'mantle']), link: z.number().int().min(-1).max(255).optional(), w: z.enum(['rifle', 'pistol']), ads: z.number().min(0).max(1), ln: z.number().finite().optional(), fd: z.number().optional() }),
   z.object({ t: z.literal('fire'), o: v3, d: v3, w: z.enum(['rifle', 'pistol']), ct: z.number().finite() }),
   z.object({ t: z.literal('reload'), w: z.enum(['rifle', 'pistol']) }),
   z.object({ t: z.literal('fall'), v: z.number().finite() }),
+  z.object({ t: z.literal('melee'), d: v3 }),                                          // a hammer swing along the camera
+  z.object({ t: z.literal('nade'), k: z.enum(['gas', 'decoy']), o: v3, d: v3 }),      // a can thrown from o along d
   z.object({ t: z.literal('dev'), tp: v3 }),   // test servers only (SC_DEV=1): teleport
 ]);
 
