@@ -10,6 +10,8 @@ const RECONNECT_GRACE = 45_000;                         // a dropped player keep
 const EMPTY_TTL = 60_000;
 const HOST_GRACE = 10_000;
 const id = () => crypto.randomBytes(6).toString('base64url');
+// a socket session can take pre-encoded JSON (raw); anything else (tests, tools) gets the object
+const deliver = (conn, msg, str) => (conn.raw ? conn.raw(str) : conn.send(msg));
 
 export class Lobby {
   constructor({ maxRooms = 500, log = () => {} } = {}) { this.rooms = new Map(); this.sessions = new Map(); this.maxRooms = maxRooms; this.log = log; }
@@ -33,6 +35,7 @@ export class UserError extends Error {}
 class Room {
   constructor(lobby, code, host, patch) {
     this.lobby = lobby; this.code = code; this.members = new Map(); this.hostId = host.id; this.state = 'lobby'; this.match = null; this.loop = null; this.round = 0; this.emptySince = Date.now(); this.chat = [];
+    this.banned = new Set();   // ids the host kicked: they can't walk straight back in with the code
     this.settings = normalise(SettingsSchema.parse({ ...DEFAULTS, ...(patch || {}) }), 1); this.add(host);
   }
   humanCount() { let n = 0; for (const m of this.members.values()) if (m.conn || Date.now() - m.leftAt < RECONNECT_GRACE) n++; return n; }
@@ -44,6 +47,7 @@ class Room {
       const m = this.members.get(session.id); m.conn = session; session.room = this; this.broadcastRoom();
       if (this.match && this.state !== 'lobby') session.send(this.startMsg(true));
       return m; }
+    if (this.banned.has(session.id)) throw new UserError('The host removed you from this room.');
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
     if (this.state !== 'lobby') throw new UserError('That match has already started. Ask the host to bring the room back to the lobby.');
     const c = this.teamCounts(); const m = { id: session.id, name: session.name, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0 };
@@ -77,7 +81,7 @@ class Room {
     if (modeChanged) { let i = 0; for (const m of this.members.values()) { m.team = this.teamsOn() ? (i++ % 2) : 0; m.ready = false; } }
     this.broadcastRoom();
   }
-  kick(s, target) { this._hostOnly(s); if (target === s.id) return; if (!this.members.has(target)) return; this.remove(target, 'kicked'); }
+  kick(s, target) { this._hostOnly(s); if (target === s.id) return; if (!this.members.has(target)) return; this.banned.add(target); this.remove(target, 'kicked'); }
   giveHost(s, target) { this._hostOnly(s); const m = this.members.get(target); if (!m || !m.conn) return; this.hostId = target; this.broadcastRoom(); }
   say(s, text) { const m = this.members.get(s.id); const line = { from: m.name, text, at: Date.now() }; this.chat.push(line); if (this.chat.length > 30) this.chat.shift(); this.broadcast({ t: 'chat', ...line }); }
   _hostOnly(s) { if (!this.isHost(s)) throw new UserError('Only the host can do that.'); }
@@ -115,8 +119,8 @@ class Room {
       const now = process.hrtime.bigint(); acc += Number(now - last) / 1e9; last = now; if (acc > 0.5) acc = 0.5;
       const M = this.match; if (!M) return;
       while (acc >= TICK) { M.step(TICK); acc -= TICK; n++; }
-      const ev = M.drain(); const snap = M.snapshot();
-      for (const m of this.members.values()) { if (!m.conn) continue; m.conn.send({ t: 's', s: snap, e: ev.length ? ev : undefined }); }
+      const ev = M.drain(); const msg = { t: 's', s: M.snapshot(), e: ev.length ? ev : undefined }; const str = JSON.stringify(msg);   // encoded once per tick, not once per player
+      for (const m of this.members.values()) { if (m.conn) deliver(m.conn, msg, str); }
       if (M.state === 'over' && this.state === 'match') { this.state = 'results'; this.broadcastRoom(); setTimeout(() => { if (this.match === M) this.stopLoop(); }, 4000); }
     }, 1000 * TICK);
   }
@@ -135,5 +139,5 @@ class Room {
       members: [...this.members.values()].map(m => ({ id: m.id, name: m.name, team: m.team, ready: m.ready, online: !!m.conn })), bots: this.roster().filter(r => r.bot).map(r => ({ id: r.id, team: r.team })) };
   }
   broadcastRoom() { this.broadcast(this.view()); }
-  broadcast(msg) { for (const m of this.members.values()) if (m.conn) m.conn.send(msg); }
+  broadcast(msg) { const str = JSON.stringify(msg); for (const m of this.members.values()) if (m.conn) deliver(m.conn, msg, str); }
 }

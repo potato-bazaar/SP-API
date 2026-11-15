@@ -58,7 +58,8 @@ const server = http.createServer((req, res) => {
 
 // ---------------------------------------------------------------- sockets
 const lobby = new Lobby({ log });
-const tokens = new Map();                 // token -> session id (lets a reconnect reclaim its slot)
+const tokens = new Map();                 // token -> { id, seen } (lets a reconnect reclaim its slot)
+const TOKEN_TTL = 30 * 60_000;            // a token nobody has used for this long, and that holds no room slot, is forgotten
 const perIp = new Map();
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024, perMessageDeflate: false });
 
@@ -67,7 +68,10 @@ wss.on('connection', (ws, req) => {
   const origin = req.headers.origin || ''; if (ORIGINS.length && !ORIGINS.includes(origin)) { ws.close(4003, 'origin'); return; }
   if ((perIp.get(ip) || 0) >= MAX_CONN_PER_IP) { ws.close(4029, 'too many connections'); return; }
   perIp.set(ip, (perIp.get(ip) || 0) + 1);
-  const s = { id: null, name: 'Sniper', room: null, rtt: 0.1, alive: true, budget: 120, ws, send(m) { if (ws.readyState === 1) ws.send(JSON.stringify(m)); } };
+  const s = { id: null, token: null, name: 'Sniper', room: null, rtt: 0.1, alive: true, budget: 120, ws,
+    send(m) { if (ws.readyState === 1) ws.send(JSON.stringify(m)); },
+    raw(str) { if (ws.readyState === 1) ws.send(str); } };   // already-encoded JSON: rooms encode a broadcast once, not once per player
+  ws._s = s;
   const refill = setInterval(() => { s.budget = Math.min(120, s.budget + 60); }, 1000);   // ~60 messages/s sustained, bursts to 120
   ws.on('pong', () => { s.alive = true; });
   ws.on('message', (data, isBinary) => {
@@ -76,15 +80,19 @@ wss.on('connection', (ws, req) => {
     const p = ClientMsg.safeParse(raw); if (!p.success) { if (raw && (raw.t === 'settings' || raw.t === 'create')) s.send({ t: 'error', msg: 'Those settings are not allowed.' }); else if (raw && (raw.t === 'name' || raw.t === 'hello')) s.send({ t: 'error', msg: 'Names are 1-16 letters, numbers, spaces, _ . -' }); else if (raw && raw.t === 'join') s.send({ t: 'error', msg: 'Room codes are 5 letters and numbers.' }); else if (raw && raw.t !== 'in') s.send({ t: 'error', msg: 'bad message' }); return; }
     try { handle(s, p.data); } catch (e) { if (e instanceof UserError) s.send({ t: 'error', msg: e.message }); else if (e && e.name === 'ZodError') s.send({ t: 'error', msg: 'Those settings are not allowed.' }); else { log('error', e); s.send({ t: 'error', msg: 'Something went wrong on the server.' }); } }
   });
-  ws.on('close', () => { clearInterval(refill); perIp.set(ip, Math.max(0, (perIp.get(ip) || 1) - 1)); if (s.room) s.room.disconnect(s); });
+  ws.on('close', () => { clearInterval(refill); perIp.set(ip, Math.max(0, (perIp.get(ip) || 1) - 1)); if (s.room) s.room.disconnect(s); const t = s.token && tokens.get(s.token); if (t) t.seen = Date.now(); });
 });
 
 function handle(s, m) {
   if (m.t === 'hello') {
+    // one hello per connection: a second one would mint another token and swap the id under a room that still holds the first
+    if (s.id) return;
     if (m.v && m.v !== PROTOCOL) { s.send({ t: 'error', msg: 'Your game is out of date: reload the page.' }); return; }
-    const known = m.token && tokens.get(m.token); s.id = known || crypto.randomBytes(6).toString('base64url'); const token = known ? m.token : crypto.randomBytes(18).toString('base64url'); tokens.set(token, s.id);
+    const known = m.token && tokens.get(m.token);
+    s.id = known ? known.id : crypto.randomBytes(6).toString('base64url'); s.token = known ? m.token : crypto.randomBytes(18).toString('base64url');
+    tokens.set(s.token, { id: s.id, seen: Date.now() });
     if (m.name) s.name = m.name;
-    s.send({ t: 'welcome', id: s.id, token, protocol: PROTOCOL });
+    s.send({ t: 'welcome', id: s.id, token: s.token, protocol: PROTOCOL });
     // back into the room this token was in (a refresh or a dropped connection)
     for (const room of lobby.rooms.values()) if (room.members.has(s.id)) { room.add(s); break; }
     return;
@@ -115,6 +123,12 @@ setInterval(() => {
 }, 10_000);
 wss.on('connection', (ws) => { ws._sc = true; ws.on('pong', () => { ws._sc = true; }); });
 setInterval(() => lobby.sweep(), 5_000);
+// forget tokens that are idle and hold nothing: otherwise every new visitor adds one for the life of the process
+setInterval(() => {
+  const live = new Set(); for (const ws of wss.clients) if (ws._s && ws._s.id) live.add(ws._s.id);
+  for (const room of lobby.rooms.values()) for (const id of room.members.keys()) live.add(id);
+  const now = Date.now(); for (const [tok, t] of tokens) if (!live.has(t.id) && now - t.seen > TOKEN_TTL) tokens.delete(tok);
+}, 60_000);
 
 loadWorld(); log('world ready in', loadWorld().ms, 'ms;', 'serving', DIST);
 server.listen(PORT, () => log(`Sniper City server on :${PORT}  (ws path /ws)`));

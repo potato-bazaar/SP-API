@@ -39,6 +39,9 @@ test('room lifecycle: create, join by code, teams, settings, start, play, result
   const mine = s1.events.find(e => e.t === 'spawn' && e.id === host.me.id); assert.ok(mine, 'host spawn event');
   let seq = 0; const p = mine.p.slice();
   for (let i = 0; i < 20; i++) { p[0] += 0.12; host.send({ t: 'in', seq: seq++, p, yaw: 0, pitch: 0, c: 0, mode: 'walk', w: 'rifle', ads: 0 }); await new Promise(r => setTimeout(r, 33)); }
+  // judge a snapshot taken after the last move: the buffered ones from while we were still sending trail it by a few
+  // steps (2 of 0.12 m against a 0.3 m limit), so on a busy machine the check failed on timing alone
+  await new Promise(r => setTimeout(r, 100)); for (let i = host.inbox.length - 1; i >= 0; i--) if (host.inbox[i].t === 's') host.inbox.splice(i, 1);
   const snap = await host.wait(m => m.t === 's' && m.s.t > 0.8); const me = snap.s.a.find(a => a[0] === host.me.id); assert.ok(Math.abs(me[1] - p[0]) < 0.3, 'server follows plausible movement');
   for (let i = 0; i < 4; i++) host.send({ t: 'in', seq: seq++, p: [p[0] + 60, p[1], p[2]], yaw: 0, pitch: 0, c: 0, mode: 'walk', w: 'rifle', ads: 0 });
   const corr = await host.wait(m => m.t === 's' && m.e && m.e.some(e => e.t === 'correct' && e.id === host.me.id)); assert.ok(corr, 'teleport is corrected');

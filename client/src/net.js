@@ -44,7 +44,9 @@ export class Net {
   close() { this.closed = true; clearInterval(this.pingT); if (this.ws) this.ws.close(); }
   _pinger() { clearInterval(this.pingT); const p = () => this._send({ t: 'ping', c: performance.now(), r: +this.rtt.toFixed(3) }); p(); this.pingT = setInterval(p, 2000); }
   _send(m) { if (this.ws && this.open) this.ws.send(JSON.stringify(m)); }
-  send(m) { if (this.open) this._send(m); else if (m.t !== 'in' && m.t !== 'ping') this.queue.push(m); }
+  // while offline keep only lobby actions for the reconnect: shots, reloads and moves are stale by then, and replaying
+  // them would fire old camera rays and spend ammo after the player is back
+  send(m) { if (this.open) this._send(m); else if (!/^(in|ping|fire|reload|fall|melee|nade)$/.test(m.t)) this.queue.push(m); }
   _recv(m) {
     if (m.t === 'welcome') { this.id = m.id; this.token = m.token; store.set('sc.token', m.token); }
     else if (m.t === 'pong') { const r = (performance.now() - m.c) / 1000; this.rtt = this.rtt * 0.75 + r * 0.25; return; }
