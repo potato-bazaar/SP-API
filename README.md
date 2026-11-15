@@ -35,7 +35,9 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 - Each client simulates its own sniper for instant movement and reports position 30×/s. The server checks speed,
   the traversal network (ziplines, pads, ladders) and the street, and corrects anything implausible.
 - Shots: the client sends the camera ray; the server checks ammo and the bolt/fire cycle, rewinds every other sniper
-  to where the shooter saw them (half the round trip + the 100 ms interpolation delay), and fires the shared shot routine.
+  to where the shooter saw them (half the round trip + the 100 ms interpolation delay, at most 0.4 s), and fires the
+  shared shot routine. The round trip is timed by the server itself: a WebSocket ping every 2 s with a sequence number,
+  which browsers answer on their own. The client's reported figure is ignored, so nobody can claim lag for a bigger rewind.
   Damage, hits, kills and the +30 HP for a kill come only from the server.
 - Snapshots (≈0.5 KB, 30×/s) carry every sniper's pose; clients draw others 100 ms behind with interpolation.
 

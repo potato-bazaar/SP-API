@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
+import net from 'node:net';
 import { WebSocketServer } from 'ws';
 import { ClientMsg, PROTOCOL } from './protocol.js';
 import { Lobby, UserError } from './rooms.js';
@@ -12,9 +13,24 @@ import { loadWorld, DIST } from './world.js';
 const PORT = +(process.env.PORT || 8787);
 const ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);   // empty = same-origin or any (dev)
 const MAX_CONN_PER_IP = +(process.env.MAX_CONN_PER_IP || 12);
-// Only believe X-Forwarded-For behind a proxy that sets it (nginx, Cloudflare). Facing the internet directly, any
-// client could put a fresh address in it on every connection and walk straight past MAX_CONN_PER_IP.
+// Only believe X-Forwarded-For behind a proxy that sets it (nginx). Facing the internet directly, any client could
+// put a fresh address in it on every connection and walk straight past MAX_CONN_PER_IP.
 const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+// quicksnipergame.com reaches us through Cloudflare, so its players arrive from Cloudflare's addresses and would all
+// share one connection limit. A connection that really comes from Cloudflare's published ranges
+// (https://www.cloudflare.com/ips/) carries the player's address in CF-Connecting-IP; anyone else's header is ignored.
+const CLOUDFLARE = new net.BlockList();
+for (const c of ['173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18', '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20',
+  '197.234.240.0/22', '198.41.128.0/17', '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22']) { const [a, p] = c.split('/'); CLOUDFLARE.addSubnet(a, +p, 'ipv4'); }
+for (const c of ['2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32']) { const [a, p] = c.split('/'); CLOUDFLARE.addSubnet(a, +p, 'ipv6'); }
+function clientIp(req) {
+  let peer = req.socket.remoteAddress || ''; if (peer.startsWith('::ffff:')) peer = peer.slice(7);   // IPv4 seen through a dual-stack socket
+  const fromCf = peer && CLOUDFLARE.check(peer, net.isIPv6(peer) ? 'ipv6' : 'ipv4');
+  const cf = req.headers['cf-connecting-ip'];
+  if (fromCf && typeof cf === 'string' && net.isIP(cf.trim())) return cf.trim();
+  if (TRUST_PROXY && req.headers['x-forwarded-for']) return String(req.headers['x-forwarded-for']).split(',')[0].trim();
+  return peer;
+}
 const ROOT = path.resolve(DIST), INDEX = path.join(ROOT, 'index.html');
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -64,7 +80,7 @@ const perIp = new Map();
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024, perMessageDeflate: false });
 
 wss.on('connection', (ws, req) => {
-  const ip = ((TRUST_PROXY && req.headers['x-forwarded-for']) || req.socket.remoteAddress || '').split(',')[0].trim();
+  const ip = clientIp(req);
   const origin = req.headers.origin || ''; if (ORIGINS.length && !ORIGINS.includes(origin)) { ws.close(4003, 'origin'); return; }
   if ((perIp.get(ip) || 0) >= MAX_CONN_PER_IP) { ws.close(4029, 'too many connections'); return; }
   perIp.set(ip, (perIp.get(ip) || 0) + 1);
@@ -73,7 +89,15 @@ wss.on('connection', (ws, req) => {
     raw(str) { if (ws.readyState === 1) ws.send(str); } };   // already-encoded JSON: rooms encode a broadcast once, not once per player
   ws._s = s;
   const refill = setInterval(() => { s.budget = Math.min(120, s.budget + 60); }, 1000);   // ~60 messages/s sustained, bursts to 120
-  ws.on('pong', () => { s.alive = true; });
+  // lag compensation runs on round trips the server times itself (see rttPing): a reply counts only if it echoes the
+  // latest ping's sequence number, so a forged or stale pong can't skew it
+  ws.on('pong', (d) => {
+    ws._pongAt = Date.now();
+    if (!d || d.length !== 4 || !ws._pingSent || d.readUInt32LE(0) !== ws._pingSeq) return;
+    const rtt = Math.min(1.5, (performance.now() - ws._pingSent) / 1000); ws._pingSent = 0;
+    s.rtt = s.rttN ? s.rtt * 0.7 + rtt * 0.3 : rtt; s.rttN = (s.rttN || 0) + 1;
+  });
+  ws._pongAt = Date.now(); rttPing(ws);
   ws.on('message', (data, isBinary) => {
     if (isBinary || --s.budget < 0) return;
     let raw; try { raw = JSON.parse(data.toString()); } catch { return; }
@@ -98,7 +122,8 @@ function handle(s, m) {
     return;
   }
   if (!s.id) return;
-  if (m.t === 'ping') { if (m.r != null) s.rtt = s.rtt * 0.7 + m.r * 0.3; s.send({ t: 'pong', c: m.c }); return; }
+  // the client's own round-trip figure (m.r) is ignored: trusting it let a player claim lag and earn the maximum rewind
+  if (m.t === 'ping') { s.send({ t: 'pong', c: m.c }); return; }
   if (m.t === 'name') { s.name = m.name; if (s.room) s.room.setName(s, m.name); return; }
   if (m.t === 'create') { if (s.room) s.room.remove(s.id); const r = lobby.create(s, m.settings); return; }
   if (m.t === 'join') { const r = lobby.find(m.code); if (!r) throw new UserError('No room with that code. Check the letters and try again.'); if (s.room && s.room !== r) s.room.remove(s.id); r.add(s); return; }
@@ -117,11 +142,17 @@ function handle(s, m) {
   }
 }
 
-// round-trip times (for lag compensation) and dead-socket cleanup
+// Round-trip times for lag compensation, measured here: every 2 s each socket gets a WebSocket ping carrying a
+// sequence number. Browsers answer pings by themselves (no game code involved), so this times the network, not a
+// figure the client chose. A socket that hasn't answered anything for 20 s is dead and gets dropped.
+function rttPing(ws) {
+  ws._pingSeq = ((ws._pingSeq || 0) + 1) >>> 0; ws._pingSent = performance.now();
+  const b = Buffer.alloc(4); b.writeUInt32LE(ws._pingSeq); try { ws.ping(b); } catch { /* socket closing */ }
+}
 setInterval(() => {
-  for (const ws of wss.clients) { if (ws._sc === false) { ws.terminate(); continue; } ws._sc = false; ws._pingAt = Date.now(); ws.ping(); }
-}, 10_000);
-wss.on('connection', (ws) => { ws._sc = true; ws.on('pong', () => { ws._sc = true; }); });
+  const now = Date.now();
+  for (const ws of wss.clients) { if (now - (ws._pongAt || now) > 20_000) { ws.terminate(); continue; } rttPing(ws); }
+}, 2_000);
 setInterval(() => lobby.sweep(), 5_000);
 // forget tokens that are idle and hold nothing: otherwise every new visitor adds one for the life of the process
 setInterval(() => {
