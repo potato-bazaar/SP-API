@@ -48,15 +48,50 @@ Every message is validated with zod (`server/src/protocol.js`); 8 KB max, ~60 ms
 Server → client: `welcome` · `room` (lobby state) · `start` (roster, rules, first snapshot) · `s` (snapshot + events:
 `spawn shot dmg hit kill gaze correct ammo deny free end`) · `error` · `notice` · `left` · `chat` · `pong`.
 
+## Solo and online
+
+Online matches are decided by this server. These features currently run in solo matches only: the half-time air drop
+and AWM, scope vision (thermal and night vision), the RPG-7, the rooftop dogs, the prayer, Lucifer, and rifle bullet
+travel and drop. The kill cam, aim assist on touch screens and the city set dressing run in both.
+
+Online, the sidearm uses the server's original 9 mm numbers (`client/src/combat.js`); the Desert Eagle numbers apply
+in solo. The client already sends `melee` and `nade` and offers the `angelShots` and `fog` room rules, but the server
+does not support them yet: online it answers those with an error message.
+
 ## Deploy
 
-Any host that runs a long-lived Node process with WebSockets: Render, Railway, Fly.io, a VPS. `Dockerfile` included;
-`GET /healthz` for health checks. Set `ALLOWED_ORIGINS` in production. One process handles hundreds of rooms
-(a 5-minute 8-sniper match simulates in under a second of CPU). Rooms live in memory, so run one instance
-(or add sticky routing by room code before scaling out).
+Every push to `main` deploys to the Oracle server (`.github/workflows/deploy.yml` → `deploy/deploy.sh`): the workflow
+packages the repo, copies it up over SSH, reinstalls the server's dependencies, restarts the `sniper` service and
+checks `/healthz` from the internet. It needs the `DEPLOY_HOST`, `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` secrets.
+
+Any other host that runs a long-lived Node process with WebSockets works too (Render, Railway, Fly.io, a VPS).
+`Dockerfile` included; `GET /healthz` for health checks. Set `ALLOWED_ORIGINS` in production. One process handles
+hundreds of rooms (a 5-minute 8-sniper match simulates in under a second of CPU). Rooms live in memory, so run one
+instance (or add sticky routing by room code before scaling out).
 
 ## Client
 
-`client/src` is the game (three.js). `npm --workspace client run build` bundles `client/dist/game.js`.
-`client/dist` is what the server serves; the binary asset packs ship as base64 `.txt` (the published single-player
-page needs text types). The single-player page has no room server, so **Play online** stays hidden there.
+`client/dist` is what the server serves:
+
+| File | What it is |
+| --- | --- |
+| `index.html` | Page shell: HUD, scope, touch controls, title / pause / results screens, online lobby, plus the crawlable game description, search and share tags |
+| `game.js` | Bundled game code (renderer, controls, bots, match logic, online client, solo extras, city set dressing). Loaded only after the player presses Play |
+| `arena.json` | Arena layout: rooftops, cover, spawn points (the server loads it too) |
+| `city.txt` | Packed city geometry (the server builds its collision from it) |
+| `models.txt` | Packed 3D models used in every match (weapons, characters, arms) |
+| `models2.txt` | Packed solo-only models (AWM, Lucifer, RPG-7, dog), fetched when a solo match starts |
+| `tex.txt` | Packed textures |
+| `how-to-play.html`, `weapons.html`, `updates.html`, `about.html` | Static help pages, patch notes and model credits |
+| `poster.jpg`, `og.jpg`, `shot-*.jpg` | Title-screen poster, share image and screenshots |
+| `favicon.*`, `icon-*.png`, `apple-touch-icon.png`, `site.webmanifest` | Icons and web app manifest |
+| `robots.txt`, `sitemap.xml` | Crawler rules and sitemap for quicksnipergame.com |
+
+`game.js` fetches the asset files by relative path, so they must sit next to `index.html`. The binary asset packs ship
+as base64 `.txt` (the published single-player page needs text types). The single-player page has no room server, so
+**Play online** stays hidden there; the server adds `<meta name="sc:server" content="same-origin">` to `index.html`.
+
+**`client/src` is older than `client/dist`.** The November 2026 update (Desert Eagle, new arms, phone controls, solo
+extras, SEO) was published as a built `game.js` only, so `npm --workspace client run build` would overwrite it with the
+older game. Don't rebuild the client until the matching source is added to `client/src`. The server imports
+`arena.js`, `combat.js`, `ai.js`, `world.js` and `kit.js` from `client/src`, so those files still decide online matches.

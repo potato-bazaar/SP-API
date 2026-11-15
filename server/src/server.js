@@ -12,29 +12,45 @@ import { loadWorld, DIST } from './world.js';
 const PORT = +(process.env.PORT || 8787);
 const ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);   // empty = same-origin or any (dev)
 const MAX_CONN_PER_IP = +(process.env.MAX_CONN_PER_IP || 12);
+// Only believe X-Forwarded-For behind a proxy that sets it (nginx, Cloudflare). Facing the internet directly, any
+// client could put a fresh address in it on every connection and walk straight past MAX_CONN_PER_IP.
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
+const ROOT = path.resolve(DIST), INDEX = path.join(ROOT, 'index.html');
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // ---------------------------------------------------------------- static client (gzip cached in memory)
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.webmanifest': 'application/manifest+json' };
 const cache = new Map();
 function staticFile(rel) {
-  if (cache.has(rel)) return cache.get(rel);
-  const f = path.join(DIST, rel); if (!f.startsWith(DIST) || !fs.existsSync(f) || !fs.statSync(f).isFile()) return null;
-  let body = fs.readFileSync(f);
-  if (rel === 'index.html') body = Buffer.from(page(body.toString('utf8')));
+  // Cache by the resolved file, not the request path: otherwise a/..%2Fgame.js, b/..%2Fgame.js, ... each store (and
+  // gzip) another copy of the same file. The separator check also keeps a sibling such as client/dist-old out.
+  const f = path.resolve(ROOT, rel); if (!f.startsWith(ROOT + path.sep)) return null;
+  if (cache.has(f)) return cache.get(f);
+  if (!fs.existsSync(f) || !fs.statSync(f).isFile()) return null;
+  let body = fs.readFileSync(f); const index = f === INDEX;
+  if (index) body = Buffer.from(page(body.toString('utf8')));
   const gz = zlib.gzipSync(body, { level: 9 }); const etag = '"' + crypto.createHash('sha1').update(body).digest('base64url').slice(0, 16) + '"';
-  const e = { body, gz, etag, type: TYPES[path.extname(f)] || 'application/octet-stream' }; cache.set(rel, e); return e;
+  const e = { body, gz, etag, index, type: TYPES[path.extname(f)] || 'application/octet-stream' }; cache.set(f, e); return e;
 }
-// the published page is a body fragment (the artifact host wraps it); here we wrap it ourselves
+// The page tells the client where the room server is (sc:server) and pins relative URLs to the root so /r/CODE
+// invite links still load the assets. A full document keeps its own <head> (title, SEO and share tags) and gets
+// these two tags added to it; a body fragment (the artifact host's format) is wrapped in a document of our own.
 function page(fragment) {
+  const head = /<head[^>]*>/i.exec(fragment);
+  if (head) {
+    const extra = '<meta name="sc:server" content="same-origin">' + (/<base\s/i.test(fragment) ? '' : '<base href="/">');
+    return fragment.slice(0, head.index + head[0].length) + extra + fragment.slice(head.index + head[0].length);
+  }
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="sc:server" content="same-origin"><base href="/"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;padding:0}[hidden]{display:none!important}</style></head><body>${fragment}</body></html>`;
 }
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, 'http://x'); let rel = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  // a malformed path (/%E0) makes decodeURIComponent throw; uncaught here, that would take the whole process down
+  let rel; try { rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, ''); } catch { res.writeHead(400); res.end('bad request'); return; }
   if (rel === 'healthz') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: lobby.rooms.size, sessions: wss.clients.size, protocol: PROTOCOL })); return; }
   if (rel === '' || rel.startsWith('r/')) rel = 'index.html';   // /r/CODE invite links open the game
   const f = staticFile(rel); if (!f) { res.writeHead(404); res.end('not found'); return; }
-  const h = { 'content-type': f.type, etag: f.etag, 'cache-control': rel === 'index.html' ? 'no-cache' : 'public, max-age=3600', 'x-content-type-options': 'nosniff' };
+  const h = { 'content-type': f.type, etag: f.etag, 'cache-control': f.index ? 'no-cache' : 'public, max-age=3600', 'x-content-type-options': 'nosniff' };
   if (req.headers['if-none-match'] === f.etag) { res.writeHead(304, h); res.end(); return; }
   if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { h['content-encoding'] = 'gzip'; h['content-length'] = f.gz.length; res.writeHead(200, h); res.end(req.method === 'HEAD' ? undefined : f.gz); }
   else { h['content-length'] = f.body.length; res.writeHead(200, h); res.end(req.method === 'HEAD' ? undefined : f.body); }
@@ -47,7 +63,7 @@ const perIp = new Map();
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 8 * 1024, perMessageDeflate: false });
 
 wss.on('connection', (ws, req) => {
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const ip = ((TRUST_PROXY && req.headers['x-forwarded-for']) || req.socket.remoteAddress || '').split(',')[0].trim();
   const origin = req.headers.origin || ''; if (ORIGINS.length && !ORIGINS.includes(origin)) { ws.close(4003, 'origin'); return; }
   if ((perIp.get(ip) || 0) >= MAX_CONN_PER_IP) { ws.close(4029, 'too many connections'); return; }
   perIp.set(ip, (perIp.get(ip) || 0) + 1);
