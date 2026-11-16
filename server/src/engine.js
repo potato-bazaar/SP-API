@@ -51,7 +51,7 @@ export class Match {
     this.angel = { eye: new V3(0, 71.5, 0), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     this.gearSim = new ServerGear(this);             // gas, decoys, the hammer, the angel's strikes and shadow roof
-    this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer)
+    this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer, the air drop and its AWM)
     // actors
     this.humans = []; this.bots = []; const names = CALLSIGNS.slice().sort(() => Math.random() - 0.5); let bi = 0;
     for (const r of roster) {
@@ -200,7 +200,7 @@ export class Match {
   /** a trigger pull. o/d: the client's camera ray; lag: seconds the shooter's view of others is behind the server */
   fire(id, m, lag) {
     const a = this.byId.get(id); if (!a || !a.alive || !this.weaponsFree || this.state !== 'live') return;
-    const W = WEAPONS[m.w === 'pistol' ? 'pistol' : 'rifle']; const st = a.ammo[W.key];
+    const W = m.w === 'pistol' ? WEAPONS.pistol : this.extras.rifleOf(a); const st = a.ammo[W.key];   // holding the AWM: its numbers (extras.js)
     if (!Array.isArray(m.o) || !Array.isArray(m.d) || m.o.length !== 3 || m.d.length !== 3 || ![...m.o, ...m.d].every(Number.isFinite)) return;
     if (a.reloadUntil > this.time) return this.events.push({ t: 'deny', id: a.netId, why: 'reload', ammo: this._ammo(a) });
     if (st.mag <= 0) return this.events.push({ t: 'deny', id: a.netId, why: 'empty', ammo: this._ammo(a) });
@@ -212,7 +212,8 @@ export class Match {
     const back = clamp(lag, 0, HISTORY - 0.05); const saved = [];
     if (back > 0.001) for (const o of this.actors) { if (o === a || !o.alive) continue; const pose = this._poseAt(o, this.time - back); if (pose) { saved.push([o, o.pos.clone(), o.crouchK]); o.pos.set(pose[1], pose[2], pose[3]); o.crouchK = pose[4]; } }
     this.deferred = []; this._shotW = W.key;
-    fireShot(this, a, origin, dir, origin.clone().addScaledVector(dir, 0.8), W);
+    const shoot = () => fireShot(this, a, origin, dir, origin.clone().addScaledVector(dir, 0.8), W);
+    if (W.pierce) this.extras.pierce(shoot); else shoot();   // the AWM's round goes through walls (solo's pierce)
     for (const [o, p, c] of saved) { o.pos.copy(p); o.crouchK = c; }
     const pend = this.deferred; this.deferred = null; this._shotW = null;
     for (const d of pend) { this.damage(...d); if (d[0] && d[3].zone != null) this.events.push({ t: 'hit', id: a.netId, to: d[0].netId, z: d[3].zone, kill: !d[0].alive }); }

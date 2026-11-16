@@ -4630,7 +4630,7 @@ constructor(g){
   this.g=g;this.S=g.gfx.scene;this.R=9;
   // which extras also run in ONLINE matches (solo runs them all). One switched on here must take its truths (blood, bullets,
   // kills) from the server: see allow(), _netCss(), pre(), post() and netEvent(). drop = the air drop and its AWM.
-  this.NET={vision:1,pray:1,drop:0,rpg:0,dog:0,luci:0,wisps:0};
+  this.NET={vision:1,pray:1,drop:1,rpg:0,dog:0,luci:0,wisps:0};
   let M=window.__scx||{};
   this.brush=this._brushTex();this.soft=this._softTex();
   this.red=14685739;
@@ -4653,6 +4653,7 @@ constructor(g){
     for(let k in solo)Object.defineProperty(W,k,{get:()=>g.net?net[k]:solo[k],set:v=>{solo[k]=v},configurable:!0,enumerable:!0})}
   let st0=g.start.bind(g);g.start=(...a)=>{this._fresh=!0;this.loadPack();return st0(...a)};
   if(g.startNet){let sn0=g.startNet.bind(g);g.startNet=(...a)=>{a[1]&&!a[1].rejoin&&(this._fresh=!0);this.loadPack();return sn0(...a)}}
+  if(g.netFire){let nf=g.netFire.bind(g);g.netFire=(a,d,m,w)=>g.player.awm&&w===Vi.awm?this.pierce(()=>nf(a,d,m,w),a,d):nf(a,d,m,w)} // online AWM: drawn through walls, as the server fires it
   // kills by the dog, a rocket, Lucifer or the AWM do not feed the three-kill streak
   this.skip=0;let kl=g.kill.bind(g);g.kill=(a,e,i)=>{!g.net&&e===g.player&&a!==e&&i&&(i.cause==="dog"||i.cause==="rpg"||i.cause==="lucifer"||i.wpn===Vi.awm)&&this.skip++;return kl(a,e,i)};
   {let H=g.hud,hw=H.weapon.bind(H);H.weapon=q=>{hw(q);if(q===g.player&&this.RP&&this.RP.on&&!g.net){let n=this.RP.ammo;H.el.wname.textContent="RPG-7";H.el.mag.textContent=n;H.el.res.textContent="/ 0";H.el.ammo.classList.toggle("empty",n===0)}}}
@@ -4879,7 +4880,7 @@ _introDom(){
   document.getElementById("app").appendChild(el);
   let sk=e=>{e.preventDefault();e.stopPropagation();this.tapSkip=!0},b=el.querySelector("#sx-skip");b.addEventListener("touchstart",sk,{passive:!1});b.addEventListener("mousedown",sk);b.addEventListener("click",sk);this.skipD=b;
   let tb=this.skipT=document.createElement("button");tb.id="b-skip";tb.type="button";tb.hidden=!0;tb.textContent="SKIP \u25B8";tb.addEventListener("touchstart",sk,{passive:!1});tb.addEventListener("mousedown",sk);document.getElementById("app").appendChild(tb);
-  this.cardsNet=[0,1,2,5];
+  this.cardsNet=this.NET.drop?[0,1,2,3,5]:[0,1,2,5];
   this.cards=[["Welcome to Sniper City","eight snipers \xB7 one rooftop district \xB7 one walks away"],
     ["Stay unseen","every shot draws a red thread straight back to you",1],
     ["The angel is watching","when her halo closes, stay inside it or bleed"],
@@ -4893,7 +4894,7 @@ _introKill(){let N=this.N;if(!N.on)return;N.on=!1;this.introEl.hidden=!0;this.sk
 introEnd(){let N=this.N,g=this.g;if(!N.on)return;let lite=N.lite;this._introKill();!lite&&g.state==="live"&&(g.time=Math.max(g.time,5))}
 _introLite(t){ // online: the match is already running, so the rules pass as cards over the live game and nothing is frozen
   let N=this.N;N.t+=t;if(this.tapSkip||N.t>=10){this.tapSkip=!1;this.introEnd();return}
-  let ci=Math.min(this.cardsNet.length-1,Math.floor(N.t/2.5));if(ci!==N.card){N.card=ci;let c=this.cards[this.cardsNet[ci]];this.introEl.querySelector(".slot").innerHTML='<div class="card'+(c[2]?" red":"")+'" style="animation-duration:2.5s"><b>'+c[0]+"</b><span>"+c[1]+"</span></div>"}
+  let cd=10/this.cardsNet.length,ci=Math.min(this.cardsNet.length-1,Math.floor(N.t/cd));if(ci!==N.card){N.card=ci;let c=this.cards[this.cardsNet[ci]];this.introEl.querySelector(".slot").innerHTML='<div class="card'+(c[2]?" red":"")+'" style="animation-duration:'+cd+'s"><b>'+c[0]+"</b><span>"+c[1]+"</span></div>"}
 }
 _introStep(t){
   let N=this.N,g=this.g,p=g.player,cam=g.gfx.camera;N.t+=t;
@@ -4921,8 +4922,24 @@ _prayNet(e){ // the server took half your blood and a tenth of your bullets (its
   let g=this.g,p=g.player,P=this.P;P.ask=0;P.used=!0;this._pm();if(!p.alive)return;P.view=e.view||5;P.see=e.see||20;P.home.copy(p.pos);
   g.input.setToggle("ads",!1,document.getElementById("b-ads"));this._prayed=!0;this._mm=-1;
   g.hud.banner("the angel accepts",2.6,!1,"half your blood \xB7 a tenth of your bullets",!0);g.audio.toll&&g.audio.toll(5)}
+_dropNet(e){ // the server's crate (extras.js): ph 1 beam, 2 falling since e.at, 3 landed (smoke), 4 taken by e.by; re: told again after a reconnect (no banners)
+  let g=this.g,C=this.C,ph=e.ph;C.pt.set(e.p[0],e.p[1],e.p[2]);C.beam.position.set(C.pt.x,C.pt.y+80,C.pt.z);C.half=e.at;
+  if(ph>=4){let was=C.phase;C.phase=4;C.hold=0;C.grp.visible=C.beam.visible=!1;for(let m of C.smoke)m.visible=!1;
+    !e.re&&was&&e.by!==(g.net&&g.net.id)&&g.hud.banner("air drop taken",1.8,!0,(g._nm?g._nm(e.by):"someone")+" has the AWM");return}
+  if(C.phase>=ph)return; // e.g. it already landed here (the fall is drawn locally from e.at)
+  C.phase=ph;C.hold=0;C.beam.visible=!0;
+  if(ph===1){e.re||(g.hud.banner("air drop inbound",3,!1,"the red beam marks the roof",!0),g.audio.tick&&g.audio.tick());return}
+  C.grp.visible=!0;C.y=ph===2?Math.max(C.pt.y+.4,C.pt.y+70-16*Math.max(0,g.time-e.at)):C.pt.y+.4;C.grp.position.set(C.pt.x,C.y,C.pt.z);
+  if(ph===3){for(let m of C.smoke)m.visible=!0;e.re||g.audio.land&&g.audio.land(1)}}
+_awmNet(e){ // the server put the AWM in your hands or took it back (its numbers live there); e.ammo is your true ammo after it
+  let g=this.g,p=g.player;
+  if(e.on)p.awm||(e.re?(this.sv={mag:p.w.rifle.mag,reserve:p.w.rifle.reserve},p.awm=!0,p.reloadT=-1):this.awmOn());
+  else p.awm&&(e.re?(this.sv=null,p.awm=!1):this.awmOff());
+  e.ammo&&g._netAmmo&&g._netAmmo(e.ammo)}
 netEvent(e){ // server events the game does not handle itself (game.js netGearEvent forwards them); true = handled here
   try{let g=this.g,me=g.net&&g.net.id,p=g.player;
+    if(e.t==="drop"){this._dropNet(e);return!0}
+    if(e.t==="awm"){e.id===me&&this._awmNet(e);return!0}
     if(e.t==="pray"){e.id===me&&this._prayNet(e);return!0}
     if(e.t==="prayno"){if(e.id===me){this.P.ask=0;e.why==="used"&&(this.P.used=!0,this._pm());p.alive&&g.audio.dry&&g.audio.dry()}return!0}
     if(e.t==="dmg"&&e.cause==="pray"){let o=g.byNet&&g.byNet.get(e.id);o&&(o.hp=e.hp,o===p&&g.hud.health(e.hp));return!0} // paid, not hurt: no flinch, no red flash (as in solo)
@@ -4962,9 +4979,10 @@ post(t){
   this.btn.hidden=!(this.can&&g.input.touch);
   if(this.want){this.want=!1;this.can&&this.startL()}}
   // --- air drop
-  let half=g.Z.duration/2;
-  if(on("drop")){if(C.phase===0&&g.time>=half-12){this._pick();C.phase=1;C.beam.visible=!0;g.hud.banner("air drop inbound",3,!1,"the red beam marks the roof",!0);g.audio.tick&&g.audio.tick()}
-  if(C.phase===1&&g.time>=half){C.phase=2;C.y=C.pt.y+70;C.grp.visible=!0}
+  let half=g.net&&C.half!=null?C.half:g.Z.duration/2;
+  // online: the server picks the roof, runs the timeline and decides who opens it (netEvent drop/awm); here it falls, smokes and counts
+  if(on("drop")){if(!g.net&&C.phase===0&&g.time>=half-12){this._pick();C.phase=1;C.beam.visible=!0;g.hud.banner("air drop inbound",3,!1,"the red beam marks the roof",!0);g.audio.tick&&g.audio.tick()}
+  if(!g.net&&C.phase===1&&g.time>=half){C.phase=2;C.y=C.pt.y+70;C.grp.visible=!0}
   if(C.phase===2){C.y=Math.max(C.pt.y+.4,C.y-16*t);C.grp.position.set(C.pt.x,C.y,C.pt.z);C.grp.rotation.y+=t*.4*(C.y>C.pt.y+.5?1:0);
     if(C.y<=C.pt.y+.41){C.phase=3;for(let m of C.smoke)m.visible=!0;g.audio.land&&g.audio.land(1)}}
   if(C.phase===3){
@@ -4972,10 +4990,10 @@ post(t){
     for(let m of C.smoke){let f=(k*.22+m.userData.o)%1;m.position.set(C.pt.x+Math.sin(m.userData.o*40+k*.3)*.8*f,C.pt.y+.6+f*9,C.pt.z+Math.cos(m.userData.o*31)*.8*f);m.quaternion.copy(q);m.scale.setScalar(.6+f*2.2);m.material.opacity=.55*(1-f)}
     let dx=p.pos.x-C.pt.x,dz=p.pos.z-C.pt.z,near=p.alive&&!L.on&&Math.hypot(dx,dz)<2.4&&Math.abs(p.pos.y-C.pt.y)<3;
     C.hold=near?C.hold+t:0;
-    if(C.hold>=1.5){C.phase=4;C.grp.visible=C.beam.visible=!1;for(let m of C.smoke)m.visible=!1;this.awmOn()}
+    if(C.hold>=1.5)if(g.net)C.hold=1.5;else{C.phase=4;C.grp.visible=C.beam.visible=!1;for(let m of C.smoke)m.visible=!1;this.awmOn()}
   }}
   // --- AWM
-  if(p.awm){let w=p.w.rifle;(!p.alive||w.mag<=0&&p.boltT<0&&w.cool<=0)&&this.awmOff()}
+  if(p.awm&&!g.net){let w=p.w.rifle;(!p.alive||w.mag<=0&&p.boltT<0&&w.cool<=0)&&this.awmOff()} // online: the server's awm event
   let vr=g.fp.rifle.visible;this.awmG.visible=!!p.awm&&vr&&this.hasAwm;p.awm&&this.hasAwm&&(g.fp.rifle.visible=!1);
   {let w=p.w[p.cur],k=p.cur+(p.awm?"a":"");p.alive&&on("dog")&&this._mk===k&&w.mag<this._mm&&p.reloadT<0&&!this._prayed&&this._shotAtDogs();this._mk=k;this._mm=w.mag;this._prayed=!1}
   on("rpg")&&this._rpgStep(t,vr);on("dog")?this._dogStep(t):this._dogNear=null;
