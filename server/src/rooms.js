@@ -134,6 +134,7 @@ class Room {
     else if (msg.t === 'fire') { const lag = Math.min(0.4, (s.rtt || 0.1) / 2 + 0.1); M.fire(s.id, msg, lag); }
     else if (msg.t === 'melee') M.melee(s.id, msg, Math.min(0.4, (s.rtt || 0.1) / 2 + 0.1));   // same rewind as a shot
     else if (msg.t === 'nade') M.nade(s.id, msg);
+    else if (msg.t === 'pray') M.pray(s.id);
     else if (msg.t === 'reload') M.reload(s.id, msg.w);
     else if (msg.t === 'fall') M.fall(s.id, msg.v);
     else if (msg.t === 'dev' && process.env.SC_DEV === '1') { const a = M.byId.get(s.id); if (a) { a.pos.set(...msg.tp); a.valid.copy(a.pos); M.events.push({ t: 'correct', id: a.netId, p: msg.tp }); } }

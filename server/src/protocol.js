@@ -29,6 +29,7 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('fall'), v: z.number().finite() }),
   z.object({ t: z.literal('melee'), d: v3 }),                                          // a hammer swing along the camera
   z.object({ t: z.literal('nade'), k: z.enum(['gas', 'decoy']), o: v3, d: v3 }),      // a can thrown from o along d
+  z.object({ t: z.literal('pray') }),                                                  // the prayer (once a match; the server pays it)
   z.object({ t: z.literal('dev'), tp: v3 }),   // test servers only (SC_DEV=1): teleport
 ]);
 

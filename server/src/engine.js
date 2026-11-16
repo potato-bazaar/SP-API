@@ -8,6 +8,7 @@ import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes } from '../../client/src/world.js';
 import { MODES } from './rules.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
+import { ServerExtras } from './extras.js';
 
 const V3 = THREE.Vector3; const clamp = (x, a, b) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t;
 const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
@@ -50,6 +51,7 @@ export class Match {
     this.angel = { eye: new V3(0, 71.5, 0), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     this.gearSim = new ServerGear(this);             // gas, decoys, the hammer, the angel's strikes and shadow roof
+    this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer)
     // actors
     this.humans = []; this.bots = []; const names = CALLSIGNS.slice().sort(() => Math.random() - 0.5); let bi = 0;
     for (const r of roster) {
@@ -186,6 +188,8 @@ export class Match {
     for (const [o, p, c] of saved) { o.pos.copy(p); o.crouchK = c; }
     this.gearSim.meleeHit(a, hit, dir);
   }
+  /** the prayer (half your blood and a tenth of your bullets for the angel's eyes and sight through walls) */
+  pray(id) { const a = this.byId.get(id); if (a && a.human) this.extras.pray(a); }
   /** a gas or decoy can */
   nade(id, m) { const a = this.byId.get(id); if (a && a.human) this.gearSim.throw(a, m.k, m.o, m.d); }
   fall(id, v) { const a = this.byId.get(id); if (!a || !a.alive || !Number.isFinite(v)) return; v = clamp(v, 0, 60); if (v > 14.5) this.damage(a, Math.min(100, (v - 14.5) * 8), null, { cause: 'fall' }); }
@@ -231,6 +235,7 @@ export class Match {
     }
     for (const b of this.bots) { b.update(dt); if (b.alive && b.pos.y < 9.5) this.damage(b, 999, null, { cause: 'drop' }); }
     this.gearSim.update(dt);   // cans in flight, gas clouds, decoys, angel strikes, bots' gear
+    this.extras.update(dt);
     if (this.S.respawn) for (const a of this.actors) if (!a.alive && a.respawnAt && this.time >= a.respawnAt) { a.respawnAt = 0; const s = this._respawnPoint(a); this._place(a, s.p, s.yaw, s.roof, true); }
     // pose history for lag compensation
     for (const a of this.actors) { const h = this.hist.get(a.netId); h.push([this.time, a.pos.x, a.pos.y, a.pos.z, a.crouchK]); while (h.length && h[0][0] < this.time - HISTORY) h.shift(); }
