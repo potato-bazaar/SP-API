@@ -1,8 +1,12 @@
 {
  "name": "Sniper City",
  "short_name": "Sniper City",
+ "id": "/",
  "start_url": "./",
+ "scope": "./",
+ "description": "Eight snipers on the rooftops of one Hong Kong block. Free, in your browser.",
  "display": "fullscreen",
+ "display_override": ["fullscreen", "standalone"],
  "orientation": "landscape",
  "background_color": "#050505",
  "theme_color": "#050505",
