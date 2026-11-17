@@ -78,6 +78,15 @@ to the nearest enemy, 14 s, players and AI snipers can shoot it down), 600 the m
 lands 1.5 s after it is marked). Events: `pts puno drone dshot dhit strike msl boom`; drones ride in the snapshot as
 `d: [[owner, x, y, z, yaw, hp]]`. Lucifer, the RPG and the dogs stay solo-only.
 
+## Analytics
+
+Google Analytics 4 (`G-35JN77C7TQ`) is loaded in the head of every page in `client/dist`. The game adds events
+(`ANALYTICS` in `game.js`): `play_click`, `game_loaded`, `solo_match_start`, `online_match_start` (mode, players, the
+room's switches), `room_entered`, `kill` and `death` (how), `match_end` (won, kills, shots, hits, place, seconds, fps),
+`powerup_used`, `gear_used`, `hammer_swing`, `weapon_switch`, `traversal`, `scope_vision`, `prayer_used`, `lucifer_used`,
+`rpg_fired`, `dog_sent`, `airdrop_opened`, `play_dead`, `setting_changed`, `pause`, `tab_hidden`, `exception`. No names,
+room codes or chat are sent. There is no cookie-consent banner yet.
+
 ## Deploy
 
 Every push to `main` deploys to the Oracle server (`.github/workflows/deploy.yml` → `deploy/deploy.sh`): the workflow

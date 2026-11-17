@@ -1,4 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-35JN77C7TQ"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-35JN77C7TQ');</script>
 <title>Sniper City - Free Online 8-Player Sniper Game | Play in Browser</title>
 <meta name="description" content="Sniper City is a free 8-player sniper game played in your browser. Hunt across foggy Hong Kong rooftops, solo or online with friends. No download.">
 <link rel="canonical" href="https://quicksnipergame.com/">
@@ -568,7 +571,7 @@ html.booted #play,html.booted #playnote{display:none}
 (function(){
   var done=false,root=document.documentElement;
   function boot(){if(done)return;done=true;root.classList.add("booted");try{localStorage.setItem("sc.played","1")}catch(e){}
-    var s=document.createElement("script");s.src="game.js";s.onerror=function(){var t=document.getElementById("loadtxt");t&&(t.textContent="could not load - check your connection and reload")};document.body.appendChild(s)}
+    try{gtag("event","play_click")}catch(e){}var s=document.createElement("script");s.src="game.js";s.onerror=function(){var t=document.getElementById("loadtxt");t&&(t.textContent="could not load - check your connection and reload")};document.body.appendChild(s)}
   window.__scBoot=boot;
   var auto=!!window.__TEST;try{auto=auto||localStorage.getItem("sc.played")==="1"}catch(e){}
   auto=auto||/\/r\/[A-Za-z0-9]{5,8}\b/.test(location.pathname)||/(^|[#&])room=/.test(location.hash);
