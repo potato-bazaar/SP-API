@@ -45,7 +45,7 @@ const log = (...a) => console.log(new Date().toISOString(), ...a);
 
 // ---------------------------------------------------------------- static client (gzip cached in memory)
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.webmanifest': 'application/manifest+json', '.mp3': 'audio/mpeg' };
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml; charset=utf-8', '.webmanifest': 'application/manifest+json', '.mp3': 'audio/mpeg', '.wav': 'audio/wav' };
 const cache = new Map();
 function staticFile(rel, wsUrl) {
   // Cache by the resolved file, not the request path: otherwise a/..%2Fgame.js, b/..%2Fgame.js, ... each store (and
