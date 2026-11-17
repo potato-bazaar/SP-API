@@ -91,6 +91,8 @@ export class Online {
       ['the angel looks', 'angelGaze', [[true, 'ON'], [false, 'OFF']]],
       ['headshots only', 'headshotsOnly', [[false, 'NO'], [true, 'YES']]],
       ['the hammer', 'hammer', [[true, 'ALLOWED'], [false, 'OFF']]],
+      ['the knife', 'knife', [[true, 'ON'], [false, 'OFF']]], ['gas cans', 'gas', [[true, 'ON'], [false, 'OFF']]], ['smoke bombs', 'smoke', [[true, 'ON'], [false, 'OFF']]], ['decoys', 'decoy', [[true, 'ON'], [false, 'OFF']]],
+      ['attack drone', 'drone', [[true, 'ON'], [false, 'OFF']]], ['missile strike', 'strike', [[true, 'ON'], [false, 'OFF']]],
       ...(teams ? [['friendly fire', 'friendlyFire', [[false, 'OFF'], [true, 'ON']]]] : []),
     ];
     $('lset').innerHTML = rows.map(([label, key, opts]) => `<div class="row"><span class="lab">${label}</span><div class="seg">${opts.map(([v, t]) => `<button type="button" data-k="${key}" data-v='${JSON.stringify(v)}' aria-pressed="${S[key] === v}" ${host && lobby ? '' : 'disabled'}>${t}</button>`).join('')}</div></div>`).join('');

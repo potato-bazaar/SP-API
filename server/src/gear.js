@@ -15,7 +15,7 @@ export const G = {
   strikeWarn: 1.15, strikeR: 1.7, strikeDmg: 35,
 };
 /** a fresh life's cans: players get one of each, AI snipers one gas (as in solo) */
-export const freshKit = (human) => (human ? { gas: 1, decoy: 1, smoke: 1 } : { gas: 1, decoy: 0, smoke: 0 });
+export const freshKit = (human, S) => { const on = (k) => (S && S[k] === false ? 0 : 1); return human ? { gas: on('gas'), decoy: on('decoy'), smoke: on('smoke') } : { gas: on('gas'), decoy: 0, smoke: 0 }; };   // S: the room's rules
 const r3 = (v) => Math.round(v * 1000) / 1000, r2 = (v) => Math.round(v * 100) / 100;
 const v3r = (v) => [r3(v.x), r3(v.y), r3(v.z)];
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -94,7 +94,7 @@ export class ServerGear {
   hammerLeft(a) { return a.hammerLeft == null ? G.hammerUses : a.hammerLeft; }
   meleeAllowed(a, kind) {
     const m = this.m, knife = kind === 'knife';
-    if (!knife && m.S && m.S.hammer === false) return false;   // room rule: the hammer is off (the knife stays)
+    if (m.S && m.S[knife ? 'knife' : 'hammer'] === false) return false;   // room rules: the hammer / the knife switched off
     if (!a.alive || m.state !== 'live' || !m.weaponsFree || (a.meleeReady || 0) > m.time) return false;
     if (!knife) { const left = this.hammerLeft(a); if (left <= 0) { if (a.human) m.events.push({ t: 'melee', by: a.netId, to: null, k: 'hammer', left: 0 }); return false; } a.hammerLeft = left - 1; }   // every swing counts, hit or miss; the count lasts the whole match
     a.meleeReady = m.time + (knife ? G.knifeCycle : G.meleeCycle) * 0.9; return true;   // a little slack for jitter on the client's 0.62 s swing
@@ -200,7 +200,7 @@ export class ServerGear {
     }
     if (dist < 1.6 && (b._meleeAt || 0) < now && m.weaponsFree && (b.mag === 0 || b.reloadT > 0 || Math.random() < 0.35)) {
       b._meleeAt = now + 1.6; const dir = t.chest(new V3()).sub(b.eye(new V3())).normalize();
-      const kind = (m.S && m.S.hammer === false) || this.hammerLeft(b) <= 0 ? 'knife' : 'hammer';
+      const kind = (m.S && m.S.hammer === false) || this.hammerLeft(b) <= 0 ? 'knife' : 'hammer';   // meleeAllowed refuses whichever the room switched off
       if (this.meleeAllowed(b, kind)) this.meleeHit(b, this.meleeTarget(b, dir, kind), dir, kind); return;
     }
     if (!b.kit || !(b.kit.gas > 0) || !m.weaponsFree || dist < 9 || dist > 34) return;

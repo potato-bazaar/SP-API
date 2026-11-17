@@ -23,6 +23,7 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 | Modes | free-for-all (2–8 places), 2 v 2, 4 v 4 (teams WHITE / RED, auto-balanced, players can switch) |
 | AI snipers | host picks how many (fills empty places, balanced across teams) and their skill: recruit / marksman / ghost |
 | Lives | one life (last sniper / last team standing) or respawn (3–12 s delay, 2.5 s spawn protection, win by kills or at the clock) |
+| Switches | the host can turn off the hammer, the knife, gas cans, smoke bombs, decoys, the attack drone and the missile strike |
 | Rules | time 3/5/7/10 min, score limit, halo on/off, angel gaze on/off, the angel fires (off / light / heavy), fog on/off, headshots only, friendly fire (teams) |
 | Locking | rules change only in the lobby; once a match starts they are fixed. After results the host reopens the lobby |
 | Reconnect | refresh or a dropped connection keeps your place (and your sniper, mid-match) for 45 s |
@@ -45,7 +46,7 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 
 Client → server: `hello{name,token}` · `create{settings}` · `join{code}` · `leave` · `name` · `team` · `ready` ·
 `settings{patch}` · `kick` · `host` · `start` · `lobby` · `chat` · `ping` · in match: `in` · `fire` · `reload` · `fall` ·
-`melee{d, k: hammer|knife}` · `nade{k: gas|decoy|smoke, o, d}`.
+`melee{d, k: hammer|knife}` · `nade{k: gas|decoy|smoke, o, d}` · `pu{k: drone|strike}` · `pum{p: [x, z]}`.
 Every message is validated with zod (`server/src/protocol.js`); 8 KB max, ~60 msgs/s per socket, 12 sockets per IP.
 
 Server → client: `welcome` · `room` (lobby state) · `start` (roster, rules, first snapshot) · `s` (snapshot + events:
@@ -70,6 +71,12 @@ fires" (marked strikes at each contraction, heavier from the fourth) and fog (bo
 fired in the last 3.5 s). Bots run from gas and strike marks, swing the hammer up close and gas a target that camps.
 Not on the server yet: the client's destructible cover, cable cuts and lamp shots (a can that clips a cover piece can
 land differently on screen than on the server).
+
+Power-ups online (`server/src/powerups.js`, numbers shared with the client's solo code): 100 points a kill with your own
+guns, hammer or knife (+50 a head, +50 from the third in a row; dying keeps the points). 300 buys the attack drone (flies
+to the nearest enemy, 14 s, players and AI snipers can shoot it down), 600 the missile strike (15 s, five missiles, each
+lands 1.5 s after it is marked). Events: `pts puno drone dshot dhit strike msl boom`; drones ride in the snapshot as
+`d: [[owner, x, y, z, yaw, hp]]`. Lucifer, the RPG and the dogs stay solo-only.
 
 ## Deploy
 

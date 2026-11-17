@@ -9,6 +9,7 @@ import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world
 import { MODES } from './rules.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
 import { ServerExtras } from './extras.js';
+import { ServerPowerups } from './powerups.js';
 
 const V3 = THREE.Vector3; const clamp = (x, a, b) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t;
 const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
@@ -54,12 +55,13 @@ export class Match {
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     this.gearSim = new ServerGear(this);             // gas, smoke, decoys, the hammer, the angel's strikes and shadow roof
     this.smokeCut = (p, q) => this.gearSim.smokeCut(p, q);   // client/src/ai.js: bots do not see through smoke
+    this.power = new ServerPowerups(this);           // points, the attack drone, the missile strike
     this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer, the air drop and its AWM)
     // actors
     this.humans = []; this.bots = []; const names = CALLSIGNS.slice().sort(() => Math.random() - 0.5); let bi = 0;
     for (const r of roster) {
       if (r.bot) { const b = new Bot(this, bi + 1, names[bi % names.length], null, null); bi++; b.netId = r.id; b.team = r.team; this.bots.push(b); }
-      else this.humans.push(new Human(r.id, r.name, r.team));
+      else { const h = new Human(r.id, r.name, r.team); h.kit = freshKit(true, this.S); this.humans.push(h); }
     }
     this.actors = [...this.humans, ...this.bots]; this.byId = new Map(this.actors.map(a => [a.netId, a]));
     this.hist = new Map(this.actors.map(a => [a.netId, []]));
@@ -81,9 +83,9 @@ export class Match {
     }
   }
   _place(a, p, yaw, roof, protect) {
-    if (a.human) { a.reset(); a.pos.copy(p); a.valid.copy(p); a.yaw = yaw; if (protect) a.protectUntil = this.time + 2.5; }
+    if (a.human) { a.reset(); a.kit = freshKit(true, this.S); a.pos.copy(p); a.valid.copy(p); a.yaw = yaw; if (protect) a.protectUntil = this.time + 2.5; }
     else { const k = a.kills, d = a.deaths || 0, s = a.shots, h = a.hits, hs = a.heads; a.reset(); a.kills = k; a.deaths = d; a.shots = s; a.hits = h; a.heads = hs; a.spawn(p, yaw, roof); a.protectUntil = protect ? this.time + 2.5 : 0;
-      a.kit = freshKit(false); a.meleeReady = 0; a.throwReady = 0; a.gasT = null; a._camp = null; }
+      a.kit = freshKit(false, this.S); a.meleeReady = 0; a.throwReady = 0; a.gasT = null; a._camp = null; }
     a.roofI = roof;
     this.events.push({ t: 'spawn', id: a.netId, p: [r2(p.x), r2(p.y), r2(p.z)], yaw: r3(yaw), roof, hp: 100 });
   }
@@ -147,12 +149,13 @@ export class Match {
     // cause: deaths with no one to credit (the client's death screen names them); how: the kill feed's label otherwise
     const credited = killer && killer !== v;
     const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : info.cause === 'angel' ? 'angel' : info.cause === 'gas' && !credited ? 'gas' : null;
-    const how = cause ? '' : info.cause === 'melee' ? (info.knife ? 'knife' : 'hammer') : info.cause === 'gas' ? 'gas' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
+    const how = cause ? '' : info.cause === 'melee' ? (info.knife ? 'knife' : 'hammer') : info.cause === 'gas' ? 'gas' : info.cause === 'drone' ? 'drone' : info.cause === 'missile' ? 'missile' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
     const friendly = killer && this.teams && killer.team === v.team && killer !== v;
     if (killer && killer !== v && killer.alive) { if (!friendly) killer.kills++; killer.hp = Math.min(100, killer.hp + 30); }
     if (!this.S.respawn) { const alive = this.actors.filter(a => a.alive).length; v.place = alive + 1; }
     else v.respawnAt = this.time + this.S.respawnDelay;
     if (!v.human) v.die();
+    this.power.onKill(v, killer, info);
     this.log.push({ t: this.time, k: killer ? killer.netId : null, v: v.netId, how, cause });
     this.events.push({ t: 'kill', id: v.netId, by: killer ? killer.netId : null, how, cause, place: v.place, hp: killer && killer.alive ? Math.ceil(killer.hp) : null, respawnIn: this.S.respawn ? this.S.respawnDelay : null, p: [r2(v.pos.x), r2(v.pos.y), r2(v.pos.z)] });
     this._checkEnd();
@@ -194,6 +197,9 @@ export class Match {
     this.gearSim.meleeHit(a, hit, dir, kind);
   }
   /** the prayer (half your blood and a tenth of your bullets for the angel's eyes and sight through walls) */
+  /** power-ups: buy one (drone / strike), and launch a missile during a strike */
+  powerup(id, k) { const a = this.byId.get(id); if (a && a.human) this.power.use(a, k); }
+  missile(id, p) { const a = this.byId.get(id); if (a && a.human) this.power.missile(a, p); }
   pray(id) { const a = this.byId.get(id); if (a && a.human) this.extras.pray(a); }
   /** a gas or decoy can */
   nade(id, m) { const a = this.byId.get(id); if (a && a.human) this.gearSim.throw(a, m.k, m.o, m.d); }
@@ -213,6 +219,7 @@ export class Match {
     const origin = new V3(...m.o), dir = new V3(...m.d); if (dir.lengthSq() < 0.5) return; dir.normalize();
     if (origin.distanceTo(a.eye()) > 2.2) origin.copy(a.eye());                                   // a camera far from the body is not believed
     st.mag--; st.ready = this.time + W.cycle;
+    this.power.shotAt(a, origin, dir, W);   // an enemy drone in the way takes the round's damage
     // rewind everyone else to where the shooter saw them, fire through the shared routine, then put them back
     const back = clamp(lag, 0, HISTORY - 0.05); const saved = [];
     if (back > 0.001) for (const o of this.actors) { if (o === a || !o.alive) continue; const pose = this._poseAt(o, this.time - back); if (pose) { saved.push([o, o.pos.clone(), o.crouchK, o.lean, o.feignK, o.yaw]); o.pos.set(pose[1], pose[2], pose[3]); o.crouchK = pose[4]; if (o.human) { o.lean = pose[5]; o.feignK = pose[6]; o.yaw = pose[7]; } } }
@@ -242,6 +249,7 @@ export class Match {
     for (const b of this.bots) { b.update(dt); if (b.alive && b.pos.y < 9.5) this.damage(b, 999, null, { cause: 'drop' }); }
     this.gearSim.update(dt);   // cans in flight, gas clouds, decoys, angel strikes, bots' gear
     this.extras.update(dt);
+    this.power.update(dt);
     if (this.S.respawn) for (const a of this.actors) if (!a.alive && a.respawnAt && this.time >= a.respawnAt) { a.respawnAt = 0; const s = this._respawnPoint(a); this._place(a, s.p, s.yaw, s.roof, true); }
     // pose history for lag compensation
     for (const a of this.actors) { const h = this.hist.get(a.netId); h.push([this.time, a.pos.x, a.pos.y, a.pos.z, a.crouchK, a.lean || 0, a.feignK || 0, a.yaw || 0]); while (h.length && h[0][0] < this.time - HISTORY) h.shift(); }
@@ -297,7 +305,7 @@ export class Match {
       a.push([o.netId, r2(o.pos.x), r2(o.pos.y), r2(o.pos.z), r3(o.yaw), r3(aimY), r3(aimP), r2(o.crouchK), r2(o.speed || 0), mode, flags | (held << 8), Math.max(0, Math.ceil(o.hp)), link, r3(lu), ld, r2(o.lean || 0)]);
     }
     // z[5]: the angel's shadow roof (the client's _netZone reads it)
-    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof], ang: this.angel.state, k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
+    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
   }
   drain() { const e = this.events; this.events = []; return e; }
 }

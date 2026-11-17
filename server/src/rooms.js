@@ -110,8 +110,8 @@ class Room {
   }
   startMsg(rejoin, who) {
     const M = this.match; const roster = Object.fromEntries(M.actors.map(a => [a.netId, { name: a.name, team: a.team, bot: !a.human }]));
-    const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a), ham: a.hammerLeft };
-    return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? M.extras.state(M.byId.get(who)) : M.drain(), snap: M.snapshot(), log: M.log };
+    const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a), ham: a.hammerLeft, pts: a.pts || 0 };
+    return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? [...M.extras.state(M.byId.get(who)), ...M.power.state(M.byId.get(who))] : M.drain(), snap: M.snapshot(), log: M.log };
   }
   backToLobby(s) { this._hostOnly(s); if (this.state === 'lobby') return; this.stopLoop(); this.match = null; this.state = 'lobby'; for (const m of this.members.values()) m.ready = false; this.broadcastRoom(); }
   startLoop() {
@@ -136,6 +136,8 @@ class Room {
     else if (msg.t === 'melee') M.melee(s.id, msg, Math.min(0.4, (s.rtt || 0.1) / 2 + 0.1));   // same rewind as a shot
     else if (msg.t === 'nade') M.nade(s.id, msg);
     else if (msg.t === 'pray') M.pray(s.id);
+    else if (msg.t === 'pu') M.powerup(s.id, msg.k);
+    else if (msg.t === 'pum') M.missile(s.id, msg.p);
     else if (msg.t === 'reload') M.reload(s.id, msg.w);
     else if (msg.t === 'fall') M.fall(s.id, msg.v);
     else if (msg.t === 'dev' && process.env.SC_DEV === '1') { const a = M.byId.get(s.id); if (a) { a.pos.set(...msg.tp); a.valid.copy(a.pos); M.events.push({ t: 'correct', id: a.netId, p: msg.tp }); } }

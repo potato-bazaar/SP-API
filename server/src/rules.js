@@ -19,6 +19,12 @@ export const SettingsSchema = z.object({
   headshotsOnly: z.boolean().default(false),
   friendlyFire: z.boolean().default(false),
   hammer: z.boolean().default(true),                            // false: nobody (players or bots) can swing the hammer
+  knife: z.boolean().default(true),                             // the knife (middle mouse)
+  gas: z.boolean().default(true),                               // gas cans (players and AI snipers)
+  smoke: z.boolean().default(true),                             // smoke bombs
+  decoy: z.boolean().default(true),                             // decoy cans
+  drone: z.boolean().default(true),                             // power-up: the attack drone (300 points)
+  strike: z.boolean().default(true),                            // power-up: the missile strike (600 points)
 }).strict();
 
 export const SettingsPatch = SettingsSchema.partial().strict();
