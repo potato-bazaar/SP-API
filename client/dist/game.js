@@ -4572,16 +4572,27 @@ function OPS(g){
     let wide=innerWidth>innerHeight,d=wide?3.5:4.6,side=wide?-.75:0;cam.fov!==42&&(cam.fov=42,cam.updateProjectionMatrix());
     cam.position.set(s.at.x+side,s.at.y+1.25,s.at.z+d);cam.lookAt(s.at.x+side,s.at.y+.98,s.at.z);light&&light.position.set(s.at.x+1.6,s.at.y+2.6,s.at.z+2.4)};
 }
-/* ---------- the nest (solo): eggs on every roof that burst when shot, and a blind hunter that comes to gunfire ---------- */
+/* ---------- the nest (solo): eggs on every roof that burst when shot, a blind hunter that comes to gunfire, and silencers to find ---------- */
 function NEST(g){
   const S=g.gfx.scene,A=g.arena,DOWN=new I(0,-1,0),E={R:6,KILL:2.4,MAX:90,CHAIN:4.2,HIT:.36,PER:2},
         H={hear:70,speed:8.6,bite:55,biteR:2.5,cool:.9,hp:260,dmg:65,r:.75,lose:9,respawn:45,pts:150};
-  let eggs=[],last=1e9,alien=null,rnd=1;
+  let eggs=[],last=1e9,alien=null,rnd=1,sil=[];const SIL={N:7,R:1.4};
   const rand=()=>{rnd=(rnd*16807)%2147483647;return rnd/2147483647};
   const shell=new Ye({color:1380879,emissive:16721434,emissiveIntensity:.5});Gi(shell,ou(.3));
   const slime=new Ye({color:657930});Gi(slime,ou(.1));
   const gE=new as(1,12,9),gB=new as(1,10,6);
   const floor=(x,y,z)=>{try{let h=A.raycast(new I(x,y+2.5,z),DOWN,8);return h&&h.point?h.point.y:null}catch(e){return null}};
+  /* silencers: a few lie on the roofs each match; walk over one and your shots stop carrying */
+  const gS=new Rn(.045,.045,.34,10),gR=new Rn(.075,.075,.03,12),mS=new Ye({color:1118481});Gi(mS,ou(.25));const mR=new _e({color:1697535});try{Gi(mR)}catch(x){}
+  const tag=document.createElement("div");tag.id="siltag";tag.textContent="SILENCED";tag.hidden=!0;tag.style.cssText="position:absolute;right:calc(var(--gr,16px) + 4px);bottom:142px;font:700 12px/1 var(--display);letter-spacing:.28em;color:#19e6ff;border:1px solid #19e6ff;padding:5px 8px 4px;background:rgba(3,10,14,.6)";
+  (document.getElementById("hud")||document.body).appendChild(tag);
+  const laySil=()=>{for(let e of sil)S.remove(e.m);sil=[];g.silenced=!1;let rs=A.roofs.slice().sort(()=>Math.random()-.5);
+    for(let r of rs){if(sil.length>=SIL.N)break;for(let t=0;t<8;t++){let x=r.x+(Math.random()-.5)*2*r.hx*.7,z=r.z+(Math.random()-.5)*2*r.hz*.7,y=floor(x,r.roofY,z);
+      if(y==null||Math.abs(y-r.roofY)>.35||Math.hypot(x-g.player.pos.x,z-g.player.pos.z)<6||eggs.some(e=>Math.hypot(e.p.x-x,e.p.z-z)<2))continue;
+      let m=new ce,a=new Qt(gS,mS),b=new Qt(gR,mR),c=new Qt(gR,mR);a.rotation.z=b.rotation.z=c.rotation.z=Math.PI/2;b.position.x=.12;c.position.x=-.12;m.add(a,b,c);m.position.set(x,y+.9,z);S.add(m);sil.push({m,p:new I(x,y,z),on:!0});break}}};
+  const stepSil=t=>{let p=g.player;for(let e of sil){if(!e.on)continue;e.m.rotation.y+=t*1.8;e.m.position.y=e.p.y+.9+.08*Math.sin(g.clock*2.2+e.p.x);
+      if(p.alive&&!g.silenced&&Math.hypot(p.pos.x-e.p.x,p.pos.z-e.p.z)<SIL.R&&Math.abs(p.pos.y-e.p.y)<1.6){e.on=!1;e.m.visible=!1;g.silenced=!0;g.hud.banner("silencer fitted",2.4,!0,"rivals and the blind one no longer hear your shots");try{g.audio.ui()}catch(x){}try{g.ev&&g.ev("silencer_pickup",{})}catch(x){}}}};
+  {let A0=g.audio,sh=A0.shot.bind(A0);A0.shot=(d,pan,pistol)=>sh(g.silenced&&!g.net&&d===0?38:d,pan,pistol)}   // your own shot, heard as if from far off
   const lay=()=>{for(let e of eggs)S.remove(e.m);eggs=[];rnd=20261118;
     for(let r of A.roofs)for(let k=0;k<E.PER;k++)for(let t=0;t<8;t++){let x=r.x+(rand()-.5)*2*r.hx*.72,z=r.z+(rand()-.5)*2*r.hz*.72,y=floor(x,r.roofY,z);
       if(y==null||Math.abs(y-r.roofY)>.35||eggs.some(e=>Math.hypot(e.p.x-x,e.p.z-z)<2.5))continue;
@@ -4619,15 +4630,15 @@ function NEST(g){
     if(a.state!==0&&a.cool<=0)for(let v of g.actors){if(!v.alive||v.decoy)continue;if(Math.hypot(v.pos.x-a.pos.x,v.pos.z-a.pos.z)<H.biteR&&Math.abs(v.pos.y-a.pos.y)<2.2){a.cool=H.cool;g.damage(v,H.bite,null,{cause:"alien"});try{g.sx.shatter(v.pos.clone().setY(v.pos.y+1))}catch(x){}break}}
     a.mixer&&a.mixer.update(moving?t*1.5:a.state===0?0:t*.35);a.grp.position.copy(a.pos);a.grp.rotation.y=a.yaw;a.grp.scale.y=a.state===0?.55:1};
   const os=g.onShot.bind(g);
-  g.onShot=(who,o,w)=>{os(who,o,w);if(g.net||!w||!w.point)return;try{for(let e of eggs)e.alive&&seg(o,w.point,e.p,E.HIT)&&burst(e,who);
-    alien&&alien.state!==3&&seg(o,w.point,new I(alien.pos.x,alien.pos.y+.8,alien.pos.z),H.r)&&hurt(alien,H.dmg,who);hear(who,o)}catch(x){console.warn("nest",x)}};
+  g.onShot=(who,o,w)=>{let quiet=!g.net&&g.silenced&&who&&who.isPlayer;quiet||os(who,o,w);if(g.net||!w||!w.point)return;try{for(let e of eggs)e.alive&&seg(o,w.point,e.p,E.HIT)&&burst(e,who);
+    alien&&alien.state!==3&&seg(o,w.point,new I(alien.pos.x,alien.pos.y+.8,alien.pos.z),H.r)&&hurt(alien,H.dmg,who);quiet||hear(who,o)}catch(x){console.warn("nest",x)}};
   const up=g.update.bind(g);
   g.update=t=>{up(t);try{let on=!g.net&&(g.state==="live"||g.state==="over"||g.state==="paused");
-    if(on&&(g.time<last-.5||!eggs.length)){lay();alien&&den()}last=on?g.time:1e9;
+    if(on&&(g.time<last-.5||!eggs.length)){lay();laySil();alien&&den()}last=on?g.time:1e9;for(let e of sil)e.m.visible=on&&e.on;tag.hidden=!(on&&g.silenced&&g.player.alive);
     for(let e of eggs)e.m.visible=on&&e.alive;alien&&(alien.grp.visible=on&&alien.state!==3);if(!on||g.state!=="live")return;
     shell.emissiveIntensity=.42+.3*Math.sin(g.clock*2.6);
-    for(let e of eggs)e.alive&&e.fuse>=0&&(e.fuse-=t)<=0&&burst(e,e.by);stepAlien(t)}catch(x){g._nestErr||(g._nestErr=1,console.warn("nest",x))}};
-  g.nest={get eggs(){return eggs},get alien(){return alien},burst,hear};
+    for(let e of eggs)e.alive&&e.fuse>=0&&(e.fuse-=t)<=0&&burst(e,e.by);stepSil(t);stepAlien(t)}catch(x){g._nestErr||(g._nestErr=1,console.warn("nest",x))}};
+  g.nest={get sil(){return sil},get eggs(){return eggs},get alien(){return alien},burst,hear};
 }
 /* ---------- Google Analytics events (the tag itself is in each page's head). What players do, never who they
    are: no names, no room codes, no chat. Every call is wrapped so analytics can never break the game. ---------- */
