@@ -102,6 +102,7 @@ instance (or add sticky routing by room code before scaling out).
 | `models.txt` | Packed 3D models used in every match (weapons, characters, arms) |
 | `models2.txt` | Packed solo-only models (AWM, Lucifer, RPG-7, dog), fetched when a solo match starts |
 | `models3.txt` | Packed power-up models (attack drone, strike plane, missile), fetched when a solo match starts. Built by `client/tools/pack_powerups.py` from the source GLBs (not in the repo) |
+| `music1.mp3`, `music2.mp3` | Music: the main theme, and an optional second track for tense moments (three snipers left, the last minute, the last halo phase, a strike). Without `music2.mp3` the main theme covers both |
 | `tex.txt` | Packed textures |
 | `how-to-play.html`, `weapons.html`, `updates.html`, `about.html` | Static help pages, patch notes and model credits |
 | `poster.jpg`, `og.jpg`, `shot-*.jpg` | Title-screen poster, share image and screenshots |
