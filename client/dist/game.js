@@ -4514,7 +4514,7 @@ void main() { vec3 box = vec3(46.0, 34.0, 46.0); float sp = 26.0 + fract(positio
    echo across the block, the bolt, the magazine, spent brass, the crack of a near miss. Every method falls back
    to the synthesised sound while a recording is missing or still loading. ---------- */
 function SFX(g){
-  const A=g.audio,B={},NAMES=["rifle1","rifle2","bolt","far","mg","whiz","magout","shell","coin","dry","step1","step2","step3","step4","step5"];let asked=!1;
+  const A=g.audio,B={},NAMES=["rifle1","rifle2","bolt","far","mg","whiz","magout","shell","coin","dry","metal","wood","step1","step2","step3","step4","step5"];let asked=!1;
   const load=()=>{if(asked||!A.ctx)return;asked=!0;for(let n of NAMES)fetch("sfx/"+n+".wav").then(r=>{if(!r.ok)throw new Error(n);return r.arrayBuffer()})
     .then(b=>new Promise((ok,no)=>A.ctx.decodeAudioData(b,ok,no))).then(buf=>{B[n]=buf}).catch(()=>{})};
   // play one recording: gain, pan (-1..1), reverb send, delay s, playback rate, low-pass Hz (0 = open)
@@ -4522,7 +4522,7 @@ function SFX(g){
     if(lp){let f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=lp;f.connect(out);dst=f}
     let s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate||1;s.connect(dst);s.start(c.currentTime+(delay||0));return!0};
   const jit=a=>1+(Math.random()-.5)*a;
-  const o={shot:A.shot.bind(A),bolt:A.bolt.bind(A),reload:A.reload.bind(A),whiz:A.whiz.bind(A),step:A.step.bind(A),stepAt:A.stepAt.bind(A),dry:A.dry.bind(A)};
+  const o={shot:A.shot.bind(A),bolt:A.bolt.bind(A),reload:A.reload.bind(A),whiz:A.whiz.bind(A),impact:A.impact.bind(A),thud:A.thud.bind(A),step:A.step.bind(A),stepAt:A.stepAt.bind(A),dry:A.dry.bind(A)};
   let lastStep=0;const foot=()=>{let k;do k=1+(Math.random()*5|0);while(k===lastStep);lastStep=k;return"step"+k}; // never the same step twice running
   A.shot=(d=0,pan=0,pistol=!1)=>{load();if(!A.ctx)return;
     let delay=Math.min(.5,d/343),att=d<=0?1:Math.max(.05,1/(1+d/26)),lp=d>0?Math.max(500,9e3-d*55):0;
@@ -4536,6 +4536,10 @@ function SFX(g){
   A.reload=(t=2.4)=>{load();o.reload(t);play("magout",.6,.1,.1,.12,jit(.05),0)};
   A.whiz=(pan=0)=>{load();play("whiz",.85,pan,.3,0,jit(.12),0)||o.whiz(pan)};
   A.coin=()=>{load();play("coin",.5,0,.1,0,1,0)};
+  // a round landing: the synth's dry knock plus, at random, a ring off metal (rails, vents, signs) or cracking debris
+  A.impact=(d=10,pan=0)=>{load();o.impact(d,pan);let k=Math.max(.04,.55/(1+d/12)),lp=Math.max(900,1e4-d*70);Math.random()<.4?play("metal",k*.8,pan,.35,0,jit(.2),lp):play("wood",k*.6,pan,.25,0,jit(.25)*.9,lp)};
+  A.thud=(d=0,pan=0,body=!0)=>{load();o.thud(d,pan,body);body||play("wood",Math.max(.05,.6/(1+d/10)),pan,.25,0,jit(.2),0)}; // cover taking a hit
+  A.clang=(d=0,pan=0)=>{load();play("metal",Math.max(.06,.8/(1+d/14)),pan,.4,0,jit(.15),0)}; // a round on the drone
   A.dry=()=>{load();play("dry",.6,0,.05,0,jit(.04),0)||o.dry()};
   // your own steps (crouched: soft; surface 1 is metal: the synth's ring goes on top) and other snipers' steps by distance
   A.step=(crouch=!1,surf=0)=>{load();play(foot(),crouch?.1:surf===1?.26:.3,(Math.random()-.5)*.3,.06,0,jit(.16)*(crouch?.9:1),crouch?2400:0)?surf===1&&o.step(crouch,surf):o.step(crouch,surf)};
@@ -4647,7 +4651,7 @@ function PWRUP(g){
       else{d.fireT=.15;d.near&&(d.ang+=.12)}}
     d.aaT-=t; // enemies with a clear view shoot back
     if(d.aaT<=0){d.aaT=.5;for(let b of foes()){let e=b.eye(new V3),q=e.distanceTo(d.pos);if(q>75||Math.random()>(b===tg?.12:.05))continue;let see=!1;try{see=g.arena.los(e,d.pos)}catch(x){}if(!see)continue;
-      g.fx.threads.shot(e,d.pos.clone());g.audio.shot&&g.audio.shot(e.distanceTo(g.listenerPos),g.panOf(e),!1);d.hp-=20;if(d.hp<=0){endDrone("down");return}}}};
+      g.fx.threads.shot(e,d.pos.clone());g.audio.shot&&g.audio.shot(e.distanceTo(g.listenerPos),g.panOf(e),!1);d.hp-=20;g.audio.clang&&g.audio.clang(d.pos.distanceTo(g.listenerPos),g.panOf(d.pos));if(d.hp<=0){endDrone("down");return}}}};
   // ---- the missile strike: 15 s over the block from above, every enemy marked, five missiles
   const planeOn=()=>{pu.planeOut=0;if(!pu.plane){let pl=shape("plane");pl.scale.setScalar(1.6);S.add(pl);pu.plane=pl}};
   const startStrike=(T,N)=>{let p=g.player;planeOn();
@@ -4702,7 +4706,7 @@ function PWRUP(g){
       case"drone":if(e.on)e.by===me&&g.hud.banner("attack drone",2,!0,"hunting the nearest sniper",!0);
         else{let d=pu.nd.get(e.by);d&&(drop(d.grp),pu.nd.delete(e.by));e.why==="down"&&e.p&&boom(v(e.p),!1);e.by===me&&g.hud.banner(e.why==="down"?"drone down":"drone recalled",1.8,!0,e.why==="down"?"shot out of the air":e.kills?e.kills+" down":"")}return!0;
       case"dshot":{let o=v(e.o);try{sx._tracer(o,v(e.e))}catch(x){}g.audio.shot&&g.audio.shot(o.distanceTo(g.listenerPos),g.panOf(o),!0);return!0}
-      case"dhit":e.id===me&&(g.hud.hitMarker(!!e.kill,!1),g.audio.hit&&g.audio.hit(!1));return!0;
+      case"dhit":e.id===me&&(g.hud.hitMarker(!!e.kill,!1),g.audio.hit&&g.audio.hit(!1),g.audio.clang&&g.audio.clang(20,0));return!0;
       case"strike":if(e.on){pu.strikers.add(e.id);planeOn();e.id===me&&!pu.strike&&p.alive&&startStrike(e.s,e.left);e.id!==me&&g.hud.banner("missile strike",2.2,!0,"watch the red rings \xB7 get off that roof",!0)}
         else{pu.strikers.delete(e.id);e.id===me&&endStrike();pu.strikers.size||pu.strike||(pu.planeOut=3)}return!0;
       case"msl":launch(v(e.p),v(e.o),Math.max(.25,e.at-g.time));e.by===me&&pu.strike&&(pu.strike.left=e.left);return!0;
