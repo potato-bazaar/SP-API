@@ -4534,6 +4534,39 @@ function LOOK(g){
   const up=new I(0,1,0),cables=[];
   for(let l of g.arena.links){if(l.kind!=="zip")continue;let h=(l.lift||0)+2.05,a=new I(l.p0.x,l.p0.y+h,l.p0.z),b=new I(l.p1.x,l.p1.y+h,l.p1.z),d=b.clone().sub(a),len=d.length();
     let m=new Qt(new Rn(.028,.028,len,5,1,!0),mat);m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(up,d.normalize());m.frustumCulled=!1;S.add(m);cables.push({m,l})}
+  /* the scope glass: a curved red-coated lens that mirrors the city (it slides as you look around), with rain running down it and a moving highlight */
+  try{const LU={uLook:{value:new wt(0,0)},uLt:Wt.uTime,uLr:{value:new Tt(g.sx&&g.sx.red!=null?g.sx.red:11866660)}};
+    const FR=`uniform vec2 uLook; uniform float uLt; uniform vec3 uLr; uniform vec3 uLc; uniform vec3 uLu; uniform vec3 uLv; uniform float uLs; varying vec3 vLp;
+float lzh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+`,BODY=`{ vec2 q = vec2(dot(vLp - uLc, uLu), dot(vLp - uLc, uLv)) / uLs; float rr = length(q);
+  vec3 gn = normalize(vec3(q * 0.6, sqrt(max(1.0 - 0.32 * rr * rr, 0.0))));
+  vec2 uvr = gn.xy * 1.5 + vec2(uLook.x * 1.4, -uLook.y * 1.8);
+  vec2 gcell = uvr * vec2(8.0, 13.0); vec2 ci = floor(gcell), cf = fract(gcell);
+  float tower = step(0.35, lzh(vec2(floor(uvr.x * 2.0), 3.0)));                                   // gaps between buildings
+  float lit = step(0.66, lzh(ci)) * step(0.22, cf.x) * step(cf.x, 0.78) * step(0.2, cf.y) * step(cf.y, 0.72) * tower;
+  float tw = 0.75 + 0.25 * sin(uLt * (1.5 + 3.0 * lzh(ci + 5.0)) + 6.28 * lzh(ci));               // windows flicker
+  float sky = smoothstep(-0.5, 0.7, gn.y - uLook.y * 0.9);                                         // the bright haze above the roofs
+  float col7 = q.x * 6.0 + 3.0; float rid = floor(col7);
+  float ry = fract(q.y * 0.8 + uLt * (0.22 + 0.35 * lzh(vec2(rid, 1.0))) + lzh(vec2(rid, 7.0)));
+  float drop = smoothstep(0.09, 0.0, abs(fract(col7) - 0.5)) * smoothstep(0.0, 0.06, ry) * smoothstep(0.42, 0.06, ry) * step(0.35, lzh(vec2(rid, 9.0)));
+  vec2 hc = vec2(-0.32 + 0.3 * sin(uLook.x * 2.2 + uLt * 0.35), 0.42 + 0.25 * uLook.y);
+  float cres = smoothstep(0.8, 0.42, length(q - hc)) * smoothstep(0.18, 0.5, length(q - hc * 0.5));
+  float sweep = smoothstep(0.12, 0.0, abs(q.x * 0.7 + q.y * 0.7 - 1.6 + mod(uLt * 0.45 + uLook.x * 1.5, 3.2)));   // a slow glint crossing the glass
+  float fres = pow(clamp(rr, 0.0, 1.0), 2.6);
+  float shade = smoothstep(-0.95, 0.75, dot(q, vec2(-0.6, -0.8)) + 0.4 * sin(uLook.x * 1.7 + 0.6) + uLook.y * 0.9);   // the lit half of the glass; it swings as you turn
+  vec3 c = uLr * (0.035 + 0.3 * shade * (0.5 + 0.5 * sky) + 0.12 * fres);
+  c += uLr * 0.8 * lit * tw * (1.0 - 0.6 * shade);
+  float white = clamp(cres * 0.55 + sweep * 0.4 + drop * 0.55 + lit * tw * shade * 0.45, 0.0, 1.0);
+  c = mix(c, vec3(1.0, 0.97, 0.96), white);
+  c *= 1.0 - 0.55 * smoothstep(0.86, 1.0, rr);
+  outgoingLight = c; }
+#include <opaque_fragment>`;
+    const hook=sh=>{sh.vertexShader="varying vec3 vLp;\n"+sh.vertexShader.replace("#include <begin_vertex>","#include <begin_vertex>\n vLp = position;");sh.fragmentShader=FR+sh.fragmentShader.replace("#include <opaque_fragment>",BODY)};hook.key="lens3";
+    g.fp.rifle.traverse(m=>{if(!m.isMesh||!m.material||!/lens/i.test(m.material.name||m.name||""))return;m.geometry.computeBoundingBox();let b=m.geometry.boundingBox,d=[b.max.x-b.min.x,b.max.y-b.min.y,b.max.z-b.min.z],
+        pairs=[[0,1],[0,2],[1,2]].sort((p,q)=>Math.abs(d[p[0]]-d[p[1]])/Math.max(d[p[0]],d[p[1]],1e-9)-Math.abs(d[q[0]]-d[q[1]])/Math.max(d[q[0]],d[q[1]],1e-9))[0],ax=k=>new I(k===0?1:0,k===1?1:0,k===2?1:0),
+        U={uLc:{value:new I((b.max.x+b.min.x)/2,(b.max.y+b.min.y)/2,(b.max.z+b.min.z)/2)},uLu:{value:ax(pairs[0])},uLv:{value:ax(pairs[1])},uLs:{value:Math.max(d[pairs[0]],d[pairs[1]])/2||1}},
+        mat=new Ye({color:0,name:"lens"});Gi(mat,sh=>{hook(sh);Object.assign(sh.uniforms,LU,U)});mat.customProgramCacheKey=()=>"lens3";m.material=mat});
+    setInterval(()=>{try{let p=g.player;LU.uLook.value.set(p.yaw||0,p.pitch||0)}catch(x){}},33)}catch(x){console.warn("lens",x)}
   let best=0;try{best=+localStorage.getItem("sc.best")||0}catch(x){}
   setInterval(()=>{try{for(let c of cables)c.m.visible=!(g.gear&&g.gear.isCut&&g.gear.isCut(c.l)); // a cut cable goes dark until it is restrung
     if(g.net||g.state!=="live")return;let k=g.player.kills||0;if(k>best){best=k;try{localStorage.setItem("sc.best",String(best))}catch(x){}}
