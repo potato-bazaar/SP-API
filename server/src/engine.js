@@ -56,7 +56,7 @@ export class Match {
     this.gearSim = new ServerGear(this);             // gas, smoke, decoys, the hammer, the angel's strikes and shadow roof
     this.smokeCut = (p, q) => this.gearSim.smokeCut(p, q);   // client/src/ai.js: bots do not see through smoke
     this.power = new ServerPowerups(this);           // points, the attack drone, the missile strike
-    this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer, the air drop and its AWM)
+    this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer, the air drop and its AWM, the RPG-7)
     // actors
     this.humans = []; this.bots = []; const names = CALLSIGNS.slice().sort(() => Math.random() - 0.5); let bi = 0;
     for (const r of roster) {
@@ -148,10 +148,11 @@ export class Match {
     v.alive = false; v.hp = 0; v.deathTime = this.time; v.deaths = (v.deaths || 0) + 1; v.revealedUntil = -1;
     // cause: deaths with no one to credit (the client's death screen names them); how: the kill feed's label otherwise
     const credited = killer && killer !== v;
-    const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : info.cause === 'angel' ? 'angel' : info.cause === 'gas' && !credited ? 'gas' : null;
-    const how = cause ? '' : info.cause === 'melee' ? (info.knife ? 'knife' : 'hammer') : info.cause === 'gas' ? 'gas' : info.cause === 'drone' ? 'drone' : info.cause === 'missile' ? 'missile' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
+    const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : info.cause === 'angel' ? 'angel' : info.cause === 'gas' && !credited ? 'gas' : info.cause === 'rpg' && !credited ? 'rpg' : null;   // rpg: your own rocket
+    const how = cause ? '' : info.cause === 'melee' ? (info.knife ? 'knife' : 'hammer') : info.cause === 'gas' ? 'gas' : info.cause === 'drone' ? 'drone' : info.cause === 'missile' ? 'missile' : info.cause === 'rpg' ? 'rpg' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
     const friendly = killer && this.teams && killer.team === v.team && killer !== v;
-    if (killer && killer !== v && killer.alive) { if (!friendly) killer.kills++; killer.hp = Math.min(100, killer.hp + 30); }
+    // a kill counts even if the killer has died since (a rocket or gas still on its way; the clients count it too); the blood bonus needs them alive
+    if (killer && killer !== v) { if (!friendly) killer.kills++; if (killer.alive) killer.hp = Math.min(100, killer.hp + 30); }
     if (!this.S.respawn) { const alive = this.actors.filter(a => a.alive).length; v.place = alive + 1; }
     else v.respawnAt = this.time + this.S.respawnDelay;
     if (!v.human) v.die();
@@ -196,11 +197,13 @@ export class Match {
     for (const [o, p, c, ln, fd, yw] of saved) { o.pos.copy(p); o.crouchK = c; if (o.human) { o.lean = ln; o.feignK = fd; o.yaw = yw; } }
     this.gearSim.meleeHit(a, hit, dir, kind);
   }
-  /** the prayer (half your blood and a tenth of your bullets for the angel's eyes and sight through walls) */
   /** power-ups: buy one (drone / strike), and launch a missile during a strike */
   powerup(id, k) { const a = this.byId.get(id); if (a && a.human) this.power.use(a, k); }
   missile(id, p) { const a = this.byId.get(id); if (a && a.human) this.power.missile(a, p); }
+  /** the prayer (half your blood and a tenth of your bullets for the angel's eyes and sight through walls) */
   pray(id) { const a = this.byId.get(id); if (a && a.human) this.extras.pray(a); }
+  /** an RPG-7 rocket: o its start (1.1 m ahead of the camera), d the camera's direction (extras.js flies it) */
+  rpg(id, m) { const a = this.byId.get(id); if (a && a.human) this.extras.rpg(a, m.o, m.d); }
   /** a gas or decoy can */
   nade(id, m) { const a = this.byId.get(id); if (a && a.human) this.gearSim.throw(a, m.k, m.o, m.d); }
   fall(id, v) { const a = this.byId.get(id); if (!a || !a.alive || !Number.isFinite(v)) return; v = clamp(v, 0, 60); if (v > 14.5) this.damage(a, Math.min(100, (v - 14.5) * 8), null, { cause: 'fall' }); }

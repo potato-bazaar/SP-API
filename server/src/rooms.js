@@ -138,6 +138,8 @@ class Room {
     else if (msg.t === 'pray') M.pray(s.id);
     else if (msg.t === 'pu') M.powerup(s.id, msg.k);
     else if (msg.t === 'pum') M.missile(s.id, msg.p);
+    // a rocket is not rewound: it is a projectile flown on the server tick by tick, meeting everyone where they are now
+    else if (msg.t === 'rpg') M.rpg(s.id, msg);
     else if (msg.t === 'reload') M.reload(s.id, msg.w);
     else if (msg.t === 'fall') M.fall(s.id, msg.v);
     else if (msg.t === 'dev' && process.env.SC_DEV === '1') { const a = M.byId.get(s.id); if (a) { a.pos.set(...msg.tp); a.valid.copy(a.pos); M.events.push({ t: 'correct', id: a.netId, p: msg.tp }); } }

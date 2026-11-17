@@ -32,6 +32,7 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('pu'), k: z.enum(['drone', 'strike']) }),                    // buy a power-up with points
   z.object({ t: z.literal('pum'), p: z.tuple([z.number().finite(), z.number().finite()]) }),   // missile strike: launch at (x, z)
   z.object({ t: z.literal('pray') }),                                                  // the prayer (once a match; the server pays it)
+  z.object({ t: z.literal('rpg'), o: v3, d: v3 }),                                     // an RPG-7 rocket from o along d (2 a match; the server flies it)
   z.object({ t: z.literal('dev'), tp: v3 }),   // test servers only (SC_DEV=1): teleport
 ]);
 

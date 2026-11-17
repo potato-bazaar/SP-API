@@ -46,19 +46,19 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 
 Client → server: `hello{name,token}` · `create{settings}` · `join{code}` · `leave` · `name` · `team` · `ready` ·
 `settings{patch}` · `kick` · `host` · `start` · `lobby` · `chat` · `ping` · in match: `in` · `fire` · `reload` · `fall` ·
-`melee{d, k: hammer|knife}` · `nade{k: gas|decoy|smoke, o, d}` · `pu{k: drone|strike}` · `pum{p: [x, z]}`.
+`melee{d, k: hammer|knife}` · `nade{k: gas|decoy|smoke, o, d}` · `pu{k: drone|strike}` · `pum{p: [x, z]}` · `rpg{o, d}`.
 Every message is validated with zod (`server/src/protocol.js`); 8 KB max, ~60 msgs/s per socket, 12 sockets per IP.
 
 Server → client: `welcome` · `room` (lobby state) · `start` (roster, rules, first snapshot) · `s` (snapshot + events:
-`spawn shot dmg hit kill gaze correct ammo deny free end`, and gear events `throw gear fshot melee amark ahit`) ·
+`spawn shot dmg hit kill gaze correct ammo deny free end`, gear events `throw gear fshot melee amark ahit`, and `rpg rpgx rpgno rpgleft`) ·
 `error` · `notice` · `left` · `chat` · `pong`. Snapshot rows carry lean at [15], play-dead as flag 64 and what is in hand in flag bits 8-9 (0 rifle, 1 sidearm, 2 hammer, 3 knife); the zone
 array carries the angel's shadow roof at [5].
 
 ## Solo and online
 
-Online matches are decided by this server. These features currently run in solo matches only: the half-time air drop
-and AWM, scope vision (thermal and night vision), the RPG-7, the rooftop dogs, the prayer, Lucifer, and rifle bullet
-travel and drop. The kill cam, aim assist on touch screens and the city set dressing run in both.
+Online matches are decided by this server. These features currently run in solo matches only: the rooftop dogs,
+Lucifer, and rifle bullet travel and drop. The RPG-7, the half-time air drop and AWM, scope vision and the prayer
+run in both, with the server keeping the truths. The kill cam, aim assist on touch screens and the city set dressing run in both.
 
 Online, the sidearm uses the server's original 9 mm numbers (`client/src/combat.js`); the Desert Eagle numbers apply
 in solo.
@@ -76,7 +76,9 @@ Power-ups online (`server/src/powerups.js`, numbers shared with the client's sol
 guns, hammer or knife (+50 a head, +50 from the third in a row; dying keeps the points). 300 buys the attack drone (flies
 to the nearest enemy, 14 s, players and AI snipers can shoot it down), 600 the missile strike (15 s, five missiles, each
 lands 1.5 s after it is marked). Events: `pts puno drone dshot dhit strike msl boom`; drones ride in the snapshot as
-`d: [[owner, x, y, z, yaw, hp]]`. Lucifer, the RPG and the dogs stay solo-only.
+`d: [[owner, x, y, z, yaw, hp]]`. Lucifer and the dogs stay solo-only.
+
+The RPG-7 online (`server/src/extras.js`, the solo rocket's numbers): two rockets a match, 2.4 s between launches, rifle in hand and not holding the AWM. The server flies each rocket and bursts it; every client only draws that flight and the burst. A rocket that kills someone else is credited to the shooter. Your own blast is not (`OWN ROCKET`). Events: `rpg rpgx rpgno rpgleft`.
 
 ## Analytics
 
