@@ -18,6 +18,7 @@ export const SettingsSchema = z.object({
   fog: z.boolean().default(false),                              // fog over the roofs: clients draw it, bots see far less
   headshotsOnly: z.boolean().default(false),
   friendlyFire: z.boolean().default(false),
+  hammer: z.boolean().default(true),                            // false: nobody (players or bots) can swing the hammer
 }).strict();
 
 export const SettingsPatch = SettingsSchema.partial().strict();

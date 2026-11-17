@@ -45,7 +45,8 @@ class Room {
   add(session) {
     if (this.members.has(session.id)) { // reconnect: same token, same slot, same sniper
       const m = this.members.get(session.id); m.conn = session; session.room = this; this.broadcastRoom();
-      if (this.match && this.state !== 'lobby') session.send(this.startMsg(true, session.id));
+      if (this.match && this.state !== 'lobby') { const a = this.match.byId.get(session.id); if (a && a.human) a.lastSeq = -1;   // the client counts its moves from 0 again
+        session.send(this.startMsg(true, session.id)); }
       return m; }
     if (this.banned.has(session.id)) throw new UserError('The host removed you from this room.');
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
@@ -109,7 +110,7 @@ class Room {
   }
   startMsg(rejoin, who) {
     const M = this.match; const roster = Object.fromEntries(M.actors.map(a => [a.netId, { name: a.name, team: a.team, bot: !a.human }]));
-    const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a) };
+    const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a), ham: a.hammerLeft };
     return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? M.extras.state(M.byId.get(who)) : M.drain(), snap: M.snapshot(), log: M.log };
   }
   backToLobby(s) { this._hostOnly(s); if (this.state === 'lobby') return; this.stopLoop(); this.match = null; this.state = 'lobby'; for (const m of this.members.values()) m.ready = false; this.broadcastRoom(); }

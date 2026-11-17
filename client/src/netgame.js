@@ -38,7 +38,7 @@ export function installNet(Game) {
     if (!this.input.touch) this.input.requestLock();
     try { this.gfx.canvas.focus({ preventScroll: true }); } catch (e) { /* older browsers */ }
   };
-  P._netRuleLine = function () { const S = this.netS; return [S.respawn ? `respawn · ${S.scoreLimit ? 'first to ' + S.scoreLimit : 'most kills at the bell'}` : 'one life', S.headshotsOnly ? 'headshots only' : '', S.halo ? '' : 'no halo'].filter(Boolean).join(' · '); };
+  P._netRuleLine = function () { const S = this.netS; return [S.respawn ? `respawn · ${S.scoreLimit ? 'first to ' + S.scoreLimit : 'most kills at the bell'}` : 'one life', S.headshotsOnly ? 'headshots only' : '', S.hammer === false ? 'no hammer' : '', S.halo ? '' : 'no halo'].filter(Boolean).join(' · '); };
   P._nm = function (id, cause) { if (!id) return cause === 'halo' ? 'THE HALO' : cause === 'street' ? 'THE STREET' : '—'; if (id === this.net.id) return 'YOU'; const q = this.byNet.get(id); return q ? q.name : '?'; };
   P.stopNet = function () { for (const q of this.puppets || []) q.dispose(); this.puppets = []; this.bots = this.soloBots; this.actors = [this.player, ...this.soloBots]; this.net = null; this.teams = false; this.hud.teamMode(false, 0); };
 

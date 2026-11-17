@@ -7,7 +7,11 @@ export class Input {
     const kd = (e) => { if (e.repeat) { if (this.enabled) e.preventDefault(); return; } this.keys.add(e.code); const a = MAP[e.code]; if (a) { this._press(a); if (this.enabled) e.preventDefault(); } if (e.code === 'Tab' && this.enabled) e.preventDefault(); };
     const ku = (e) => { this.keys.delete(e.code); const a = MAP[e.code]; if (a) this._release(a); };
     window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
-    window.addEventListener('blur', () => { this.keys.clear(); for (const k in this.down) this.down[k] = false; this.mouseBtn = [false, false, false]; });
+    window.addEventListener('blur', () => { this.keys.clear(); for (const k in this.down) this.down[k] = false; this.mouseBtn = [false, false, false]; this.cursor.inside = false; });
+    // the free-look fallback turns the view while the cursor sits near an edge: forget the cursor when it leaves the page or the tab hides,
+    // or the last edge position keeps the player spinning on their own
+    window.addEventListener('mouseout', (e) => { if (!e.relatedTarget && !e.toElement) this.cursor.inside = false; });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.cursor.inside = false; });
     canvas.addEventListener('mousedown', (e) => { if (this.touch) return; if (!this.enabled) return; e.preventDefault(); if (!this.locked && !this.lockFailed) { this.requestLock(); return; }   // the click that takes the mouse is not a shot
       this.mouseBtn[e.button] = true; if (e.button === 0) this._press('fire'); if (e.button === 2) this._press('ads'); });
     window.addEventListener('mouseup', (e) => { this.mouseBtn[e.button] = false; if (e.button === 0) this._release('fire'); if (e.button === 2) this._release('ads'); });
@@ -42,7 +46,7 @@ export class Input {
     const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; } this.moveX = x; this.moveY = y;
     this.sprintStick = this.stick.id >= 0 && l > 0.92 && y > 0.6;
     // free-look fallback: cursor near the frame edge keeps the view turning
-    if (!this.touch && !this.locked && this.lockFailed && this.cursor.inside && this.enabled) { const ex = this.cursor.x < 0.12 ? -(0.12 - this.cursor.x) / 0.12 : this.cursor.x > 0.88 ? (this.cursor.x - 0.88) / 0.12 : 0; const ey = this.cursor.y < 0.1 ? -(0.1 - this.cursor.y) / 0.1 : this.cursor.y > 0.9 ? (this.cursor.y - 0.9) / 0.1 : 0; this.lookX += ex * 900 * dt; this.lookY += ey * 500 * dt; }
+    if (!this.touch && !this.locked && this.lockFailed && this.cursor.inside && this.enabled) { const ex = this.cursor.x < 0.06 ? -(0.06 - this.cursor.x) / 0.06 : this.cursor.x > 0.94 ? (this.cursor.x - 0.94) / 0.06 : 0; const ey = this.cursor.y < 0.05 ? -(0.05 - this.cursor.y) / 0.05 : this.cursor.y > 0.95 ? (this.cursor.y - 0.95) / 0.05 : 0; this.lookX += ex * 900 * dt; this.lookY += ey * 500 * dt; }
   }
   _touchSetup() {
     const cv = this.canvas; const opts = { passive: false };

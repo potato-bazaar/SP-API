@@ -90,6 +90,7 @@ export class Online {
       ['the halo', 'halo', [[true, 'CLOSES'], [false, 'OFF']]],
       ['the angel looks', 'angelGaze', [[true, 'ON'], [false, 'OFF']]],
       ['headshots only', 'headshotsOnly', [[false, 'NO'], [true, 'YES']]],
+      ['the hammer', 'hammer', [[true, 'ALLOWED'], [false, 'OFF']]],
       ...(teams ? [['friendly fire', 'friendlyFire', [[false, 'OFF'], [true, 'ON']]]] : []),
     ];
     $('lset').innerHTML = rows.map(([label, key, opts]) => `<div class="row"><span class="lab">${label}</span><div class="seg">${opts.map(([v, t]) => `<button type="button" data-k="${key}" data-v='${JSON.stringify(v)}' aria-pressed="${S[key] === v}" ${host && lobby ? '' : 'disabled'}>${t}</button>`).join('')}</div></div>`).join('');

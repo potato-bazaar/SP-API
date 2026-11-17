@@ -46,7 +46,7 @@ test('fog and angel rules, decoy and gas cans, the hammer from behind', async ()
   await a.event((e) => e.t === 'throw' && e.by === a.me.id && e.k === 'gas');
   const gas = await a.event((e) => e.t === 'dmg' && e.id === a.me.id && e.cause === 'gas', 6000); assert.equal(gas.by, null);
 
-  // the hammer: Bo stands a metre from Ash, facing away; Ash swings at Bo's back: 200 damage, a kill labelled "hammer"
+  // the hammer: Bo stands a metre from Ash, facing away; Ash swings at Bo's back: 50 damage, never a one-hit kill, and one of 5 swings spent
   const at = [pa[0] + 1.0, pa[1], pa[2]];
   b.send({ t: 'dev', tp: at }); await sleep(150);
   const hx = pa[0] - at[0], hz = pa[2] - at[2], hl = Math.hypot(hx, hz);
@@ -55,10 +55,14 @@ test('fog and angel rules, decoy and gas cans, the hammer from behind', async ()
   await sleep(500);   // past the lag-compensation window, so the rewind sees Bo here
   const d = [at[0] - pa[0], (at[1] + 1.3) - (pa[1] + 1.6), at[2] - pa[2]]; const dl = Math.hypot(...d);
   a.send({ t: 'melee', d: d.map((x) => x / dl) });
-  const mel = await a.event((e) => e.t === 'melee' && e.by === a.me.id); assert.equal(mel.to, b.me.id); assert.equal(mel.back, true);
-  const kill = await a.event((e) => e.t === 'kill' && e.id === b.me.id); assert.equal(kill.how, 'hammer'); assert.equal(kill.by, a.me.id);
-  a.send({ t: 'melee', d: [1, 0, 0] }); a.send({ t: 'melee', d: [1, 0, 0] });   // a second swing inside the 0.62 s cycle is ignored
-  await sleep(300); assert.equal(a.events.filter((e) => e.t === 'melee' && e.by === a.me.id).length <= 2, true);
+  const mel = await a.event((e) => e.t === 'melee' && e.by === a.me.id); assert.equal(mel.to, b.me.id); assert.equal(mel.k, 'hammer'); assert.equal(mel.left, 4); assert.equal(mel.kill, false);
+  const hd = await a.event((e) => e.t === 'dmg' && e.id === b.me.id && e.cause === 'melee'); assert.equal(hd.amt, 50); assert.equal(hd.by, a.me.id);
+  a.send({ t: 'melee', d: [1, 0, 0] });   // a second swing inside the 0.62 s cycle is ignored (and not counted)
+  await sleep(750);
+  // the knife: 25 damage, no limit, does not use up the hammer
+  const n0 = a.events.length; a.send({ t: 'melee', k: 'knife', d: d.map((x) => x / dl) });
+  const kn = await a.event((e) => e.t === 'melee' && e.by === a.me.id && e.k === 'knife'); assert.equal(kn.to, b.me.id); assert.equal(kn.left, 4);
+  assert.equal(a.events.slice(n0).some((e) => e.t === 'dmg' && e.id === b.me.id && e.cause === 'melee' && e.amt === 25), true);
   a.ws.close(); b.ws.close();
 });
 

@@ -54,6 +54,7 @@ export class Bot {
       // fog (room rule) cuts sight to 34 m unless the target fired in the last 3.5 s or the angel revealed them (as the client's bots)
       const sight = g.fog && g.time - a.lastShot > 3.5 && !(a.revealedUntil > g.time) ? 34 : 210;
       const canSee = !this.link || this.link.link.kind === 'pad'; let vis = false; m.visHead = m.visChest = false; if (canSee && d < sight) { m.visChest = ar.los(eye, ch); m.visHead = m.visChest && d < 40 ? true : ar.los(eye, a.eye(_b)); vis = m.visHead || m.visChest; }
+      if (vis && g.smokeCut && g.smokeCut(eye, ch)) { vis = false; m.visHead = m.visChest = false; }   // a smoke cloud on the sight line
       m.vis = vis;
       if (vis) { const ang = Math.acos(clamp((dx * fx + dy * fy + dz * fz) / d, -1, 1)); const facing = ang < 0.45 ? 1 : ang < 1.2 ? 0.34 : 0.09;
         let rate = clamp(1.7 - d / 105, 0.2, 1.6) * facing * (a.moving ? 1.6 : 1) * ((a.crouchK || 0) > 0.5 ? 0.55 : 1) * (g.time - a.lastShot < 3.2 ? 4.5 : 1) * (this.crouchK > 0.5 ? 0.8 : 1);

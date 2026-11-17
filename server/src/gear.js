@@ -7,12 +7,15 @@ const V3 = THREE.Vector3;
 export const G = {
   throwSpeed: 16.5, throwLift: 3.2, g: 18, maxT: 4.2,
   gasR: 3.2, gasH: 2.6, gasT: 10, gasDps: 8,
-  meleeRange: 2.35, meleeArc: 0.92, meleeFront: 55, meleeBack: 200, meleeCycle: 0.62,
+  // the hammer: half a life per hit from any side (no one-hit kill) and 5 swings a match; the knife: a quarter, no limit
+  meleeRange: 2.35, meleeArc: 0.92, meleeFront: 50, meleeBack: 50, meleeCycle: 0.62, hammerUses: 5,
+  knifeDmg: 25, knifeRange: 1.9, knifeCycle: 0.42,
+  smokeR: 4.6, smokeT: 14,
   decoyShots: [1, 2.7, 4.6], decoyLife: 7,
   strikeWarn: 1.15, strikeR: 1.7, strikeDmg: 35,
 };
 /** a fresh life's cans: players get one of each, AI snipers one gas (as in solo) */
-export const freshKit = (human) => (human ? { gas: 1, decoy: 1 } : { gas: 1, decoy: 0 });
+export const freshKit = (human) => (human ? { gas: 1, decoy: 1, smoke: 1 } : { gas: 1, decoy: 0, smoke: 0 });
 const r3 = (v) => Math.round(v * 1000) / 1000, r2 = (v) => Math.round(v * 100) / 100;
 const v3r = (v) => [r3(v.x), r3(v.y), r3(v.z)];
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -47,7 +50,7 @@ function fakeShooter(pos, by) {
 
 export class ServerGear {
   /** @param {any} match the authoritative Match (arena, actors, bots, time, damage, events) */
-  constructor(match) { this.m = match; this.flying = []; this.clouds = []; this.decoys = []; this.strikes = []; this.shadowRoof = -1; this.shadowPhase = -1; }
+  constructor(match) { this.m = match; this.flying = []; this.clouds = []; this.smokes = []; this.decoys = []; this.strikes = []; this.shadowRoof = -1; this.shadowPhase = -1; }
 
   // ---------------------------------------------------------------- throws
   /** a gas or decoy can thrown by `a` (player or bot) from o along d */
@@ -62,12 +65,12 @@ export class ServerGear {
     this.flying.push({ kind, by: a, end: tr.end, landAt: m.time + tr.t });
     m.events.push({ t: 'throw', k: kind, by: a.netId, o: ov, v: vv, at: r3(m.time), left: a.kit[kind] });
   }
-  _resync(a) { if (a && a.human && a.kit) this.m.events.push({ t: 'gear', id: a.netId, gas: a.kit.gas, decoy: a.kit.decoy }); }
+  _resync(a) { if (a && a.human && a.kit) this.m.events.push({ t: 'gear', id: a.netId, gas: a.kit.gas, decoy: a.kit.decoy, smoke: a.kit.smoke || 0 }); }
 
   // ---------------------------------------------------------------- melee
   /** pick who a swing from `a` along `dir` connects with (the client's melee(): range, arc, line of sight) */
-  meleeTarget(a, dir) {
-    const m = this.m, eye = a.eye(new V3()), ch = new V3(); let best = null, range = G.meleeRange;
+  meleeTarget(a, dir, kind) {
+    const m = this.m, eye = a.eye(new V3()), ch = new V3(); let best = null, range = kind === 'knife' ? G.knifeRange : G.meleeRange;
     for (const p of m.actors) {
       if (p === a || !p.alive) continue; p.chest(ch);
       const dx = ch.x - eye.x, dy = ch.y - eye.y, dz = ch.z - eye.z, dist = Math.hypot(dx, dy, dz); if (dist > range) continue;
@@ -81,15 +84,20 @@ export class ServerGear {
     const hx = a.pos.x - best.pos.x, hz = a.pos.z - best.pos.z, hd = Math.hypot(hx, hz) || 1;
     return { to: best, back: (fx * hx + fz * hz) / hd < -0.25 || (best.feignK || 0) > 0.5 };
   }
-  meleeHit(a, hit, dir) {
-    const m = this.m;
-    if (!hit) { m.events.push({ t: 'melee', by: a.netId, to: null }); return; }
-    m.damage(hit.to, hit.back ? G.meleeBack : G.meleeFront, a, { cause: 'melee', dir });
-    m.events.push({ t: 'melee', by: a.netId, to: hit.to.netId, back: hit.back, kill: !hit.to.alive });
+  meleeHit(a, hit, dir, kind) {
+    const m = this.m, knife = kind === 'knife', k = knife ? 'knife' : 'hammer', left = this.hammerLeft(a);
+    a.swingK = knife ? 2 : 1; a.swingUntil = m.time + 0.5;   // bots: shown to players in the snapshot
+    if (!hit) { m.events.push({ t: 'melee', by: a.netId, to: null, k, left }); return; }
+    m.damage(hit.to, knife ? G.knifeDmg : hit.back ? G.meleeBack : G.meleeFront, a, { cause: 'melee', knife, dir });
+    m.events.push({ t: 'melee', by: a.netId, to: hit.to.netId, back: hit.back, kill: !hit.to.alive, k, left });
   }
-  meleeAllowed(a) {
-    const m = this.m; if (!a.alive || m.state !== 'live' || !m.weaponsFree || (a.meleeReady || 0) > m.time) return false;
-    a.meleeReady = m.time + G.meleeCycle * 0.9; return true;   // a little slack for jitter on the client's 0.62 s swing
+  hammerLeft(a) { return a.hammerLeft == null ? G.hammerUses : a.hammerLeft; }
+  meleeAllowed(a, kind) {
+    const m = this.m, knife = kind === 'knife';
+    if (!knife && m.S && m.S.hammer === false) return false;   // room rule: the hammer is off (the knife stays)
+    if (!a.alive || m.state !== 'live' || !m.weaponsFree || (a.meleeReady || 0) > m.time) return false;
+    if (!knife) { const left = this.hammerLeft(a); if (left <= 0) { if (a.human) m.events.push({ t: 'melee', by: a.netId, to: null, k: 'hammer', left: 0 }); return false; } a.hammerLeft = left - 1; }   // every swing counts, hit or miss; the count lasts the whole match
+    a.meleeReady = m.time + (knife ? G.knifeCycle : G.meleeCycle) * 0.9; return true;   // a little slack for jitter on the client's 0.62 s swing
   }
 
   // ---------------------------------------------------------------- the angel: shadow roof and strikes
@@ -121,9 +129,11 @@ export class ServerGear {
     // cans land: gas becomes a cloud, a decoy starts its fake shots
     for (let i = this.flying.length - 1; i >= 0; i--) {
       const f = this.flying[i]; if (now < f.landAt) continue; this.flying.splice(i, 1);
-      if (f.kind === 'gas') this.clouds.push({ pos: f.end, by: f.by, until: now + G.gasT, acc: new Map() });
+      if (f.kind === 'smoke') this.smokes.push({ pos: f.end, until: now + G.smokeT });
+      else if (f.kind === 'gas') this.clouds.push({ pos: f.end, by: f.by, until: now + G.gasT, acc: new Map() });
       else this.decoys.push({ pos: f.end, by: f.by, born: now, shots: G.decoyShots.map((s) => now + s), fake: fakeShooter(f.end, f.by) });
     }
+    for (let i = this.smokes.length - 1; i >= 0; i--) if (now > this.smokes[i].until) this.smokes.splice(i, 1);
     // gas hurts whoever stands in it (the thrower too, then without credit)
     for (let i = this.clouds.length - 1; i >= 0; i--) {
       const c = this.clouds[i]; if (now > c.until) { this.clouds.splice(i, 1); continue; }
@@ -142,6 +152,15 @@ export class ServerGear {
     }
     this._strikes();
     for (const b of m.bots) this._botThink(b, dt);
+  }
+  /** does a smoke cloud sit on the sight line a -> b? (bots can't see through it; the client's smokeCut) */
+  smokeCut(a, b) {
+    for (const c of this.smokes) {
+      const cx = c.pos.x, cy = c.pos.y + 1.2, cz = c.pos.z, dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L = dx * dx + dy * dy + dz * dz || 1;
+      const k = clamp(((cx - a.x) * dx + (cy - a.y) * dy + (cz - a.z) * dz) / L, 0, 1), px = a.x + dx * k - cx, py = a.y + dy * k - cy, pz = a.z + dz * k - cz;
+      if (px * px + py * py * 0.6 + pz * pz < G.smokeR * G.smokeR) return true;
+    }
+    return false;
   }
   _decoyShot(d) {
     const m = this.m, o = new V3(d.pos.x, d.pos.y + 0.35, d.pos.z); let near = null, nd = 1e9;
@@ -181,7 +200,8 @@ export class ServerGear {
     }
     if (dist < 1.6 && (b._meleeAt || 0) < now && m.weaponsFree && (b.mag === 0 || b.reloadT > 0 || Math.random() < 0.35)) {
       b._meleeAt = now + 1.6; const dir = t.chest(new V3()).sub(b.eye(new V3())).normalize();
-      if (this.meleeAllowed(b)) this.meleeHit(b, this.meleeTarget(b, dir), dir); return;
+      const kind = (m.S && m.S.hammer === false) || this.hammerLeft(b) <= 0 ? 'knife' : 'hammer';
+      if (this.meleeAllowed(b, kind)) this.meleeHit(b, this.meleeTarget(b, dir, kind), dir, kind); return;
     }
     if (!b.kit || !(b.kit.gas > 0) || !m.weaponsFree || dist < 9 || dist > 34) return;
     const mem = b.mem && b.mem.get(t); if (!mem || now - mem.seen > 2.5) return;

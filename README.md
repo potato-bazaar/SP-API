@@ -45,12 +45,12 @@ Open the page, press **Play online**, type a name, **Create room**. Send the 5-l
 
 Client → server: `hello{name,token}` · `create{settings}` · `join{code}` · `leave` · `name` · `team` · `ready` ·
 `settings{patch}` · `kick` · `host` · `start` · `lobby` · `chat` · `ping` · in match: `in` · `fire` · `reload` · `fall` ·
-`melee{d}` · `nade{k: gas|decoy, o, d}`.
+`melee{d, k: hammer|knife}` · `nade{k: gas|decoy|smoke, o, d}`.
 Every message is validated with zod (`server/src/protocol.js`); 8 KB max, ~60 msgs/s per socket, 12 sockets per IP.
 
 Server → client: `welcome` · `room` (lobby state) · `start` (roster, rules, first snapshot) · `s` (snapshot + events:
 `spawn shot dmg hit kill gaze correct ammo deny free end`, and gear events `throw gear fshot melee amark ahit`) ·
-`error` · `notice` · `left` · `chat` · `pong`. Snapshot rows carry lean at [15] and play-dead as flag 64; the zone
+`error` · `notice` · `left` · `chat` · `pong`. Snapshot rows carry lean at [15], play-dead as flag 64 and what is in hand in flag bits 8-9 (0 rifle, 1 sidearm, 2 hammer, 3 knife); the zone
 array carries the angel's shadow roof at [5].
 
 ## Solo and online
@@ -62,9 +62,10 @@ travel and drop. The kill cam, aim assist on touch screens and the city set dres
 Online, the sidearm uses the server's original 9 mm numbers (`client/src/combat.js`); the Desert Eagle numbers apply
 in solo.
 
-Gear online (`server/src/gear.js`, tuning and throw physics copied from the client's solo code): one gas and one decoy
-can per life (AI snipers one gas), the hammer (55 from the front, 200 from behind or on someone playing dead, judged
-with the same lag rewind as shots), the angel's shadow roof (no reveal and no strikes there), the room rule "the angel
+Gear online (`server/src/gear.js`, tuning and throw physics copied from the client's solo code): one gas, one smoke and one
+decoy can per life (AI snipers one gas), the hammer (50 a hit from any side, 5 swings a match, room rule `hammer` to
+switch it off), the knife (25 a hit, no limit; both judged with the same lag rewind as shots), smoke (14 s, bots do not
+see through it), the angel's shadow roof (no reveal and no strikes there), the room rule "the angel
 fires" (marked strikes at each contraction, heavier from the fourth) and fog (bots see 34 m instead of 210 m unless you
 fired in the last 3.5 s). Bots run from gas and strike marks, swing the hammer up close and gas a target that camps.
 Not on the server yet: the client's destructible cover, cable cuts and lamp shots (a can that clips a cover piece can

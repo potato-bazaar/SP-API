@@ -18,6 +18,19 @@ export function collisionBVH(arrays) {
   return new MeshBVH(g);
 }
 
+// a lean (Q/E) shifts the head fully, the chest most of the way and the hips a little toward the lean side (yaw: facing, off: metres)
+export function leanShapes(out, yaw, off) {
+  if (!off) return out; const dx = Math.cos(yaw) * off, dz = -Math.sin(yaw) * off;
+  out[0] += dx; out[2] += dz; out[3] += dx; out[5] += dz; out[11] += dx * 0.8; out[13] += dz * 0.8; out[8] += dx * 0.25; out[10] += dz * 0.25; return out;
+}
+// playing dead: the body lies flat along the facing, head forward
+export function lyingShapes(out, p, yaw) {
+  const fx = -Math.sin(yaw), fz = -Math.cos(yaw); out.length = 0;
+  out.push(p.x + fx * 0.75, p.y + 0.2, p.z + fz * 0.75, p.x + fx * 0.75, p.y + 0.2, p.z + fz * 0.75, 0.13, 0,
+    p.x - fx * 0.1, p.y + 0.2, p.z - fz * 0.1, p.x + fx * 0.5, p.y + 0.2, p.z + fz * 0.5, 0.2, 1,
+    p.x - fx * 0.85, p.y + 0.14, p.z - fz * 0.85, p.x - fx * 0.2, p.y + 0.16, p.z - fz * 0.2, 0.14, 2);
+  return out;
+}
 // simple hit capsules [ax,ay,az,bx,by,bz,r,zone] (zone 0 head, 1 body, 2 limbs): what the server tests shots against
 export function simpleHitShapes(out, p, crouchK, eyeStand = 1.6, eyeCrouch = 1.0) {
   const e = eyeStand + (eyeCrouch - eyeStand) * crouchK; out.length = 0;
