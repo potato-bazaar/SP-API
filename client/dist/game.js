@@ -4514,7 +4514,7 @@ void main() { vec3 box = vec3(46.0, 34.0, 46.0); float sp = 26.0 + fract(positio
    echo across the block, the bolt, the magazine, spent brass, the crack of a near miss. Every method falls back
    to the synthesised sound while a recording is missing or still loading. ---------- */
 function SFX(g){
-  const A=g.audio,B={},NAMES=["rifle1","rifle2","bolt","far","mg","whiz","magout","shell","coin"];let asked=!1;
+  const A=g.audio,B={},NAMES=["rifle1","rifle2","bolt","far","mg","whiz","magout","shell","coin","dry","step1","step2","step3","step4","step5"];let asked=!1;
   const load=()=>{if(asked||!A.ctx)return;asked=!0;for(let n of NAMES)fetch("sfx/"+n+".wav").then(r=>{if(!r.ok)throw new Error(n);return r.arrayBuffer()})
     .then(b=>new Promise((ok,no)=>A.ctx.decodeAudioData(b,ok,no))).then(buf=>{B[n]=buf}).catch(()=>{})};
   // play one recording: gain, pan (-1..1), reverb send, delay s, playback rate, low-pass Hz (0 = open)
@@ -4522,7 +4522,8 @@ function SFX(g){
     if(lp){let f=c.createBiquadFilter();f.type="lowpass";f.frequency.value=lp;f.connect(out);dst=f}
     let s=c.createBufferSource();s.buffer=buf;s.playbackRate.value=rate||1;s.connect(dst);s.start(c.currentTime+(delay||0));return!0};
   const jit=a=>1+(Math.random()-.5)*a;
-  const o={shot:A.shot.bind(A),bolt:A.bolt.bind(A),reload:A.reload.bind(A),whiz:A.whiz.bind(A)};
+  const o={shot:A.shot.bind(A),bolt:A.bolt.bind(A),reload:A.reload.bind(A),whiz:A.whiz.bind(A),step:A.step.bind(A),stepAt:A.stepAt.bind(A),dry:A.dry.bind(A)};
+  let lastStep=0;const foot=()=>{let k;do k=1+(Math.random()*5|0);while(k===lastStep);lastStep=k;return"step"+k}; // never the same step twice running
   A.shot=(d=0,pan=0,pistol=!1)=>{load();if(!A.ctx)return;
     let delay=Math.min(.5,d/343),att=d<=0?1:Math.max(.05,1/(1+d/26)),lp=d>0?Math.max(500,9e3-d*55):0;
     if(pistol){o.shot(d,pan,pistol);play("mg",.45*att,pan,.3,delay,.72*jit(.06),lp);return} // sidearm and drone: a tight crack over the synth body
@@ -4535,6 +4536,10 @@ function SFX(g){
   A.reload=(t=2.4)=>{load();o.reload(t);play("magout",.6,.1,.1,.12,jit(.05),0)};
   A.whiz=(pan=0)=>{load();play("whiz",.85,pan,.3,0,jit(.12),0)||o.whiz(pan)};
   A.coin=()=>{load();play("coin",.5,0,.1,0,1,0)};
+  A.dry=()=>{load();play("dry",.6,0,.05,0,jit(.04),0)||o.dry()};
+  // your own steps (crouched: soft; surface 1 is metal: the synth's ring goes on top) and other snipers' steps by distance
+  A.step=(crouch=!1,surf=0)=>{load();play(foot(),crouch?.1:surf===1?.26:.3,(Math.random()-.5)*.3,.06,0,jit(.16)*(crouch?.9:1),crouch?2400:0)?surf===1&&o.step(crouch,surf):o.step(crouch,surf)};
+  A.stepAt=(d,pan,surf=0,loud=!1)=>{load();play(foot(),Math.max(0,(surf===1?.5:.42)*(loud?1.25:.8)/(1+d/4)),pan,.12,0,jit(.16),Math.max(700,5200-d*220))||o.stepAt(d,pan,surf,loud)};
 }
 /* ---------- music: music1.mp3 is the main theme, music2.mp3 (optional) takes over when a match turns tense.
    Loud on the title, lobby and results; pushed back behind the rain and the footsteps while you play. ---------- */
