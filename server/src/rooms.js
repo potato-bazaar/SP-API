@@ -51,7 +51,7 @@ class Room {
     if (this.banned.has(session.id)) throw new UserError('The host removed you from this room.');
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
     if (this.state !== 'lobby') throw new UserError('That match has already started. Ask the host to bring the room back to the lobby.');
-    const c = this.teamCounts(); const m = { id: session.id, name: session.name, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0 };
+    const c = this.teamCounts(); const m = { id: session.id, name: session.name, op: session.op | 0, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0 };
     this.members.set(session.id, m); session.room = this; this.settings = normalise(this.settings, this.members.size); this.broadcastRoom(); return m;
   }
   // a socket closed: keep the slot for a while (reconnect with the same token)
@@ -73,6 +73,7 @@ class Room {
   // ---- lobby actions
   setTeam(s, team) { this._lobbyOnly(); if (!this.teamsOn()) return; const m = this.members.get(s.id); const c = this.teamCounts(); if (m.team !== team && c[team] >= MODES[this.settings.mode].teamSize) throw new UserError('That team is full.'); m.team = team; m.ready = false; this.broadcastRoom(); }
   setReady(s, v) { this._lobbyOnly(); this.members.get(s.id).ready = v; this.broadcastRoom(); }
+  setOp(s, k) { const m = this.members.get(s.id); if (m) m.op = k | 0; }   // read when the next match starts (and on a rejoin)
   setName(s, name) { const m = this.members.get(s.id); m.name = name; this.broadcastRoom(); }
   setSettings(s, patch) {
     this._hostOnly(s); this._lobbyOnly();
@@ -109,7 +110,7 @@ class Room {
     this.startLoop(); this.broadcastRoom();
   }
   startMsg(rejoin, who) {
-    const M = this.match; const roster = Object.fromEntries(M.actors.map(a => [a.netId, { name: a.name, team: a.team, bot: !a.human }]));
+    const M = this.match; const roster = Object.fromEntries(M.actors.map(a => [a.netId, { name: a.name, team: a.team, bot: !a.human, op: (this.members.get(a.netId) || {}).op | 0 }]));
     const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a), ham: a.hammerLeft, pts: a.pts || 0 };
     return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? [...M.extras.state(M.byId.get(who)), ...M.power.state(M.byId.get(who))] : M.drain(), snap: M.snapshot(), log: M.log };
   }

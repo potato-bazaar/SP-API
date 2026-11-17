@@ -207,6 +207,13 @@ h1 em{font-style:inherit;color:var(--blood);display:block}
 @media (orientation:portrait){ #touch{--tb:calc(var(--u)*30)} #sinfo{bottom:calc(50% - var(--u)*47)} #breath{bottom:calc(50% - var(--u)*49)} }
 
 /* ---------- online */
+#ops{background:linear-gradient(90deg,rgba(5,5,5,.9) 0,rgba(5,5,5,.25) 38%,rgba(5,5,5,0) 60%,rgba(5,5,5,.35) 100%);justify-content:space-between;touch-action:none}
+#ops .ops-top{display:flex;align-items:center;gap:18px;pointer-events:none} #ops .ops-top>*{pointer-events:auto} #ops .ops-top h2{margin:0}
+#ops .ops-list{display:flex;flex-direction:column;gap:10px;align-items:flex-start;pointer-events:none}
+.ops-card{pointer-events:auto;display:flex;align-items:baseline;gap:14px;min-width:min(300px,70vw);padding:12px 16px;border:1px solid var(--ash);background:rgba(5,5,5,.6);color:var(--silver);font:700 calc(var(--u)*.8 + 13px)/1 var(--display);letter-spacing:.22em;text-align:left;cursor:pointer}
+.ops-card i{font-style:normal;opacity:.5;font-size:.8em} .ops-card.on{border-color:#19e6ff;color:var(--paper);box-shadow:0 0 14px rgba(25,230,255,.3),inset 0 0 10px rgba(25,230,255,.1)} .ops-card.mine::after{content:"IN USE";margin-left:auto;font-size:.62em;color:var(--lime);letter-spacing:.2em}
+#ops .ops-info{max-width:min(440px,86vw);pointer-events:none} #ops .ops-info>*{pointer-events:auto} #ops-name{display:block;font:700 calc(var(--u)*2.2 + 22px)/1 var(--display);letter-spacing:.14em;color:var(--paper)} #ops-tag{display:block;margin:10px 0 2px;color:var(--silver);line-height:1.45}
+#ops .ops-info small{display:block;margin-top:10px;opacity:.55;font-size:12px;letter-spacing:.03em} #ops-pick:disabled{background:transparent;border-color:var(--lime);color:var(--lime)}
 #online{background:linear-gradient(90deg,rgba(5,5,5,.94) 0,rgba(5,5,5,.8) 50%,rgba(5,5,5,.35) 100%)} #online .wrap{margin-left:calc(var(--u)*4)}
 .narrow{max-width:min(30em,100%)!important}
 .sh{margin:0;font:italic 800 calc(var(--u)*4 + 20px)/0.9 var(--display);text-transform:uppercase}
@@ -444,6 +451,7 @@ html.booted #play,html.booted #playnote{display:none}
         <button id="play" class="btn red" type="button">Play free</button><span id="playnote">loads the game &middot; about 15 MB &middot; no download or sign-up</span>
         <button id="deploy" class="btn red" type="button" disabled>Deploy</button>
         <button id="online-btn" class="btn" type="button" hidden disabled>Play online</button>
+        <button id="opsb" class="tog" type="button" aria-label="Choose your operator">OPERATOR · SNIPER</button>
         <button id="aib" class="tog" type="button" aria-label="Rival skill">RIVALS · MARKSMAN</button>
         <button id="ctlb" class="tog" type="button" hidden>CONTROLS · GYRO</button>
         <div id="load"><div id="loadtxt" class="lab">loading the district</div><div id="loadbar"><i></i></div></div>
@@ -462,6 +470,7 @@ html.booted #play,html.booted #playnote{display:none}
       <p class="lab" style="margin-top:14px;opacity:.5;font-size:11px;letter-spacing:.04em">arms &amp; desert eagle: &ldquo;Desert Eagle fps Cyberpunk arms (Female)&rdquo; by <a href="https://sketchfab.com/3d-models/desert-eagle-fps-cyberpunk-armsfemalefree-fae22e5523aa4d18a5688d3d9513b823" target="_blank" rel="noopener" style="color:inherit">coffee owl</a>, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener" style="color:inherit">CC BY 4.0</a> &middot; recoloured and optimised</p>
       <p class="lab" style="margin-top:4px;opacity:.5;font-size:11px;letter-spacing:.04em">awm: &ldquo;AWP | AWM&rdquo; by <a href="https://sketchfab.com/3d-models/awp-awm-df073bbe7af947379d6869dad71b6ed3" target="_blank" rel="noopener" style="color:inherit">AvnisT</a> &middot; lucifer: &ldquo;Fallen Angel Demon Knight&rdquo; by <a href="https://sketchfab.com/3d-models/fallen-angel-demon-knight-d553fca563ef43e485e8ea3935af6443" target="_blank" rel="noopener" style="color:inherit">Pigcraft</a> &middot; rpg: &ldquo;RPG-7&rdquo; by <a href="https://sketchfab.com/3d-models/rpg-7-23d13d69b7ab4ea1a438c57ca3a234b4" target="_blank" rel="noopener" style="color:inherit">ArtEast.</a> &middot; dog: &ldquo;Zombie Dog&rdquo; by <a href="https://sketchfab.com/3d-models/zombie-dog-b06341d813b0422d900efb5fd07a7551" target="_blank" rel="noopener" style="color:inherit">LostBoyz2078</a> &middot; all <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener" style="color:inherit">CC BY 4.0</a>, simplified and recoloured</p>
       <div class="credit">hammer model by Eryk Stańko · CC BY 4.0</div>
+      <div class="credit">mech police operator: &ldquo;Mech Robotic Police 3D Model w/ Scifi Gun&rdquo; by <a href="https://sketchfab.com/3d-models/mech-robotic-police-3d-model-w-scifi-gun-a748deca84da4f84b90a3436d0783f89" target="_blank" rel="noopener" style="color:inherit">CHM</a> · CC BY 4.0 · gun removed, simplified, rigged</div>
 
       <section id="about" aria-label="About Sniper City">
         <h2>What is Sniper City?</h2>

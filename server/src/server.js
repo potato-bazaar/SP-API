@@ -156,6 +156,7 @@ function handle(s, m) {
   if (!s.id) return;
   // the client's own round-trip figure (m.r) is ignored: trusting it let a player claim lag and earn the maximum rewind
   if (m.t === 'ping') { s.send({ t: 'pong', c: m.c }); return; }
+  if (m.t === 'op') { s.op = m.k; if (s.room) s.room.setOp(s, m.k); return; }
   if (m.t === 'name') { s.name = m.name; if (s.room) s.room.setName(s, m.name); return; }
   if (m.t === 'create') { if (s.room) s.room.remove(s.id); const r = lobby.create(s, m.settings); return; }
   if (m.t === 'join') { const r = lobby.find(m.code); if (!r) throw new UserError('No room with that code. Check the letters and try again.'); if (s.room && s.room !== r) s.room.remove(s.id); r.add(s); return; }

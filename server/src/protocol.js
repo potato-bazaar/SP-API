@@ -12,6 +12,7 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('join'), code }),
   z.object({ t: z.literal('leave') }),
   z.object({ t: z.literal('name'), name }),
+  z.object({ t: z.literal('op'), k: z.number().int().min(0).max(7) }),   // which operator (body) this player wears; looks only
   z.object({ t: z.literal('team'), team: z.union([z.literal(0), z.literal(1)]) }),
   z.object({ t: z.literal('ready'), v: z.boolean() }),
   z.object({ t: z.literal('settings'), patch: SettingsPatch }),
