@@ -66,6 +66,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--paper);outline-
 #banner span{display:block;margin-top:8px;color:var(--silver)}
 #banner.red b{color:var(--blood)}
 #prompt{position:absolute;left:50%;bottom:24%;transform:translateX(-50%);font:600 calc(var(--u)*1.1 + 9px)/1 var(--display);letter-spacing:.18em;white-space:nowrap;background:rgba(5,5,5,.6);padding:8px 12px}
+#prompt:has(kbd){border:1.5px solid #19e6ff;color:var(--paper);background:rgba(3,10,14,.78);padding:12px 20px 10px;box-shadow:0 0 14px rgba(25,230,255,.35),inset 0 0 10px rgba(25,230,255,.12);clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 10px,100% calc(100% - 10px),calc(100% - 10px) 100%,10px 100%,0 calc(100% - 10px),0 10px)}
+#prompt:has(kbd)::after{content:"INTERACTION AVAILABLE";display:block;margin:7px 0 0 2.9em;font-size:.62em;letter-spacing:.3em;color:#19e6ff}
+#prompt:has(kbd) kbd{border-color:#19e6ff;color:#19e6ff}
 #prompt kbd{font:700 .92em var(--mono);border:1px solid var(--paper);padding:1px 6px;margin-right:.7em;letter-spacing:0}
 #hp{position:absolute;left:var(--gl);bottom:calc(var(--u)*1.8)}
 #hpn{font:700 calc(var(--u)*4 + 18px)/0.9 var(--mono);display:inline-block;min-width:2.1ch}
