@@ -57,8 +57,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--paper);outline-
 #time.late{color:var(--blood)}
 #phase{margin-top:6px;white-space:nowrap}
 #phase.warn{color:var(--paper)} #phase.hot{color:var(--blood)}
-#map{position:absolute;right:var(--gr);top:calc(var(--u)*1.4);width:calc(var(--mapw)*1.12);aspect-ratio:1;border-radius:50%;background:none;filter:drop-shadow(0 0 10px rgba(0,0,0,.7));transition:width .18s ease,right .18s ease,top .18s ease;z-index:3}
-#map.big{width:min(78vh,78vw);right:calc(50% - min(39vh,39vw));top:calc(50% - min(39vh,39vw))}
+#map{position:absolute;right:var(--gr);top:calc(var(--u)*1.4);width:calc(var(--mapw)*1.12*var(--map-s,1));aspect-ratio:1;border-radius:50%;background:none;filter:drop-shadow(0 0 10px rgba(0,0,0,.7));opacity:var(--map-a,1);transition:width .18s ease,right .18s ease,top .18s ease,opacity .18s ease;z-index:3;touch-action:none}
+#map.placed{right:auto}
+#map.big{width:min(78vh,78vw)!important;right:calc(50% - min(39vh,39vw))!important;left:auto!important;top:calc(50% - min(39vh,39vw))!important;transform:none!important;opacity:1}
 #feed{position:absolute;right:var(--gr);top:calc(var(--u)*1.4 + var(--mapw) + 14px);display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 #feed div{font:600 calc(var(--u)*1.05 + 8px)/1 var(--display);letter-spacing:.12em;white-space:nowrap;background:rgba(5,5,5,.55);padding:5px 8px;transition:opacity .5s}
 #feed div u{text-decoration:none;display:inline-block;width:1.6em;height:2px;background:var(--blood);vertical-align:middle;margin:0 .55em}
@@ -158,7 +159,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--paper);outline-
 #app.edit #b-use{display:grid!important}
 #app.edit #stick{display:block!important;left:calc(var(--gl) + 90px);top:auto;bottom:calc(var(--tb) + 20px);margin:0;opacity:.5}
 #app.edit.mirror #stick{left:auto;right:calc(var(--gr) + 90px)}
-#app.edit #hud,#app.edit #scope{display:none!important}
+#app.edit #scope{display:none!important}
+#app.edit #hud{display:block!important;pointer-events:none}
+#app.edit #hud > :not(#map){display:none!important}
+#app.edit #map{pointer-events:auto;z-index:8;outline:1px dashed rgba(242,242,239,.45);outline-offset:3px}
+#app.edit #map.sel{outline:2px solid var(--blood)}
 #ctl{position:absolute;left:50%;top:calc(var(--u)*1.2 + 6px);transform:translateX(-50%);z-index:7;width:min(92%,46em);background:rgba(5,5,5,.9);border:1px solid rgba(242,242,239,.25);padding:10px 12px;pointer-events:auto;max-height:62%;overflow:auto}
 #ctl-sel{color:var(--paper);margin-bottom:8px}
 .ctl-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:8px}
@@ -486,7 +491,7 @@ html.booted #play,html.booted #playnote{display:none}
         <button id="online-btn" class="btn" type="button" hidden disabled>Play online</button>
         <button id="opsb" class="tog" type="button" aria-label="Choose your operator">OPERATOR · SNIPER</button>
         <button id="aib" class="tog" type="button" aria-label="Rival skill">RIVALS · MARKSMAN</button>
-        <button id="ctlb" class="tog" type="button" hidden>CONTROLS · GYRO</button>
+        <button id="ctlb" class="tog" type="button" hidden>CONTROLS · MAP</button>
         <div id="load"><div id="loadtxt" class="lab">loading the district</div><div id="loadbar"><i></i></div></div>
         <i class="brk"></i>
         <label class="lab" for="sens">look speed <input id="sens" type="range" min="0.4" max="2.2" step="0.05" value="1"></label>
@@ -604,6 +609,9 @@ html.booted #play,html.booted #playnote{display:none}
     </div>
     <div class="ctl-row ctl-x">
       <label class="lab">see-through <input id="ctl-alpha" type="range" min="0.25" max="1" step="0.05" value="1"></label>
+      <label class="lab">map size <input id="ctl-maps" type="range" min="0.55" max="1.8" step="0.05" value="1"></label>
+      <label class="lab">map fade <input id="ctl-mapa" type="range" min="0.2" max="1" step="0.05" value="1"></label>
+      <button id="ctl-mapreset" class="tog" type="button">RESET MAP</button>
       <button id="ctl-mirror" class="tog" type="button" aria-pressed="false">LEFT-HANDED</button>
       <button id="ctl-gyro" class="tog" type="button" aria-pressed="false">GYRO OFF</button>
       <label class="lab" id="ctl-gs-l" hidden>gyro speed <input id="ctl-gsens" type="range" min="0.3" max="2.5" step="0.05" value="1"></label>
