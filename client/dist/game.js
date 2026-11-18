@@ -4765,6 +4765,13 @@ function MAP(g){
     if(!dead){let dx=a.pos.x-c.cx,dz=a.pos.z-c.cz,vx=(dx*cf-dz*sf)*u,vy=(dx*sf+dz*cf)*u,d=Math.hypot(vx,vy),lim=s-40;d>lim&&(vx*=lim/d,vy*=lim/d);
       i.save();i.translate(s+vx,s+vy);let cone=i.createRadialGradient(0,0,4,0,0,95);cone.addColorStop(0,"rgba(200,243,29,.34)");cone.addColorStop(1,"rgba(200,243,29,0)");i.fillStyle=cone;i.beginPath();i.moveTo(0,0);i.arc(0,0,95,-Math.PI/2-.42,-Math.PI/2+.42);i.closePath();i.fill();
       i.shadowColor=LIME;i.shadowBlur=12;i.fillStyle=LIME;i.strokeStyle="rgba(5,5,5,.95)";i.lineWidth=2.5;i.beginPath();i.moveTo(0,-14);i.lineTo(9.5,10);i.lineTo(0,5);i.lineTo(-9.5,10);i.closePath();i.stroke();i.fill();i.restore()}
+    // the air drop: a red diamond. When the roof is outside the glass it sits on the rim, so the beam is not the only way to find it
+    {let C=g.sx&&g.sx.C;if(C&&C.phase>=1&&C.phase<=3&&C.pt){
+      let dx=C.pt.x-c.cx,dz=C.pt.z-c.cz,vx=(dx*cf-dz*sf)*u,vy=(dx*sf+dz*cf)*u,d=Math.hypot(vx,vy),lim=s-48,edge=d>lim;
+      edge&&d>1&&(vx*=lim/d,vy*=lim/d);
+      let q=edge?12:15+3*Math.sin(T*5);
+      i.save();i.translate(s+vx,s+vy);i.shadowColor=RED;i.shadowBlur=16;i.fillStyle="rgba(224,24,45,.8)";i.strokeStyle=PAPER;i.lineWidth=2.2;
+      i.beginPath();i.moveTo(0,-q);i.lineTo(q*.72,0);i.lineTo(0,q);i.lineTo(-q*.72,0);i.closePath();i.fill();i.stroke();i.shadowBlur=0;i.restore()}}
     i.restore();
     // bezel: ticks, letters, status
     i.save();i.translate(s,s);i.lineWidth=2;i.strokeStyle="rgba(242,242,239,.28)";i.beginPath();i.arc(0,0,s-22,0,TAU);i.stroke();
@@ -5581,7 +5588,7 @@ _introDom(){
   this.cards=[["Welcome to Sniper City","eight snipers \xB7 one rooftop district \xB7 one walks away"],
     ["Stay unseen","every shot draws a red thread straight back to you",1],
     ["The angel is watching","when her halo closes, stay inside it or bleed"],
-    ["Half-time air drop","a red beam marks the AWM \xB7 one shot kills, through walls",1],
+    ["Half-time air drop","a red diamond on your map marks the AWM \xB7 one shot kills, through walls",1],
     ["Three kills summon Lucifer","pray once \xB7 unleash the dogs \xB7 two rockets \xB7 30 seconds of scope vision"],
     ["Last one alive wins","get ready"]];
 }
@@ -5625,7 +5632,7 @@ _dropNet(e){ // the server's crate (extras.js): ph 1 beam, 2 falling since e.at,
     !e.re&&was&&e.by!==(g.net&&g.net.id)&&g.hud.banner("air drop taken",1.8,!0,(g._nm?g._nm(e.by):"someone")+" has the AWM");return}
   if(C.phase>=ph)return; // e.g. it already landed here (the fall is drawn locally from e.at)
   C.phase=ph;C.hold=0;C.beam.visible=!0;
-  if(ph===1){e.re||(g.hud.banner("air drop inbound",3,!1,"the red beam marks the roof",!0),g.audio.tick&&g.audio.tick());return}
+  if(ph===1){e.re||(g.hud.banner("air drop inbound",4.5,!1,"red diamond on your map",!0),g.audio.tick&&g.audio.tick());return}
   C.grp.visible=!0;C.y=ph===2?Math.max(C.pt.y+.4,C.pt.y+70-16*Math.max(0,g.time-e.at)):C.pt.y+.4;C.grp.position.set(C.pt.x,C.y,C.pt.z);
   if(ph===3){for(let m of C.smoke)m.visible=!0;e.re||g.audio.land&&g.audio.land(1)}}
 _awmNet(e){ // the server put the AWM in your hands or took it back (its numbers live there); e.ammo is your true ammo after it
@@ -5682,7 +5689,7 @@ post(t){
   // --- air drop
   let half=g.net&&C.half!=null?C.half:g.Z.duration/2;
   // online: the server picks the roof, runs the timeline and decides who opens it (netEvent drop/awm); here it falls, smokes and counts
-  if(on("drop")){if(!g.net&&C.phase===0&&g.time>=half-12){this._pick();C.phase=1;C.beam.visible=!0;g.hud.banner("air drop inbound",3,!1,"the red beam marks the roof",!0);g.audio.tick&&g.audio.tick()}
+  if(on("drop")){if(!g.net&&C.phase===0&&g.time>=half-12){this._pick();C.phase=1;C.beam.visible=!0;g.hud.banner("air drop inbound",4.5,!1,"red diamond on your map",!0);g.audio.tick&&g.audio.tick()}
   if(!g.net&&C.phase===1&&g.time>=half){C.phase=2;C.y=C.pt.y+70;C.grp.visible=!0}
   if(C.phase===2){C.y=Math.max(C.pt.y+.4,C.y-16*t);C.grp.position.set(C.pt.x,C.y,C.pt.z);C.grp.rotation.y+=t*.4*(C.y>C.pt.y+.5?1:0);
     if(C.y<=C.pt.y+.41){C.phase=3;for(let m of C.smoke)m.visible=!0;g.audio.land&&g.audio.land(1)}}
@@ -5745,8 +5752,8 @@ post(t){
   let s="";
   if(P.view>0)s="<b>THE ANGEL'S EYES</b> \xB7 "+Math.ceil(P.view)+"S";
   else if(L.on)s="<b>LUCIFER</b> \xB7 "+L.left+" STRIKE"+(L.left===1?"":"S")+" \xB7 "+Math.max(0,Math.ceil(L.t))+"S"+(L.wind>=0?"<br><b>STRIKING</b>":"");
-  else if(C.phase>=1&&C.phase<=3&&p.alive){let d=Math.round(Math.hypot(p.pos.x-C.pt.x,p.pos.z-C.pt.z));
-    s=C.hold>0?"<b>OPENING</b> "+Math.round(C.hold/1.5*100)+"%":"AIR DROP \xB7 <b>"+d+" M</b>"+(C.phase<3?" \xB7 "+Math.max(0,Math.ceil(half-g.time))+"S":"")}
+  else if(C.phase>=1&&C.phase<=3&&p.alive){let dx=C.pt.x-p.pos.x,dz=C.pt.z-p.pos.z,d=Math.round(Math.hypot(dx,dz)),a=Math.atan2(dx,-dz),DIR=["N","NE","E","SE","S","SW","W","NW"],dir=DIR[Math.round((((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2))/(Math.PI/4))%8];
+    s=C.hold>0?"<b>OPENING</b> "+Math.round(C.hold/1.5*100)+"%":"AIR DROP \xB7 <b>"+dir+" "+d+" M</b>"+(C.phase<3?" \xB7 "+Math.max(0,Math.ceil(half-g.time))+"S":"")}
   !s&&this.RP.on&&(s="<b>RPG-7</b> \xB7 "+this.RP.ammo+" ROCKET"+(this.RP.ammo===1?"":"S"));
   if(!s&&this._dogNear&&p.alive){let dn=this._dogNear;s=dn.d.hold>0?"<b>UNLEASHING</b> "+Math.round(dn.d.hold/1.2*100)+"%":"TIED DOG \xB7 <b>"+Math.round(dn.dist)+" M</b>"}
   !s&&P.see>0&&p.alive&&(s="<b>ANGEL SIGHT</b> \xB7 "+Math.ceil(P.see)+"S");
