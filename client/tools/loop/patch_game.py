@@ -77,6 +77,14 @@ R('this.gfx.angelWorld.copy(this.angel.eye);','this.arena.see(this.gfx.angelWorl
 R('(o.copy(a.pos),o.y+=2.15,o.project(e),','(o.copy(a.pos),o.y+=2.15,SCLOOP&&t.arena.see(o,o,e.position.x),o.project(e),')
 R('let s=Math.atan2(-(n.x-i.pos.x),-(n.z-i.pos.z))-i.yaw;','let RV=e.arena.rel(RQ,i.pos,RYO.set(n.x,i.pos.y,n.z)),s=Math.atan2(-RV.x,-RV.z)-i.yaw;')
 R('$s.copy(t).sub(this.listenerPos);let n=Math.hypot($s.x,$s.z)||1;','this.arena.rel($s,this.listenerPos,t);let n=Math.hypot($s.x,$s.z)||1;')
+# ---- online: say which maps this build has, make rooms on the loaded map, follow a room to its map, learn where the halo closes
+R('send({t:"hello",name:this.name||void 0,token:this.token||void 0,v:1})','send({t:"hello",name:this.name||void 0,token:this.token||void 0,v:1,maps:["city","loop"]})')
+R('send({t:"create",settings:this._lastSettings()','send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"}')
+R('t.on("room",e=>{this._room(e);','t.on("room",e=>{if(RMAPSW(e))return;this._room(e);')
+R('t.startNet=function(e,i,n){let s=this.player;','t.startNet=function(e,i,n){let s=this.player;SCLOOP&&i.zc&&this.ringT&&this.ringT.setZone(i.zc[0],i.zc[1]);')
+R('_apply(t,e,i){let n=a=>t[a]+(e[a]-t[a])*i,','_apply(t,e,i){let n=a=>t[a]+(a===1&&RWD?RWD(e[a]-t[a]):e[a]-t[a])*i,')
+R('["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],','["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],["map","map",[["city","SNIPER CITY"],["loop","LOOP CITY"]]],')
+R('district:()=>pan(`<h2>DISTRICT ROTATION</h2><p>One district is live: <b style="color:#fff">Hong Kong \xB7 District 04</b>, 24 rooftops around the angel.</p><p class="note">More districts mean building new maps. None exist yet, so there is nothing to rotate.</p>`),','district:()=>RDIST(pan),')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))

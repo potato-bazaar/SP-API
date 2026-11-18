@@ -13,7 +13,7 @@ function RING(g){
   if(g.fx.rain&&g.fx.rain.isObject3D){scene.remove(g.fx.rain);g.fx.rain={visible:!1}}
   {const b=document.getElementById("rainb");b&&(b.style.display="none")}
   g.fx.curtain.visible=!1;
-  RLINKS(g);RMAP(g);
+  RLINKS(g);RMAP(g);RNET(g);
   {const au=g.audio,quiet=()=>{try{au.rain.g.gain.value=0;au.wind.g.gain.value=.028}catch(e){}},amb=au._ambience;au._ambience=function(){amb.apply(this,arguments);quiet()};quiet()}   // no rain on a space station: a low hum is enough
   // ---- every frame
   const up=g.update;
