@@ -73,6 +73,13 @@ class Room {
   // ---- lobby actions
   setTeam(s, team) { this._lobbyOnly(); if (!this.teamsOn()) return; const m = this.members.get(s.id); const c = this.teamCounts(); if (m.team !== team && c[team] >= MODES[this.settings.mode].teamSize) throw new UserError('That team is full.'); m.team = team; m.ready = false; this.broadcastRoom(); }
   setReady(s, v) { this._lobbyOnly(); this.members.get(s.id).ready = v; this.broadcastRoom(); }
+  // voice chat: hand one member's WebRTC handshake to another member of the same room. No audio passes through here.
+  rtc(s, m) {
+    if (this.settings.voice === false || m.to === s.id) return;
+    const to = this.members.get(m.to); if (!to || !to.conn || !this.members.has(s.id)) return;
+    const now = Date.now(); s._rtcT = s._rtcT && now - s._rtcT < 1000 ? s._rtcT : now; s._rtcN = s._rtcT === now ? 1 : (s._rtcN || 0) + 1; if (s._rtcN > 120) return;   // 120 a second is far above any real handshake
+    to.conn.send({ t: 'rtc', from: s.id, k: m.k, d: m.d });
+  }
   setOp(s, k) { const m = this.members.get(s.id); if (m) m.op = k | 0; }   // read when the next match starts (and on a rejoin)
   setName(s, name) { const m = this.members.get(s.id); m.name = name; this.broadcastRoom(); }
   setSettings(s, patch) {

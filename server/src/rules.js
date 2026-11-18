@@ -25,6 +25,7 @@ export const SettingsSchema = z.object({
   decoy: z.boolean().default(true),                             // decoy cans
   drone: z.boolean().default(true),                             // power-up: the attack drone (300 points)
   strike: z.boolean().default(true),                            // power-up: the missile strike (600 points)
+  voice: z.boolean().default(true),                             // voice chat between players (the server only passes the handshake; sound goes browser to browser)
 }).strict();
 
 export const SettingsPatch = SettingsSchema.partial().strict();

@@ -13,6 +13,8 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('leave') }),
   z.object({ t: z.literal('name'), name }),
   z.object({ t: z.literal('op'), k: z.number().int().min(0).max(7) }),   // which operator (body) this player wears; looks only
+  // voice chat handshake, passed on to one other member of the room: hi (I have voice on), offer / answer / ice (WebRTC), bye
+  z.object({ t: z.literal('rtc'), to: z.string().max(32), k: z.enum(['hi', 'offer', 'answer', 'ice', 'bye']), d: z.string().max(16000).optional() }),
   z.object({ t: z.literal('team'), team: z.union([z.literal(0), z.literal(1)]) }),
   z.object({ t: z.literal('ready'), v: z.boolean() }),
   z.object({ t: z.literal('settings'), patch: SettingsPatch }),
