@@ -407,6 +407,15 @@ input[type=range]{accent-color:var(--lime)} .go label.lab{color:var(--paper);let
 html:not(.booted) .go>:not(#play):not(#playnote){display:none!important}
 html.booted #play,html.booted #playnote{display:none}
 #playnote{font:500 calc(var(--u)*.4 + 11px)/1.3 var(--display);letter-spacing:.08em;color:var(--silver)}
+/* phones: ask for landscape before a match. Hidden in landscape or on desktop. */
+#tilt{position:absolute;inset:0;z-index:40;display:grid;place-content:center;justify-items:center;gap:14px;padding:24px;background:rgba(5,5,5,.92);pointer-events:auto;text-align:center}
+#tilt[hidden]{display:none!important}
+#tilt b{font:italic 800 clamp(28px,7vw,48px)/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--paper)}
+#tilt span{font:600 clamp(12px,3.2vw,16px)/1.35 var(--display);letter-spacing:.18em;text-transform:uppercase;color:var(--silver);max-width:18em}
+.tilt-phone{width:54px;height:88px;border:3px solid var(--paper);border-radius:10px;position:relative;animation:tiltspin 1.6s ease-in-out infinite;box-shadow:inset 0 -10px 0 rgba(224,24,45,.85)}
+.tilt-phone::after{content:"";position:absolute;left:50%;top:10px;width:10px;height:3px;background:var(--ash);transform:translateX(-50%);border-radius:2px}
+@keyframes tiltspin{0%,18%{transform:rotate(0deg)}45%,70%{transform:rotate(90deg)}100%{transform:rotate(90deg)}}
+@media (orientation:landscape){#tilt{display:none!important}}
 #about{margin-top:calc(var(--u)*2 + 22px);max-width:46em;padding-bottom:28px;-webkit-user-select:text;user-select:text}
 #about h2{font:700 calc(var(--u)*.7 + 14px)/1.2 var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--paper);margin:22px 0 6px;padding-left:14px;border-left:2px solid var(--blood)}
 #about p,#about li,#about dd{font:500 calc(var(--u)*.4 + 13px)/1.45 var(--display);letter-spacing:.03em;color:var(--silver);margin:0 0 8px;text-wrap:pretty}
@@ -619,6 +628,11 @@ html.booted #play,html.booted #playnote{display:none}
       <button id="ctl-diag" class="tog" type="button" aria-pressed="false">DIAGNOSTICS</button>
     </div>
   </div>
+  <div id="tilt" hidden aria-live="polite">
+    <div class="tilt-phone" aria-hidden="true"></div>
+    <b>TILT YOUR PHONE</b>
+    <span>Sniper City plays in landscape · full screen</span>
+  </div>
   <div id="toast" hidden></div>
   <div id="fade"></div>
   <div id="err" hidden></div>
@@ -628,9 +642,13 @@ html.booted #play,html.booted #playnote{display:none}
    Returning players, invite links and automated tests skip the button. */
 (function(){
   var done=false,root=document.documentElement;
+  function mob(){try{return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.userAgent))||(matchMedia("(pointer:coarse)").matches&&Math.min(screen.width,screen.height)<820)}catch(e){return false}}
+  function land(){return window.innerWidth>=window.innerHeight}
+  function paintTilt(){var t=document.getElementById("tilt");if(!t)return;var need=mob()&&!land();t.hidden=!need;root.classList.toggle("need-land",need)}
+  paintTilt();addEventListener("resize",paintTilt);addEventListener("orientationchange",paintTilt);
   function boot(){if(done)return;done=true;root.classList.add("booted");try{localStorage.setItem("sc.played","1")}catch(e){}
     try{gtag("event","play_click")}catch(e){}var s=document.createElement("script");s.src="game.js";s.onerror=function(){var t=document.getElementById("loadtxt");t&&(t.textContent="could not load - check your connection and reload")};document.body.appendChild(s)}
-  window.__scBoot=boot;
+  window.__scBoot=boot;window.__scTilt={mob:mob,land:land,paint:paintTilt};
   var auto=!!window.__TEST;try{auto=auto||localStorage.getItem("sc.played")==="1"}catch(e){}
   auto=auto||/\/r\/[A-Za-z0-9]{5,8}\b/.test(location.pathname)||/(^|[#&])room=/.test(location.hash);
   var b=document.getElementById("play");b&&b.addEventListener("click",boot);
