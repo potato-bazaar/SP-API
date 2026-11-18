@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 const V3 = THREE.Vector3;
 export const P = {
-  kill: 100, head: 50, row: 50, rowFrom: 3, drone: 300, strike: 600,
+  kill: 100, head: 50, row: 50, rowFrom: 3, drone: 300, strike: 600, awm: 450,
   droneT: 14, droneHp: 60, droneSpeed: 17, droneDmg: 18, droneCycle: 0.42, droneHit: 0.78, droneRange: 24, droneR: 0.9,
   strikeT: 15, missiles: 5, missileCool: 0.5, missileFly: 1.5, blastKill: 4.5, blastR: 9, blastDmg: 110, selfR: 7, selfDmg: 80,
   planeR: 70, planeH: 62, planeW: 0.42,
@@ -25,7 +25,7 @@ export class ServerPowerups {
   /** a credited kill: 100, +50 for a head, +50 from the third in a row. Only your own guns, hammer and knife count. */
   onKill(v, killer, info) {
     if (v.human && (v.row || 0) > 0) { v.row = 0; this._pts(v, 0); }
-    if (!killer || killer === v || !killer.human || !(this.on('drone') || this.on('strike'))) return;
+    if (!killer || killer === v || !killer.human) return;
     if (this.m.teams && killer.team === v.team) return;
     const c = info && info.cause; if (c && c !== 'melee') return;
     killer.row = (killer.row || 0) + 1;
@@ -36,18 +36,21 @@ export class ServerPowerups {
   use(a, kind) {
     const m = this.m; if (!a || !a.human) return;
     const deny = (why) => m.events.push({ t: 'puno', id: a.netId, k: kind, why, pts: a.pts || 0 });
-    if (kind !== 'drone' && kind !== 'strike') return;
-    if (!this.on(kind)) return deny('off');
+    if (kind !== 'drone' && kind !== 'strike' && kind !== 'awm') return;
+    if (kind !== 'awm' && !this.on(kind)) return deny('off');
     if (!a.alive || m.state !== 'live' || !m.weaponsFree || (a.feignK || 0) > 0.5) return deny('now');
-    if (kind === 'drone' ? this.drones.some((d) => d.by === a) : !!a.strike) return deny('busy');
+    if (kind === 'drone' ? this.drones.some((d) => d.by === a) : kind === 'strike' ? !!a.strike : !!a.awm) return deny('busy');
+    if (kind === 'awm' && a.wpn !== 'rifle') return deny('weapon');
     if ((a.pts || 0) < P[kind]) return deny('pts');
     a.pts -= P[kind]; this._pts(a, 0);
     if (kind === 'drone') {
       this.drones.push({ by: a, pos: new V3(a.pos.x, a.pos.y + 2.4, a.pos.z), vel: new V3(), hp: P.droneHp, until: m.time + P.droneT, target: null, fireAt: m.time + 0.6, aaAt: m.time + 1, yaw: a.yaw || 0, kills: 0 });
       m.events.push({ t: 'drone', by: a.netId, on: 1 });
-    } else {
+    } else if (kind === 'strike') {
       a.strike = { until: m.time + P.strikeT, left: P.missiles, ready: m.time + 0.4 };
       m.events.push({ t: 'strike', id: a.netId, on: 1, s: P.strikeT, left: P.missiles });
+    } else {
+      m.extras.awmOn(a);   // same AWM as the air drop: 3 pierce rounds, server owns the numbers
     }
   }
 

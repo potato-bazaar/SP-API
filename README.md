@@ -57,8 +57,9 @@ array carries the angel's shadow roof at [5].
 ## Solo and online
 
 Online matches are decided by this server. These features currently run in solo matches only: the rooftop dogs,
-Lucifer, and rifle bullet travel and drop. The RPG-7, the half-time air drop and AWM, scope vision and the prayer
-run in both, with the server keeping the truths. The kill cam, aim assist on touch screens and the city set dressing run in both.
+Lucifer, and rifle bullet travel and drop. The Blind One hunt, silencers, eggs, the RPG-7, the half-time air drop,
+the AWM (air drop and 450-point buy), scope vision and the prayer run in both, with the server keeping the truths
+that hurt or spend (damage, points, pierce ammo, silencer hearing). The kill cam, aim assist on touch screens and the city set dressing run in both.
 
 Online, the sidearm uses the server's original 9 mm numbers (`client/src/combat.js`); the Desert Eagle numbers apply
 in solo.

@@ -25,6 +25,7 @@ class Human {
     this.id = id; this.netId = id; this.name = name; this.team = team; this.isPlayer = true; this.human = true;
     this.pos = new V3(); this.vel = new V3(); this.lastShotPos = new V3(); this._e = new V3(); this._c = new V3();
     this.kills = 0; this.deaths = 0; this.shots = 0; this.hits = 0; this.heads = 0; this.place = 0; this.hammerLeft = 5;   // hammer swings left this match (not reset by a respawn)
+    this.silenced = false;   // silencer: kept for the whole match once fitted (solo nest)
     this.reset();
   }
   reset() {
@@ -128,8 +129,11 @@ export class Match {
   // ------------------------------------------------------------------ combat (called by the shared shot routine and the bots)
   panOf() { return 0; }
   onShot(shooter, origin, res) {
-    for (const b of this.bots) if (b.alive && b !== shooter) b.hear(shooter, origin);
-    this.events.push({ t: 'shot', by: shooter.netId, o: [r2(origin.x), r2(origin.y), r2(origin.z)], e: [r2(res.point.x), r2(res.point.y), r2(res.point.z)], hit: res.hit ? res.hit.netId : null, z: res.zone, w: this._shotW || 'rifle' });
+    // a fitted silencer: AI snipers do not hear the shot (solo nest); the shot event still draws for everyone
+    if (!shooter.silenced) for (const b of this.bots) if (b.alive && b !== shooter) b.hear(shooter, origin);
+    const e = { t: 'shot', by: shooter.netId, o: [r2(origin.x), r2(origin.y), r2(origin.z)], e: [r2(res.point.x), r2(res.point.y), r2(res.point.z)], hit: res.hit ? res.hit.netId : null, z: res.zone, w: this._shotW || 'rifle' };
+    if (shooter.silenced) e.q = 1;
+    this.events.push(e);
     if (shooter.human && shooter.protectUntil > this.time) shooter.protectUntil = 0;
   }
   damage(v, amount, attacker, info = {}) {
@@ -148,7 +152,7 @@ export class Match {
     v.alive = false; v.hp = 0; v.deathTime = this.time; v.deaths = (v.deaths || 0) + 1; v.revealedUntil = -1;
     // cause: deaths with no one to credit (the client's death screen names them); how: the kill feed's label otherwise
     const credited = killer && killer !== v;
-    const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : info.cause === 'angel' ? 'angel' : info.cause === 'gas' && !credited ? 'gas' : info.cause === 'rpg' && !credited ? 'rpg' : null;   // rpg: your own rocket
+    const cause = info.cause === 'zone' ? 'halo' : (info.cause === 'drop' || info.cause === 'fall') ? 'street' : info.cause === 'angel' ? 'angel' : info.cause === 'alien' ? 'beast' : info.cause === 'egg' ? 'egg' : info.cause === 'gas' && !credited ? 'gas' : info.cause === 'rpg' && !credited ? 'rpg' : null;
     const how = cause ? '' : info.cause === 'melee' ? (info.knife ? 'knife' : 'hammer') : info.cause === 'gas' ? 'gas' : info.cause === 'drone' ? 'drone' : info.cause === 'missile' ? 'missile' : info.cause === 'rpg' ? 'rpg' : (info.zone === 0 ? 'head' : info.wpn && info.wpn.key === 'pistol' ? 'sidearm' : '');
     const friendly = killer && this.teams && killer.team === v.team && killer !== v;
     // a kill counts even if the killer has died since (a rocket or gas still on its way; the clients count it too); the blood bonus needs them alive
@@ -207,6 +211,22 @@ export class Match {
   /** a gas or decoy can */
   nade(id, m) { const a = this.byId.get(id); if (a && a.human) this.gearSim.throw(a, m.k, m.o, m.d); }
   fall(id, v) { const a = this.byId.get(id); if (!a || !a.alive || !Number.isFinite(v)) return; v = clamp(v, 0, 60); if (v > 14.5) this.damage(a, Math.min(100, (v - 14.5) * 8), null, { cause: 'fall' }); }
+  /** silencer fitted on a roof: bots stop hearing this player's shots for the rest of the match */
+  silencer(id) { const a = this.byId.get(id); if (a && a.human && a.alive) a.silenced = true; }
+  /** Blind One bite or egg burst on the local sniper (client nest; clamped to solo numbers) */
+  nestHurt(id, cause, v) {
+    const a = this.byId.get(id); if (!a || !a.human || !a.alive || this.state !== 'live') return;
+    const amt = cause === 'alien' ? Math.min(65, Math.round(v)) : Math.min(120, Math.round(v));
+    if (amt <= 0) return;
+    const now = this.time; if (cause === 'alien' && now < (a._alienAt || 0) + 0.7) return; if (cause === 'alien') a._alienAt = now;
+    this.damage(a, amt, null, { cause });
+  }
+  /** Blind One killed: +150 points (solo nest), at most once every 40 s */
+  nestKill(id) {
+    const a = this.byId.get(id); if (!a || !a.human || !a.alive || this.state !== 'live') return;
+    if (a._nestKillAt != null && this.time < a._nestKillAt + 40) return; a._nestKillAt = this.time;
+    a.pts = (a.pts || 0) + 150; this.power._pts(a, 150);
+  }
   reload(id, w) {
     const a = this.byId.get(id); if (!a || !a.alive) return; const W = WEAPONS[w]; if (!W) return; const st = a.ammo[w];
     if (st.mag >= W.mag || st.reserve <= 0 || a.reloadUntil > this.time) return; a.reloadUntil = this.time + W.reload - 0.15; a.reloadW = w;

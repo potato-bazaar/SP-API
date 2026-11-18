@@ -39,7 +39,7 @@ export function installNet(Game) {
     try { this.gfx.canvas.focus({ preventScroll: true }); } catch (e) { /* older browsers */ }
   };
   P._netRuleLine = function () { const S = this.netS; return [S.respawn ? `respawn · ${S.scoreLimit ? 'first to ' + S.scoreLimit : 'most kills at the bell'}` : 'one life', S.headshotsOnly ? 'headshots only' : '', S.hammer === false ? 'no hammer' : '', S.halo ? '' : 'no halo'].filter(Boolean).join(' · '); };
-  P._nm = function (id, cause) { if (!id) return cause === 'halo' ? 'THE HALO' : cause === 'street' ? 'THE STREET' : '—'; if (id === this.net.id) return 'YOU'; const q = this.byNet.get(id); return q ? q.name : '?'; };
+  P._nm = function (id, cause) { if (!id) return cause === 'halo' ? 'THE HALO' : cause === 'street' ? 'THE STREET' : cause === 'beast' ? 'THE BLIND ONE' : cause === 'egg' ? 'AN EGG' : '—'; if (id === this.net.id) return 'YOU'; const q = this.byNet.get(id); return q ? q.name : '?'; };
   P.stopNet = function () { for (const q of this.puppets || []) q.dispose(); this.puppets = []; this.bots = this.soloBots; this.actors = [this.player, ...this.soloBots]; this.net = null; this.teams = false; this.hud.teamMode(false, 0); };
 
   // ---- snapshots + events
@@ -61,7 +61,7 @@ export function installNet(Game) {
       case 'shot': { if (e.by === me) break; const a = this.byNet.get(e.by); const o = _a.set(e.o[0], e.o[1], e.o[2]), end = _b.set(e.e[0], e.e[1], e.e[2]);
         const from = a && a.puppet && a.alive ? a.muzzle() : o; if (a) { a.lastShot = this.time; a.lastShotPos.copy(o); a.rig.recoil = 1; a.rig.boltK = e.w === 'rifle' ? 1 : 0.3; }
         this.fx.threads.shot(from, end); this.fx.particles.flash(from, 1.6);
-        const dist = o.distanceTo(this.listenerPos); this.audio.shot(dist, this.panOf(o), e.w === 'pistol');
+        const dist = o.distanceTo(this.listenerPos); this.audio.shot(e.q ? Math.max(dist, 38) : dist, this.panOf(o), e.w === 'pistol');   // q: silencer — heard as if from far off
         const dir = _n.copy(end).sub(o).normalize();
         if (e.hit) { this.fx.particles.blood(end, dir, e.z === 0 ? 1.7 : 1); const bh = this.arena.raycast(end, dir, 4.5); if (bh) { const nn = bh.face.normal.clone(); if (nn.dot(dir) > 0) nn.negate(); this.fx.decals.add(bh.point, nn, 0.35 + Math.random() * 0.5, 0, 0.25); } }
         else { const wh = this.arena.raycast(o, dir, o.distanceTo(end) + 0.5); if (wh) { const nn = wh.face.normal.clone(); if (nn.dot(dir) > 0) nn.negate(); this.fx.particles.impact(wh.point, nn); this.fx.decals.add(wh.point, nn, 0.08, 1, 0.01, 0.85); } }
@@ -82,7 +82,7 @@ export function installNet(Game) {
         const body = _a.set(e.p[0], e.p[1] + 0.25, e.p[2]); const gh = this.arena.raycast(_b.copy(body).setY(body.y + 0.6), _n.set(0, -1, 0), 4); if (gh) this.fx.decals.add(gh.point, _n.set(0, 1, 0), 0.9 + Math.random() * 0.4, 0, 3.5);
         if (v !== p) this.fx.particles.motes(body, 30); const ang = this.angel; const idx = (this.log.length - 1) % 8; this.fx.threads.addSoul(body.clone().setY(Math.max(body.y, 6)), (out) => ang.wristPos(idx, out));
         this.audio.toll(Math.min(7, this.log.length));
-        if (v === p) { this.deathInfo = { killer: kn, cause: e.cause === 'halo' ? 'THE HALO' : e.cause === 'street' ? 'THE STREET' : null, how }; p.alive = false; p.hp = 0; p.deathTime = this.time; hud.show('spectate'); this.input.setToggle('ads', false, document.getElementById('b-ads')); this.input.exitLock(); this.audio.setZip(0); this.deadFrom = this.gfx.camera.position.clone(); this.deadQ = this.gfx.camera.quaternion.clone();
+        if (v === p) { this.deathInfo = { killer: kn, cause: e.cause === 'halo' ? 'THE HALO' : e.cause === 'street' ? 'THE STREET' : e.cause === 'beast' ? 'THE BLIND ONE' : e.cause === 'egg' ? 'AN EGG' : null, how }; p.alive = false; p.hp = 0; p.deathTime = this.time; hud.show('spectate'); this.input.setToggle('ads', false, document.getElementById('b-ads')); this.input.exitLock(); this.audio.setZip(0); this.deadFrom = this.gfx.camera.position.clone(); this.deadQ = this.gfx.camera.quaternion.clone();
           if (e.respawnIn) { this.respawnAt = this.time + e.respawnIn; hud.banner(`${kn === 'YOU' ? 'you fell' : 'taken by ' + kn}`, 2.2, false, `back in ${e.respawnIn} seconds`, true); } }
         else if (v.puppet) v.die();
         hud.alive(this.actors, p); break; }
@@ -118,7 +118,10 @@ export function installNet(Game) {
     if (wh) { const nn = wh.face.normal.clone(); if (nn.dot(dir) > 0) nn.negate(); this.fx.particles.impact(end, nn); this.fx.decals.add(end, nn, 0.08, 1, 0.01, 0.85); }
     this.net.send({ t: 'fire', o: [origin.x, origin.y, origin.z].map(v => +v.toFixed(3)), d: [dir.x, dir.y, dir.z].map(v => +v.toFixed(5)), w: W.key, ct: this.time });
   };
-  P.netDamageSelf = function (amount, info) { if (info.cause === 'fall') this.net.send({ t: 'fall', v: amount / 8 + 14.5 }); };
+  P.netDamageSelf = function (amount, info) {
+    if (info.cause === 'fall') this.net.send({ t: 'fall', v: amount / 8 + 14.5 });
+    else if (info.cause === 'alien' || info.cause === 'egg') this.net.send({ t: 'nhurt', c: info.cause, v: Math.min(999, Math.round(amount)) });
+  };
 
   // ---- results
   P._netResults = function () {
