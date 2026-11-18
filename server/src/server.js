@@ -7,6 +7,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import net from 'node:net';
+import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { ClientMsg, PROTOCOL } from './protocol.js';
 import { Lobby, UserError } from './rooms.js';
@@ -40,6 +41,8 @@ const ROOT = path.resolve(DIST), INDEX = path.join(ROOT, 'index.html');
 const TLS_CERT = process.env.TLS_CERT || '', TLS_KEY = process.env.TLS_KEY || '', HTTPS_PORT = +(process.env.HTTPS_PORT || 443);
 const GAME_WS_URL = process.env.GAME_WS_URL || '';               // e.g. wss://play.quicksnipergame.com/ws
 const ACME_DIR = process.env.ACME_DIR || '';                      // Let's Encrypt HTTP-01 webroot (outside the app, which deploys wipe)
+// Written by deploy.sh: sha256 of the package that was just unpacked. Empty in local dev.
+const BUILD = (() => { try { return fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'BUILD'), 'utf8').trim().slice(0, 40); } catch { return ''; } })();
 function fromCloudflare(req) { let p = req.socket.remoteAddress || ''; if (p.startsWith('::ffff:')) p = p.slice(7); return !!p && CLOUDFLARE.check(p, net.isIPv6(p) ? 'ipv6' : 'ipv4'); }
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -64,6 +67,8 @@ function staticFile(rel, wsUrl) {
 // invite links still load the assets. A full document keeps its own <head> (title, SEO and share tags) and gets
 // these two tags added to it; a body fragment (the artifact host's format) is wrapped in a document of our own.
 function page(fragment, wsUrl) {
+  // index.html is no-cache, but game.js is held for hours at the edge. A new query on each deploy makes Play load this commit.
+  if (BUILD) fragment = fragment.replace('s.src="game.js"', `s.src="game.js?v=${BUILD.slice(0, 12)}"`);
   const head = /<head[^>]*>/i.exec(fragment);
   if (head) {
     const target = wsUrl ? wsUrl.replace(/[^\w:/.\-]/g, '') : 'same-origin';
@@ -75,7 +80,7 @@ function page(fragment, wsUrl) {
 function serve(req, res) {
   // a malformed path (/%E0) makes decodeURIComponent throw; uncaught here, that would take the whole process down
   let rel; try { rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, ''); } catch { res.writeHead(400); res.end('bad request'); return; }
-  if (rel === 'healthz') { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: lobby.rooms.size, sessions: wss.clients.size, protocol: PROTOCOL })); return; }
+  if (rel === 'healthz') { res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify({ ok: true, rooms: lobby.rooms.size, sessions: wss.clients.size, protocol: PROTOCOL, build: BUILD })); return; }
   // Let's Encrypt checks it controls the host by fetching a token file here (read fresh, never cached)
   const acme = /^\.well-known\/acme-challenge\/([A-Za-z0-9_-]{16,128})$/.exec(rel);
   if (acme) { const p = ACME_DIR && path.join(ACME_DIR, '.well-known', 'acme-challenge', acme[1]); if (p && fs.existsSync(p)) { res.writeHead(200, { 'content-type': 'text/plain' }); res.end(fs.readFileSync(p)); } else { res.writeHead(404); res.end('not found'); } return; }

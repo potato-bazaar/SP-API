@@ -4,7 +4,7 @@
 # Run from anywhere:  python3 client/tools/loop/patch_game.py   (rewrites client/dist/game.js from BASE_COMMIT)
 import re,os,sys,subprocess
 HERE=os.path.dirname(os.path.abspath(__file__)); REPO=os.path.abspath(os.path.join(HERE,'..','..','..'))
-BASE_COMMIT='2de462c'   # game.js as it was before the loop work; everything below is applied on top of it
+BASE_COMMIT='7af5e92'   # game.js as it was before the loop work; everything below is applied on top of it
 s=subprocess.check_output(['git','-C',REPO,'show',BASE_COMMIT+':client/dist/game.js']).decode()
 def R(a,b,n=1):
     global s

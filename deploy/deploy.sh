@@ -38,6 +38,8 @@ echo "== 4/6 code"
 sudo mkdir -p "$APP" && sudo chown "$USER" "$APP"
 find "$APP" -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +
 tar -xzf "$TARBALL" -C "$APP"
+# name this package so /healthz can say which deploy is live, and the page can load a fresh game.js
+sha256sum "$TARBALL" | awk '{print $1}' > "$APP/BUILD"
 cd "$APP"
 npm install --omit=dev --workspace server --include-workspace-root --no-audit --no-fund
 
@@ -69,6 +71,7 @@ sudo systemctl restart sniper
 echo "== 6/6 check"
 for i in $(seq 1 60); do curl -fsS localhost/healthz >/dev/null 2>&1 && break; sleep 1; done
 echo "game server: $(curl -fsS localhost/healthz || echo 'NOT RESPONDING - run: journalctl -u sniper -n 50')"
+echo "package: $(cat "$APP/BUILD")"
 IP=$(curl -fsS -m 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 echo
 echo "DONE. Open  http://$IP  and press PLAY ONLINE."

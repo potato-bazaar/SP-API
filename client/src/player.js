@@ -134,7 +134,7 @@ export class Player {
   _startReload() { this.reloadT = 0; this.boltT = -1; this.g.audio.reload(this.weapon.reload); if (this.g.net) this.g.net.send({ t: 'reload', w: this.cur }); }
   _fire() {
     const g = this.g, W = this.weapon, st = this.w[this.cur], cam = g.gfx.camera; st.mag--; st.cool = W.cycle; this.cool = W.cycle;
-    const dir = cam.getWorldDirection(new V3()); const hipSpread = W.hip * (1 - this.ads) * (1 + this.speed * 0.25) + (this.cur === 'rifle' && !this.scoped ? 0.004 : 0) + (this.grounded ? 0 : 0.03);
+    const dir = cam.getWorldDirection(new V3()); const hipSpread = W.hip * (1 - this.ads) * (1 + this.speed * 0.25) + (this.cur === 'rifle' && !this.scoped ? 0.0000004 : 0) + (this.grounded ? 0 : 0.000003);
     if (hipSpread > 0) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * hipSpread; _a.set(Math.cos(a) * r, Math.sin(a) * r, 0).applyQuaternion(cam.quaternion); dir.add(_a).normalize(); }
     const origin = cam.position.clone(); const muzzle = origin.clone().addScaledVector(dir, this.scoped ? 1.2 : 0.75); _a.set(this.scoped ? 0 : 0.1, this.scoped ? -0.06 : -0.09, 0).applyQuaternion(cam.quaternion); muzzle.add(_a);
     if (g.net) { g.netFire(origin, dir, muzzle, W); this.kick += this.cur === 'rifle' ? 0.046 : 0.016; this.kickYaw += (Math.random() - 0.5) * (this.cur === 'rifle' ? 0.02 : 0.01); g.fp.shot(); g.gfx.post.uKick.value = this.cur === 'rifle' ? 1 : 0.4; g.hud.weapon(this); if (this.cur === 'rifle' && st.mag > 0) { this.boltT = 0; g.audio.bolt(0.26); } return; }
