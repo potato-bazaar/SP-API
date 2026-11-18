@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# Applies the Loop City client changes to the bundle. The client is not rebuilt from source (see README), so the
+# changes are exact-string edits of client/dist/game.js plus the readable modules in this folder, pasted in whole.
+# Run from anywhere:  python3 client/tools/loop/patch_game.py   (rewrites client/dist/game.js from BASE_COMMIT)
+import re,os,sys,subprocess
+HERE=os.path.dirname(os.path.abspath(__file__)); REPO=os.path.abspath(os.path.join(HERE,'..','..','..'))
+BASE_COMMIT='2de462c'   # game.js as it was before the loop work; everything below is applied on top of it
+s=subprocess.check_output(['git','-C',REPO,'show',BASE_COMMIT+':client/dist/game.js']).decode()
+def R(a,b,n=1):
+    global s
+    assert s.count(a)==n,(s.count(a),a[:90]); s=s.replace(a,b)
+# ---- boot
+R('async function sE(){og();','async function sE(){og();RINGBOOT();')
+R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
+R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
+R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RING(l),')
+# ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
+R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
+# ---- no roof lamps on the loop
+R('this.lamps=[];for(let e of t.roofs){let i=bA(t,e);i&&this.lamps.push({i:e.i,pos:i})}','this.lamps=[];if(!t.ring)for(let e of t.roofs){let i=bA(t,e);i&&this.lamps.push({i:e.i,pos:i})}')
+# ---- world-space shaders bend with the ring
+R('varying float vSeed; varying float vPx;\nvoid main() {\n  vec4 va = viewMatrix * vec4(aA, 1.0), vb = viewMatrix * vec4(aB, 1.0);','varying float vSeed; varying float vPx;\n#include <sc_roll>\nvoid main() {\n  vec4 va = viewMatrix * vec4(scRoll(aA), 1.0), vb = viewMatrix * vec4(scRoll(aB), 1.0);')
+R('varying vec4 vD; varying vec3 vWp;\nvoid main() { vec4 mv = viewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; vD = aD; vWp = position;','varying vec4 vD; varying vec3 vWp;\n#include <sc_roll>\nvoid main() { vec4 mv = viewMatrix * vec4(scRoll(position), 1.0); gl_Position = projectionMatrix * mv; vD = aD; vWp = position;')
+R('varying vec3 vWp; void main(){ vUv = uv; vD = aD; vWp = position; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }",','varying vec3 vWp;\\n#include <sc_roll>\\nvoid main(){ vUv = uv; vD = aD; vWp = position; gl_Position = projectionMatrix * viewMatrix * vec4(scRoll(position), 1.0); }",')
+R('varying float vA; void main(){ vec4 mv = viewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; float d = -mv.z; float w = fract(aU * 3.0 - uTime * 0.9);','varying float vA;\\n#include <sc_roll>\\nvoid main(){ vec4 mv = viewMatrix * vec4(scRoll(position), 1.0); gl_Position = projectionMatrix * mv; float d = -mv.z; float w = fract(aU * 3.0 - uTime * 0.9);')
+# ---- the halo's shape belongs to the zone object (ZD), not to each caller
+R('Math.hypot(a.x-i.cx,a.z-i.cz)<s','ZD(i,a.x,a.z,s)<s')
+R('_safeAt(t,e,i){return Math.hypot(t-this.g.zone.cx,e-this.g.zone.cz)<i-1.2}','_safeAt(t,e,i){return ZD(this.g.zone,t,e,i)<i-1.2}')
+R('Math.hypot(h.pos.x-i.cx,h.pos.z-i.cz)>i.r','ZD(i,h.pos.x,h.pos.z)>i.r')
+R('Math.hypot(this.player.pos.x-e.cx,this.player.pos.z-e.cz)>e.r','ZD(e,this.player.pos.x,this.player.pos.z)>e.r')
+R('Math.hypot(i.pos.x-this.zone.cx,i.pos.z-this.zone.cz)>this.zone.r','ZD(this.zone,i.pos.x,i.pos.z)>this.zone.r')
+R('let f=Math.hypot(re.x,re.z);d+=(Math.hypot(n.x,n.z)-f)*.5*(e.inward||.3)','let f=ZD(this.g.zone,re.x,re.z,0);d+=(ZD(this.g.zone,n.x,n.z,0)-f)*.5*(e.inward||.3)')
+# ---- bots: where a target is, seen from here (a straight line through the wheel), not where it is on the chart
+R('let d=h.chest(re),f=d.x-n.x,p=d.y-n.y,g=d.z-n.z,m=Math.hypot(f,p,g);u.d=m;','let d=h.chest(re),RV=i.rel(RQ,n,d),f=RV.x,p=RV.y,g=RV.z,m=Math.hypot(f,p,g);u.d=m;')
+R('e.distanceTo(this.pos)>170||','this.g.arena.dist(e,this.pos)>170||')
+R('_aimAt(t,e,i){let n=this.eye(_s),s=t.x-n.x,o=t.y-n.y,a=t.z-n.z,','_aimAt(t,e,i){let n=this.eye(_s),RV=this.g.arena.rel(RQ,n,t),s=RV.x,o=RV.y,a=RV.z,')
+R('let o=s.distanceTo(e),a=!this.firstShotAt.has(t);','let o=i.arena.dist(s,e),a=!this.firstShotAt.has(t);')
+R('h=qM.copy(e).sub(s).normalize();re.set(BA()*l,BA()*l,0);','h=i.arena.rel(qM,s,e).normalize();re.set(BA()*l,BA()*l,0);')
+# ---- shots: the ray is straight in the shooter's frame; each body is tested in its own frame; what is kept is chart positions
+R('function yu(r,t,e,i,n){let s=null;for(let o of r){if(o===n||!o.alive)continue;let a=o.pos.x-t.x,c=o.pos.y+1-t.y,l=o.pos.z-t.z,h=a*e.x+c*e.y+l*e.z;if(!(h<-2||h>i+2||a*a+c*c+l*l-h*h>9)){o.hitShapes(En);for(let d=0;d<En.length;d+=8){let f=zM(t.x,t.y,t.z,e.x,e.y,e.z,',
+  'function yu(r,t,e,i,n,ar){let s=null,T0=t,E0=e,RG=ar&&ar.ring;for(let o of r){if(o===n||!o.alive)continue;RG&&(ar.rayTo(o.pos.x,T0,E0,RYO,RYD),t=RYO,e=RYD);let a=o.pos.x-t.x,c=o.pos.y+1-t.y,l=o.pos.z-t.z,h=a*e.x+c*e.y+l*e.z;if(!(h<-2||h>i+2||a*a+c*c+l*l-h*h>9)){o.hitShapes(En);for(let d=0;d<En.length;d+=8){let f=zM(t.x,t.y,t.z,e.x,e.y,e.z,')
+R('u=yu(r.actors,e,i,h,t),d=u?u.t:h;Ni.copy(e).addScaledVector(i,d),t.shots++','u=yu(r.actors,e,i,h,t,o),d=u?u.t:h;Ni.copy(e).addScaledVector(i,d);let iH=o.dirAt(new I,e,i,o.unsee(Ni,Ni,e.x));t.shots++')
+R('let A=u?null:Cp(l,i);','let A=u?null:Cp(l,iH);')
+R('c.impact(p.distanceTo(r.listenerPos),r.panOf(p)),e=A.o,i=A.d,','c.impact(o.dist(p,r.listenerPos),r.panOf(p)),e=A.o,i=A.d,')
+R('u=yu(r.actors,e,i,h,t),d=u?u.t:h,Ni.copy(e).addScaledVector(i,d),f&&f.shotWorld(t,e,Ni))','u=yu(r.actors,e,i,h,t,o),d=u?u.t:h,Ni.copy(e).addScaledVector(i,d),o.dirAt(iH,e,i,o.unsee(Ni,Ni,e.x)),f&&f.shotWorld(t,e,Ni))')
+R('_=t===y?0:m.distanceTo(r.listenerPos),','_=t===y?0:o.dist(m,r.listenerPos),')
+R('Au.copy(r.listenerPos).sub(e);let M=Math.max(0,Math.min(d,Au.dot(i)));Or.copy(e).addScaledVector(i,M),Or.distanceTo(r.listenerPos)<2.4&&M>4&&(!u||u.actor!==y)&&(c.whiz(r.panOf(Or)),',
+  'o.rel(Au,e,r.listenerPos);let M=Math.max(0,Math.min(d,Au.dot(i)));Or.copy(i).multiplyScalar(M),Or.distanceTo(Au)<2.4&&M>4&&(!u||u.actor!==y)&&(c.whiz(r.panOf(o.unsee(Or,Or.add(e),e.x))),')
+R('let x=M.eye(Au);Or.copy(x).sub(e);let S=Or.dot(i);','let x=M.eye(Au);o.rel(Or,e,x);let S=Or.dot(i);')
+R('a.particles.blood(Ni,i,u.zone===0?1.7:1);let S=o.raycast(Ni,i,4.5);S&&(Qn.copy(S.face.normal),Qn.dot(i)>0&&Qn.negate(),','a.particles.blood(Ni,iH,u.zone===0?1.7:1);let S=o.raycast(Ni,iH,4.5);S&&(Qn.copy(S.face.normal),Qn.dot(iH)>0&&Qn.negate(),')
+R('r.damage(M,x,t,{zone:u.zone,dir:i,point:Ni,wpn:s})}else l&&(Qn.copy(l.face.normal),Qn.dot(i)>0&&Qn.negate(),','r.damage(M,x,t,{zone:u.zone,dir:iH,point:Ni,wpn:s})}else l&&(Qn.copy(l.face.normal),Qn.dot(iH)>0&&Qn.negate(),')
+R('(t!==y||d<60)&&c.impact(Ni.distanceTo(r.listenerPos),r.panOf(Ni))','(t!==y||d<60)&&c.impact(o.dist(Ni,r.listenerPos),r.panOf(Ni))')
+R('let y=yu(this.actors,h.position,d,f?f.distance:400,n);','let y=yu(this.actors,h.position,d,f?f.distance:400,n,this.arena);')
+# ---- thrown things do not stop in mid-air at the old street level
+R('n.push(s.x,s.y,s.z,c),s.y<6)break}return{pts:n,end:new De(s.x,s.y,s.z),t:c}}','n.push(s.x,s.y,s.z,c),s.y<(r.ring?-2:6))break}return{pts:n,end:new De(s.x,s.y,s.z),t:c}}')
+# ---- solo rifle bullets fly straight (and fall) in the frame they were fired in; every test along the way is made where the bullet is
+R('this.B.push({p:a.clone(),v:d.clone().multiplyScalar(this.mv()),mz:mz.clone(),w,awm:!!p.awm,t:0,o:a.clone(),ft:g.time,holed:!1,far:0})','this.B.push({p:a.clone(),v:d.clone().multiplyScalar(this.mv()),mz:mz.clone(),w,awm:!!p.awm,t:0,o:a.clone(),ft:g.time,holed:!1,far:0,fx:a.x})')
+R('let wl=null;try{wl=A.raycast(b.p,dir,len)}catch(x){}\n      let u=yu(g.actors,b.p,dir,wl&&!b.awm?wl.distance:len,p);','let pc=b.p,dc=dir;A.ring&&(pc=A.unsee(this._pc||(this._pc=new I),b.p,b.fx),dc=A.dirAt(this._dc||(this._dc=new I),b.o,dir,pc));let wl=null;try{wl=A.raycast(pc,dc,len)}catch(x){}\n      let u=yu(g.actors,pc,dc,wl&&!b.awm?wl.distance:len,p,A);')
+R('if(b.awm){wl&&!b.holed&&(b.holed=!0,this._hole(wl,dir));if(u){let o=b.p.clone(),d2=dir.clone();','if(b.awm){wl&&!b.holed&&(b.holed=!0,this._hole(wl,dc));if(u){let o=pc.clone(),d2=dc.clone();')
+R('else if(wl||u){let o=b.p.clone(),d2=dir.clone();','else if(wl||u){let o=pc.clone(),d2=dc.clone();')
+R('try{g.gear&&g.gear.shotWorld&&g.gear.shotWorld(p,b.p,nx)}catch(x){}','try{g.gear&&g.gear.shotWorld&&g.gear.shotWorld(p,pc,A.ring?A.unsee(this._nc||(this._nc=new I),nx,b.fx):nx)}catch(x){}')
+R('ex=e.x-b.p.x,ey=e.y-b.p.y,ez=e.z-b.p.z,sd=ex*dir.x+ey*dir.y+ez*dir.z;','rv=A.rel(RQ,pc,e),ex=rv.x,ey=rv.y,ez=rv.z,sd=ex*dc.x+ey*dc.y+ez*dc.z;')
+R('if(b.t>2.4||b.far>420||b.p.y<-30){try{g.fx.threads.shot(b.mz,b.p)}catch(x){}done=!0}','if(b.t>2.4||b.far>420||(A.ring?A.unsee(this._pc,b.p,b.fx).y:b.p.y)<-30){try{g.fx.threads.shot(b.mz,A.ring?this._pc:b.p)}catch(x){}done=!0}')
+# ---- the module
+ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ')
+mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
+MARK='/* ---------- Google Analytics events'
+assert s.count(MARK)==1
+s=s.replace(MARK,'/* ---------- ring.js (client/src/ring.js, verbatim) ---------- */\n'+ring+'\n'+mod+'\n\n'+MARK)
+p=REPO+'/client/dist/game.js'; open(p+'.tmp','w').write(s); os.replace(p+'.tmp',p)
+print('patched',len(s))
