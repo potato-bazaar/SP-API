@@ -360,9 +360,10 @@ def build_arena(geo, dist):
             r = roofs[k]; d = math.hypot((r['x'] - xw + H) % C - H, r['z'])
             if r['_n'] > 1500 and (best is None or d < best[0]): best = (d, r)
         centers.append([best[1]['x'], best[1]['z']])
-    r0, r1 = 84.0, 17.0; kz = round((H - r0) / (r0 - r1) + 0.01, 3)
+    # r0 is generous so the stretched circle's round ends clear the far corners of the strip: at the start nothing is outside
+    r0, r1 = 120.0, 17.0; kz = round((H - 84.0) / (84.0 - r1) + 0.01, 3)
     zone = {'center': centers[0], 'centers': centers, 'r0': r0, 'ring': {'k': kz, 'r1': r1},
-            'phases': [{'t': 0, 'r': 84, 'dps': 0}, {'t': 60, 'r': 67, 'shrink': 26, 'dps': 6}, {'t': 120, 'r': 50, 'shrink': 26, 'dps': 9}, {'t': 180, 'r': 29.5, 'shrink': 26, 'dps': 13}, {'t': 240, 'r': 17, 'shrink': 16, 'dps': 18}, {'t': 270, 'r': 8.5, 'shrink': 16, 'dps': 25}], 'duration': 300}
+            'phases': [{'t': 0, 'r': 120, 'dps': 0}, {'t': 60, 'r': 67, 'shrink': 26, 'dps': 6}, {'t': 120, 'r': 50, 'shrink': 26, 'dps': 9}, {'t': 180, 'r': 29.5, 'shrink': 26, 'dps': 13}, {'t': 240, 'r': 17, 'shrink': 16, 'dps': 18}, {'t': 270, 'r': 8.5, 'shrink': 16, 'dps': 25}], 'duration': 300}
     n = 160; s = C / n; fence = []
     for q in range(n):
         for zz in (-zmax + 0.05, zmax - 0.05): fence.append(['b', r2(-H + (q + 0.5) * s), 6.0, r2(zz), r2(s / 2 + 0.02), 6.6, 0.06, 0, [255, 40, 0, 0], 0])

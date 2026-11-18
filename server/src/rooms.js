@@ -49,6 +49,7 @@ class Room {
         session.send(this.startMsg(true, session.id)); }
       return m; }
     if (this.banned.has(session.id)) throw new UserError('The host removed you from this room.');
+    if (this.settings.map !== 'city' && !(session.maps || []).includes(this.settings.map)) throw new UserError('That room plays on LOOP CITY. Reload the page to get the new map, then join again.');
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
     if (this.state !== 'lobby') throw new UserError('That match has already started. Ask the host to bring the room back to the lobby.');
     const c = this.teamCounts(); const m = { id: session.id, name: session.name, op: session.op | 0, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0 };
@@ -84,6 +85,7 @@ class Room {
   setName(s, name) { const m = this.members.get(s.id); m.name = name; this.broadcastRoom(); }
   setSettings(s, patch) {
     this._hostOnly(s); this._lobbyOnly();
+    if (patch && patch.map && patch.map !== this.settings.map) throw new UserError('The map is chosen when the room is made.');   // everyone here has this one loaded
     const next = SettingsSchema.parse({ ...this.settings, ...patch });
     if (slotsFor(next) < this.members.size) throw new UserError(`${this.members.size} people are in the room; that mode has ${slotsFor(next)} places.`);
     const modeChanged = next.mode !== this.settings.mode; this.settings = normalise(next, this.members.size);
@@ -112,14 +114,14 @@ class Room {
     if (this.teamsOn()) { const c = [0, 0]; for (const r of roster) c[r.team]++; if (!c[0] || !c[1]) throw new UserError('Both teams need at least one sniper (add bots or move someone across).'); }
     const notReady = [...this.members.values()].filter(m => m.conn && !m.ready && m.id !== this.hostId);
     if (notReady.length) throw new UserError(`Waiting for ${notReady.map(m => m.name).join(', ')} to ready up.`);
-    this.round++; this.state = 'match'; this.match = new Match(loadWorld(), S, roster, null);
+    this.round++; this.state = 'match'; this.match = new Match(loadWorld(S.map), S, roster, null);
     this.broadcast(this.startMsg(false));
     this.startLoop(); this.broadcastRoom();
   }
   startMsg(rejoin, who) {
     const M = this.match; const roster = Object.fromEntries(M.actors.map(a => [a.netId, { name: a.name, team: a.team, bot: !a.human, op: (this.members.get(a.netId) || {}).op | 0 }]));
     const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a), ham: a.hammerLeft, pts: a.pts || 0 };
-    return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? [...M.extras.state(M.byId.get(who)), ...M.power.state(M.byId.get(who))] : M.drain(), snap: M.snapshot(), log: M.log };
+    return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? [...M.extras.state(M.byId.get(who)), ...M.power.state(M.byId.get(who))] : M.drain(), snap: M.snapshot(), log: M.log, zc: [M.zone.cx, M.zone.cz] };   // zc: where the halo closes this match
   }
   backToLobby(s) { this._hostOnly(s); if (this.state === 'lobby') return; this.stopLoop(); this.match = null; this.state = 'lobby'; for (const m of this.members.values()) m.ready = false; this.broadcastRoom(); }
   startLoop() {

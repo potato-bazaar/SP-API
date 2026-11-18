@@ -2,6 +2,7 @@
 // hammer, the angel's strikes and its shadow roof. Tuning and the throw physics are copied from the client's solo code
 // (its `he` table and `Sc` trajectory) so a can lands in the same place on every screen and on the server.
 import * as THREE from 'three';
+import { zoneD } from '../../client/src/ring.js';
 
 const V3 = THREE.Vector3;
 export const G = {
@@ -36,7 +37,7 @@ export function trajectory(arena, origin, vel) {
       if ((n.y > 0.6 && o.length() < 2.4) || bounces >= 5) break;
       continue;
     }
-    s.addScaledVector(step, h); c += a; if (s.y < 6) break;
+    s.addScaledVector(step, h); c += a; if (s.y < (arena.ring ? -2 : 6)) break;   // below the street (city) / below the hull (ring)
   }
   return { end: s, t: c };
 }
@@ -105,7 +106,7 @@ export class ServerGear {
   phase(i) {
     if (this.shadowPhase === i) return; this.shadowPhase = i;
     const m = this.m, z = m.zone, lim = Math.min(z.r, z.nextR || z.r) - 3;
-    const ok = m.arena.roofs.filter((r) => r.cells && r.cells.length > 10 && r.i !== this.shadowRoof && Math.hypot(r.x - z.cx, r.z - z.cz) < lim);
+    const ok = m.arena.roofs.filter((r) => r.cells && r.cells.length > 10 && r.i !== this.shadowRoof && zoneD(z, r.x, r.z, lim) < lim);
     this.shadowRoof = ok.length ? ok[(Math.random() * ok.length) | 0].i : -1;
   }
   onShadow(a) { return this.shadowRoof >= 0 && roofOf(a) === this.shadowRoof; }
@@ -164,10 +165,10 @@ export class ServerGear {
   }
   _decoyShot(d) {
     const m = this.m, o = new V3(d.pos.x, d.pos.y + 0.35, d.pos.z); let near = null, nd = 1e9;
-    for (const a of m.actors) { if (!a.alive || a === d.by || (m.teams && a.team === d.by.team)) continue; const dist = a.pos.distanceTo(d.pos); if (dist < nd) { nd = dist; near = a; } }
-    const dir = near ? near.chest(new V3()).sub(o).normalize() : new V3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+    for (const a of m.actors) { if (!a.alive || a === d.by || (m.teams && a.team === d.by.team)) continue; const dist = m.arena.dist(a.pos, d.pos); if (dist < nd) { nd = dist; near = a; } }
+    const dir = near ? m.arena.rel(new V3(), o, near.chest(new V3())).normalize() : new V3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
     dir.x += (Math.random() - 0.5) * 0.22; dir.y = clamp(dir.y + 0.06 + Math.random() * 0.12, -0.2, 0.5); dir.z += (Math.random() - 0.5) * 0.22; dir.normalize();
-    const hit = m.arena.raycast(o, dir, 300); const e = o.clone().addScaledVector(dir, hit ? hit.distance : 300);
+    const hit = m.arena.raycast(o, dir, 300); const e = o.clone().addScaledVector(dir, hit ? hit.distance : 300); m.arena.unsee(e, e, o.x);
     d.fake.lastShot = m.time; d.fake.lastShotPos.copy(o);
     for (const b of m.bots) if (b.alive && b !== d.by && !(m.teams && b.team === d.by.team)) { try { b.hear(d.fake, o); b.lookAt.copy(o); } catch { /* a bot mid-traversal */ } }
     m.events.push({ t: 'fshot', o: v3r(o), e: v3r(e) });

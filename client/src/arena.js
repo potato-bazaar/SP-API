@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
 import { GeoBuilder } from './geobuilder.js';
+import { flatArena } from './ring.js';
 
 const _ray = new THREE.Ray(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3();
 export const G = 22;
@@ -78,3 +79,5 @@ export class Arena {
   linkMode(l, u, dir = 0) { if (l.kind === 'jump' && l.seg) { const uu = dir ? 1 - u : u; return uu < l.seg[0] || uu > l.seg[1] ? 'ground' : 'air'; } return l.kind === 'zip' ? (u > 0.1 && u < 0.92 ? 'zip' : 'air') : l.kind === 'ladder' ? (u > 0.1 && u < 0.88 ? 'ladder' : 'ground') : 'air'; }
   linkLabel(l) { return { zip: 'ZIPLINE', pad: 'LAUNCH PAD', ladder: 'LADDER', jump: 'RAMP', step: 'CLIMB' }[l.kind]; }
 }
+// rel / dist / see ... : on this flat map they are plain vector maths; a ring map (ring.js) replaces them per arena
+flatArena(Arena.prototype);

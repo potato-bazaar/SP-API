@@ -5,10 +5,11 @@ import { WEAPONS, fireShot } from './combat.js';
 import { hook, RED } from './gfx.js';
 import { G } from './arena.js';
 import { simpleHitShapes } from './world.js';
+import { zoneD } from './ring.js';
 
 const V3 = THREE.Vector3; const clamp = (x, a, b) => Math.min(b, Math.max(a, x)), lerp = (a, b, t) => a + (b - a) * t; const TAU = Math.PI * 2;
 const wrap = (a) => { a = (a + Math.PI) % TAU; if (a < 0) a += TAU; return a - Math.PI; };
-const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3();
+const _a = new V3(), _b = new V3(), _c = new V3(), _d = new V3(), _r = new V3();
 const gauss = () => { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); };
 export const CALLSIGNS = ['MAGPIE', 'LANTERN', 'TYPHOON', 'JADE', 'KOWLOON', 'MONSOON', 'EGRET', 'MAHJONG', 'HARBOUR', 'TRAM', 'KITE', 'NEON', 'ORCHID', 'DRAGONFLY'];
 
@@ -50,7 +51,7 @@ export class Bot {
     let best = null, bs = -1e9;
     for (const a of g.actors) {
       if (!this.foe(a) || !a.alive) { continue; } let m = this.mem.get(a); if (!m) { m = { aw: 0, seen: -99, pos: new V3(), vis: false }; this.mem.set(a, m); }
-      const ch = a.chest(_a); const dx = ch.x - eye.x, dy = ch.y - eye.y, dz = ch.z - eye.z; const d = Math.hypot(dx, dy, dz); m.d = d;
+      const ch = a.chest(_a); const rv = ar.rel(_r, eye, ch); const dx = rv.x, dy = rv.y, dz = rv.z; const d = Math.hypot(dx, dy, dz); m.d = d;   // where the target is seen from here (on a ring: straight through the wheel)
       // fog (room rule) cuts sight to 34 m unless the target fired in the last 3.5 s or the angel revealed them (as the client's bots)
       const sight = g.fog && g.time - a.lastShot > 3.5 && !(a.revealedUntil > g.time) ? 34 : 210;
       const canSee = !this.link || this.link.link.kind === 'pad'; let vis = false; m.visHead = m.visChest = false; if (canSee && d < sight) { m.visChest = ar.los(eye, ch); m.visHead = m.visChest && d < 40 ? true : ar.los(eye, a.eye(_b)); vis = m.visHead || m.visChest; }
@@ -66,7 +67,7 @@ export class Bot {
     return best;
   }
   hear(shooter, origin) { // a shot somewhere: glance that way
-    if (!this.alive || !this.foe(shooter)) return; const m = this.mem.get(shooter); const d = origin.distanceTo(this.pos); if (d > 170) return; if (m) m.aw = Math.min(1.4, m.aw + 0.3);
+    if (!this.alive || !this.foe(shooter)) return; const m = this.mem.get(shooter); const d = this.g.arena.dist(origin, this.pos); if (d > 170) return; if (m) m.aw = Math.min(1.4, m.aw + 0.3);
     if (this.state === 'scan' && Math.random() < 0.6) { this.lookAt.copy(origin); this.scanT = 2 + Math.random() * 2; }
   }
   nearMiss(shooter) { if (!this.alive || this.link || this.plan.length || (shooter && !this.foe(shooter))) return; this.suppress = Math.min(1, this.suppress + 0.6); if (shooter && shooter.alive) { this.threat = shooter; this.threatT = this.g.time; const m = this.mem.get(shooter); if (m) m.aw = Math.min(1.4, m.aw + 0.5); }
@@ -80,10 +81,10 @@ export class Bot {
 
   // ---------------------------------------------------------------- planning helpers
   _zoneSafeR() { const z = this.g.zone; return (z.shrinking || z.toNext < 16) ? Math.min(z.r, z.nextR) : z.r; }
-  _safeAt(x, z, r) { return Math.hypot(x - this.g.zone.cx, z - this.g.zone.cz) < r - 1.2; }
+  _safeAt(x, z, r) { return zoneD(this.g.zone, x, z, r) < r - 1.2; }
   _pickPerch(roof, opts = {}) { // a sniping spot on a roof: near an edge, inside the halo, optionally hidden from someone
     const ar = this.g.arena, r = ar.roofs[roof]; const sr = this._zoneSafeR(); let best = -1, bs = -1e9; const list = r.perch.length ? r.perch : r.cells; const tries = Math.min(list.length, 26);
-    for (let i = 0; i < tries; i++) { const k = list[(Math.random() * list.length) | 0]; ar.cellPos(r, k, _a); let s = Math.random() * 4; if (!this._safeAt(_a.x, _a.z, sr)) s -= 60; const dc = Math.hypot(_a.x, _a.z); s += (Math.hypot(r.x, r.z) - dc) * 0.5 * (opts.inward || 0.3);
+    for (let i = 0; i < tries; i++) { const k = list[(Math.random() * list.length) | 0]; ar.cellPos(r, k, _a); let s = Math.random() * 4; if (!this._safeAt(_a.x, _a.z, sr)) s -= 60; const Z = this.g.zone; const dc = zoneD(Z, _a.x, _a.z, 0); s += (zoneD(Z, r.x, r.z, 0) - dc) * 0.5 * (opts.inward || 0.3);
       if (opts.from) s -= Math.max(0, 5 - Math.hypot(_a.x - opts.from.x, _a.z - opts.from.z)) * 3;
       if (opts.hideFrom) { _b.set(_a.x, _a.y + 1.0, _a.z); if (!ar.los(opts.hideFrom, _b)) s += 30; _b.y = _a.y + 1.55; if (!ar.los(opts.hideFrom, _b)) s += 10; }
       if (s > bs) { bs = s; best = k; } }
@@ -173,15 +174,15 @@ export class Bot {
     // scope glint toward whoever this sniper is settling on
     this.glintT -= dt;
   }
-  _aimAt(p, dt, rate) { const e = this.eye(_b); const dx = p.x - e.x, dy = p.y - e.y, dz = p.z - e.z; const wy = Math.atan2(-dx, -dz), wp = Math.atan2(dy, Math.hypot(dx, dz)); const ey = wrap(wy - this.aimYaw), ep = wp - this.aimPitch; const err = Math.hypot(ey, ep); const stepA = rate * dt * (0.35 + Math.min(1, err * 2.5));
+  _aimAt(p, dt, rate) { const e = this.eye(_b); const rv = this.g.arena.rel(_r, e, p); const dx = rv.x, dy = rv.y, dz = rv.z; const wy = Math.atan2(-dx, -dz), wp = Math.atan2(dy, Math.hypot(dx, dz)); const ey = wrap(wy - this.aimYaw), ep = wp - this.aimPitch; const err = Math.hypot(ey, ep); const stepA = rate * dt * (0.35 + Math.min(1, err * 2.5));
     if (err <= stepA) { this.aimYaw = wy; this.aimPitch = wp; } else { this.aimYaw += ey / err * stepA; this.aimPitch += ep / err * stepA; }
     // the body follows the aim when the twist gets uncomfortable
     const tw = wrap(this.aimYaw - this.yaw); if (Math.abs(tw) > 0.5 && this.speed < 0.5) this.yaw += Math.sign(tw) * Math.min(Math.abs(tw) - 0.35, dt * 4.5); return err; }
   _shoot(t, tp) {
     const g = this.g, m = this.mem.get(t); const eye = this.eye(new V3()); if (!g.arena.los(eye, tp)) { this.settle *= 0.6; return; }
-    const d = eye.distanceTo(tp); const first = !this.firstShotAt.has(t); this.firstShotAt.set(t, g.time); const headOnly = m && !m.visChest;
+    const d = g.arena.dist(eye, tp); const first = !this.firstShotAt.has(t); this.firstShotAt.set(t, g.time); const headOnly = m && !m.visChest;
     let sig = this.skill.sigma * (1 + d / 170) * (1 + Math.min(2.2, (t.speed || 0) * 0.42)) * (1 + this.suppress * 1.6) * (first ? 1.75 : 1) * g.botSigma * (t.isPlayer ? g.botSigmaPlayer : g.botSigmaBot * lerp(1.12, 1.0, clamp(g.time / 210, 0, 1))) * ((t.crouchK || 0) > 0.5 ? 1.15 : 1) * (headOnly ? 1.25 : 1);
-    const dir = _d.copy(tp).sub(eye).normalize(); _a.set(gauss() * sig, gauss() * sig, 0); const q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 0, -1), dir); dir.add(_a.applyQuaternion(q)).normalize();
+    const dir = g.arena.rel(_d, eye, tp).normalize(); _a.set(gauss() * sig, gauss() * sig, 0); const q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 0, -1), dir); dir.add(_a.applyQuaternion(q)).normalize();
     this.rig.root.updateMatrixWorld(true); this.muzzleW.copy(this.rig.muzzle).applyMatrix4(this.rig.root.matrixWorld);
     fireShot(g, this, eye, dir.clone(), this.muzzleW.clone(), WEAPONS.rifle);
     this.rig.recoil = 1; this.rig.boltK = 1; this.mag--; this.shotsHere++; this.cool = WEAPONS.rifle.cycle + 0.7 + Math.random() * 1.7; this.settle = this.aimNeed * 0.25; this.duck = Math.random() < 0.8; this.aimPt = Math.random() < this.skill.headBias ? 1 : 0;

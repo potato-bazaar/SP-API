@@ -112,7 +112,7 @@ export function ringKit(T) {
   function ringify(ar, w) {
     const R = w.R, C = w.C, H = C / 2, iR = 1 / R; const ray = new Ray(), va = new Vector3(), vb = new Vector3(), vc = new Vector3(), vd = new Vector3();
     const proto = Object.getPrototypeOf(ar);
-    ar.ring = { R, C, H }; ar.chartBvh = w.chartBvh; ar.ringBvh = w.ringBvh; ar.bvh = w.chartBvh;
+    ar.ring = { R, C, H }; ar.chartBvh = w.chartBvh; ar.ringBvh = w.ringBvh; ar.bvh = w.chartBvh; ar.zmax = ar.data.zmax;
     const wrapX = ar.wrapX = (x) => { x = (x + H) % C; if (x < 0) x += C; return x - H; };          // into [-H, H)
     const wrapD = ar.wrapD = (d) => d - C * Math.round(d / C);                                       // shortest way round
     ar.norm = (p) => { if (p.x >= H || p.x < -H) p.x = wrapX(p.x); return p; };

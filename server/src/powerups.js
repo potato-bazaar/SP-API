@@ -91,7 +91,7 @@ export class ServerPowerups {
     if (!this.drones.length) return; let wall = 420; try { const h = this.m.arena.raycast(origin, dir, 420); if (h) wall = h.distance; } catch { /* open sky */ }
     for (const d of this.drones.slice()) {
       if (d.by === shooter || (this.m.teams && d.by.team === shooter.team)) continue;
-      const ox = d.pos.x - origin.x, oy = d.pos.y - origin.y, oz = d.pos.z - origin.z, along = ox * dir.x + oy * dir.y + oz * dir.z; if (along < 0 || along > wall) continue;
+      const rv = this.m.arena.rel(new V3(), origin, d.pos), ox = rv.x, oy = rv.y, oz = rv.z, along = ox * dir.x + oy * dir.y + oz * dir.z; if (along < 0 || along > wall) continue;
       if (ox * ox + oy * oy + oz * oz - along * along > P.droneR * P.droneR) continue;
       d.hp -= W && W.dmg ? W.dmg[1] : 40; this.m.events.push({ t: 'dhit', id: shooter.netId, kill: d.hp <= 0 });
       if (d.hp <= 0) this._endDrone(d, 'down');
@@ -104,8 +104,8 @@ export class ServerPowerups {
   missile(a, p) {
     const m = this.m, s = a && a.strike; if (!s || !a.alive || m.time < s.ready || s.left <= 0 || m.time > s.until) return;
     if (!Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite)) return;
-    const x = clamp(p[0], -90, 90), z = clamp(p[1], -90, 90); let y = 0;
-    try { const h = m.arena.raycast(new V3(x, 140, z), new V3(0, -1, 0), 200); if (h && h.point) y = h.point.y; } catch { /* the street */ }
+    const ring = m.arena.ring; const x = ring ? m.arena.wrapX(p[0]) : clamp(p[0], -90, 90), z = ring ? clamp(p[1], -m.arena.zmax, m.arena.zmax) : clamp(p[1], -90, 90); let y = 0;
+    try { const top = ring ? ring.R - 6 : 140; const h = m.arena.raycast(new V3(x, top, z), new V3(0, -1, 0), 200); if (h && h.point) y = h.point.y; } catch { /* the street */ }
     s.left--; s.ready = m.time + P.missileCool; const to = new V3(x, y, z), from = this.planeAt(m.time, a.pos.y);
     this.missiles.push({ by: a, to, at: m.time + P.missileFly });
     m.events.push({ t: 'msl', by: a.netId, o: v3r(from), p: v3r(to), at: r3(m.time + P.missileFly), left: s.left });

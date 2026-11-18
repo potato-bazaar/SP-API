@@ -4,7 +4,7 @@ function RING(g){
   const ar=g.arena,ring=ar.ring,R=ring.R,C=ring.C,H=ring.H,Zd=ar.data.zone,city=g.city,scene=g.gfx.scene,T=g.ringT={};
   window.__ring=T;
   // ---- the halo: a stretched circle (see ring.js); its centre can differ from match to match
-  T.setZone=(cx,cz)=>{Object.assign(g.zone,{cx:cx,cz:cz,C:C,k:Zd.ring.k,r1:Zd.ring.r1});ar.setZone(cx,cz)};
+  T.setZone=(cx,cz)=>{Object.assign(g.zone,{cx:cx,cz:cz,C:C,k:Zd.ring.k,r1:Zd.ring.r1});ar.setZone(cx,cz);g.angel.root.position.x=cx;g.angel.root.position.z=cz};
   T.setZone(Zd.center[0],Zd.center[1]);
   // ---- light: the baked map replaces the city's lamp map; thin haze instead of rain and fog; no thunder in space
   T.light=()=>{Wt.uLampMap.value=city.shade;Wt.uLampBox.value.set(-H,-ar.zmax,1/C,1/(2*ar.zmax))};T.light();
@@ -13,6 +13,8 @@ function RING(g){
   if(g.fx.rain&&g.fx.rain.isObject3D){scene.remove(g.fx.rain);g.fx.rain={visible:!1}}
   {const b=document.getElementById("rainb");b&&(b.style.display="none")}
   g.fx.curtain.visible=!1;
+  RLINKS(g);RMAP(g);
+  {const au=g.audio,quiet=()=>{try{au.rain.g.gain.value=0;au.wind.g.gain.value=.028}catch(e){}},amb=au._ambience;au._ambience=function(){amb.apply(this,arguments);quiet()};quiet()}   // no rain on a space station: a low hum is enough
   // ---- every frame
   const up=g.update;
   g.update=function(dt){

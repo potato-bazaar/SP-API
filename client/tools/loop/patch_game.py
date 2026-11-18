@@ -62,6 +62,21 @@ R('else if(wl||u){let o=b.p.clone(),d2=dir.clone();','else if(wl||u){let o=pc.cl
 R('try{g.gear&&g.gear.shotWorld&&g.gear.shotWorld(p,b.p,nx)}catch(x){}','try{g.gear&&g.gear.shotWorld&&g.gear.shotWorld(p,pc,A.ring?A.unsee(this._nc||(this._nc=new I),nx,b.fx):nx)}catch(x){}')
 R('ex=e.x-b.p.x,ey=e.y-b.p.y,ez=e.z-b.p.z,sd=ex*dir.x+ey*dir.y+ez*dir.z;','rv=A.rel(RQ,pc,e),ex=rv.x,ey=rv.y,ez=rv.z,sd=ex*dc.x+ey*dc.y+ez*dc.z;')
 R('if(b.t>2.4||b.far>420||b.p.y<-30){try{g.fx.threads.shot(b.mz,b.p)}catch(x){}done=!0}','if(b.t>2.4||b.far>420||(A.ring?A.unsee(this._pc,b.p,b.fx).y:b.p.y)<-30){try{g.fx.threads.shot(b.mz,A.ring?this._pc:b.p)}catch(x){}done=!0}')
+# ---- cables are drawn along the line the rider takes (see RCABLE)
+R('let m=new Qt(new Rn(.028,.028,len,5,1,!0),mat);m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(up,d.normalize());','let m=SCLOOP?RCABLE(g,l,mat):new Qt(new Rn(.028,.028,len,5,1,!0),mat);SCLOOP||(m.position.copy(a).addScaledVector(d,.5),m.quaternion.setFromUnitVectors(up,d.normalize()));')
+R('let n=ki.set((e.p0.x+e.p1.x)/2,(e.p0.y+e.p1.y)/2+(e.lift||0)+2.05,(e.p0.z+e.p1.z)/2);this.fx.particles.flash(n,2.4);','let n=ki.set((e.p0.x+e.p1.x)/2,(e.p0.y+e.p1.y)/2+(e.lift||0)+2.05,(e.p0.z+e.p1.z)/2);SCLOOP&&n.copy(RCPTS(this.arena,e)[RCPTS(this.arena,e).length>>1]);this.fx.particles.flash(n,2.4);')
+# ---- HUD: spawn numbers above nine, and what is under the crosshair is judged along the real sight line
+R('`${e.spawnRoof.name} \\xB7 0${e.spawnRoof.spawn+1}`','`${e.spawnRoof.name} \\xB7 ${String(e.spawnRoof.spawn+1).padStart(2,"0")}`')
+R('A.spawn>=0?`${A.name} \\xB7 0${A.spawn+1}`:A.name','A.spawn>=0?`${A.name} \\xB7 ${String(A.spawn+1).padStart(2,"0")}`:A.name')
+R('js.copy(v.chest()).sub(h.position);let w=js.length(),','this.arena.rel(js,h.position,v.chest());let w=js.length(),')
+R('g?h.position.distanceTo(g.chest()):p,n.focus','g?this.arena.dist(h.position,g.chest()):p,n.focus')
+R('js.copy(y.chest()).sub(h.position);let _=js.length();','this.arena.rel(js,h.position,y.chest());let _=js.length();')
+# ---- the angel: its light reaches whoever is truly within range, and its glow in the picture sits where it really appears
+R('o.chest().distanceTo(this.eye)<=this.pulseR&&(o._gazed=!0,','e.arena.dist(o.chest(),this.eye)<=this.pulseR&&(o._gazed=!0,')
+R('this.gfx.angelWorld.copy(this.angel.eye);','this.arena.see(this.gfx.angelWorld,this.angel.eye,this.gfx.camera.position.x);')
+R('(o.copy(a.pos),o.y+=2.15,o.project(e),','(o.copy(a.pos),o.y+=2.15,SCLOOP&&t.arena.see(o,o,e.position.x),o.project(e),')
+R('let s=Math.atan2(-(n.x-i.pos.x),-(n.z-i.pos.z))-i.yaw;','let RV=e.arena.rel(RQ,i.pos,RYO.set(n.x,i.pos.y,n.z)),s=Math.atan2(-RV.x,-RV.z)-i.yaw;')
+R('$s.copy(t).sub(this.listenerPos);let n=Math.hypot($s.x,$s.z)||1;','this.arena.rel($s,this.listenerPos,t);let n=Math.hypot($s.x,$s.z)||1;')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))

@@ -148,6 +148,7 @@ function handle(s, m) {
     s.id = known ? known.id : crypto.randomBytes(6).toString('base64url'); s.token = known ? m.token : crypto.randomBytes(18).toString('base64url');
     tokens.set(s.token, { id: s.id, seen: Date.now() });
     if (m.name) s.name = m.name;
+    s.maps = m.maps && m.maps.length ? m.maps : ['city'];   // the maps this client's build can load
     s.send({ t: 'welcome', id: s.id, token: s.token, protocol: PROTOCOL });
     // back into the room this token was in (a refresh or a dropped connection)
     for (const room of lobby.rooms.values()) if (room.members.has(s.id)) { room.add(s); break; }

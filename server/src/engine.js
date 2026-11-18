@@ -7,6 +7,7 @@ import { WEAPONS, fireShot } from '../../client/src/combat.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world.js';
 import { MODES } from './rules.js';
+import { zoneD } from '../../client/src/ring.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
 import { ServerExtras } from './extras.js';
 import { ServerPowerups } from './powerups.js';
@@ -18,6 +19,12 @@ const FX = { threads: NOOP, particles: NOOP, decals: NOOP };
 const SPAWN_ORDER = { A: [0, 7, 6, 1], B: [3, 4, 2, 5] };   // team halves: north/east vs south/west (spawn numbers 0..7 round the ring)
 const HISTORY = 1.0;                                       // seconds of pose history kept for lag compensation
 export const TICK = 1 / 30;
+const _hv = new V3(), _ha = new V3(), _hb = new V3(), _hc = new V3();
+// how far a chart point is from the straight line of a hub cable (ring maps)
+function hubLineOff(ar, l, p) {
+  _ha.set(l.p0.x, l.p0.y + l.lift, l.p0.z); _hb.set(l.p1.x, l.p1.y + l.lift, l.p1.z); const ab = ar.rel(_hc, _ha, _hb), ap = ar.rel(_hb, _ha, p);
+  const k = clamp(ap.dot(ab) / (ab.lengthSq() || 1), 0, 1); return ap.addScaledVector(ab, -k).length();
+}
 
 // a connected human, as the server sees them
 class Human {
@@ -45,13 +52,18 @@ export class Match {
   /** @param {{arena:any,bvh:any}} world @param {any} settings @param {{id:string,name:string,team:number,bot?:boolean}[]} roster */
   constructor(world, settings, roster, emit) {
     this.headless = true; this.S = settings; this.emit = emit; this.arena = new Arena(world.arena, world.bvh);
+    const ring = world.ring ? world.RK.ringify(this.arena, world.ring).ring : null;   // LOOP CITY: the arena learns the ring (client/src/ring.js)
+    this.dropY = ring ? -25 : 9.5;                                                    // below this you are gone: the street on the city map, the void under the hull on the ring
     this.teams = MODES[settings.mode].teams; this.fx = FX; this.audio = NOOP; this.hud = NOOP; this.player = null; this.listenerPos = new V3();
     this.time = 0; this.weaponsFree = false; this.state = 'live'; this.events = []; this.deferred = null; this.winner = null; this.log = [];
     const L = settings.botSkill; this.botSigma = 1; this.botSigmaPlayer = [2.0, 1.2, 0.75][L]; this.botSigmaBot = 2.0; this.botEye = [0.6, 1, 1.35][L]; this.botAim = [1.35, 1, 0.7][L]; this.botCrowd = [1, 2, 3][L];
     // halo schedule scaled to the room's time limit
     const Z = world.arena.zone; const k = settings.timeLimit / Z.duration; this.Z = { center: Z.center, duration: settings.timeLimit, phases: Z.phases.map(p => ({ ...p, t: p.t * k, shrink: (p.shrink || 0) * Math.min(1.6, k) })) };
-    this.zone = { cx: Z.center[0], cz: Z.center[1], r: Z.r0, nextR: Z.r0, phase: 0, shrinking: false, toNext: 60, phaseAge: 0, dps: 0, total: Z.phases.length };
-    this.angel = { eye: new V3(0, 71.5, 0), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
+    // on the ring the halo closes somewhere different each match (the angel hangs over that spot); C, k, r1 give it its stretched shape (zoneD)
+    const zc = ring && Z.centers && Z.centers.length ? Z.centers[(Math.random() * Z.centers.length) | 0] : Z.center;
+    this.zone = { cx: zc[0], cz: zc[1], r: Z.r0, nextR: Z.r0, phase: 0, shrinking: false, toNext: 60, phaseAge: 0, dps: 0, total: Z.phases.length };
+    if (ring) { Object.assign(this.zone, { C: ring.C, k: Z.ring.k, r1: Z.ring.r1 }); this.arena.setZone(zc[0], zc[1]); }
+    this.angel = { eye: new V3(this.zone.cx, 71.5, this.zone.cz), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     this.gearSim = new ServerGear(this);             // gas, smoke, decoys, the hammer, the angel's strikes and shadow roof
     this.smokeCut = (p, q) => this.gearSim.smokeCut(p, q);   // client/src/ai.js: bots do not see through smoke
@@ -75,11 +87,11 @@ export class Match {
     const counters = [0, 0];
     for (const a of this.actors) {
       let si;
-      if (this.teams) { const list = SPAWN_ORDER[a.team === 0 ? 'A' : 'B']; si = list[counters[a.team]++ % list.length]; if (used.has(si)) si = list.find(x => !used.has(x)) ?? si; }
+      if (this.teams) { const list = (ar.data.teamSpawns || SPAWN_ORDER)[a.team === 0 ? 'A' : 'B']; si = list[counters[a.team]++ % list.length]; if (used.has(si)) si = list.find(x => !used.has(x)) ?? si; }
       else { while (used.has(order[fi % order.length]) && fi < 64) fi++; si = order[fi++ % order.length]; }
       used.add(si); const r = ar.spawns[si]; const p = new V3(r.spawnPt[0], r.spawnPt[1], r.spawnPt[2]);
       if (this.teams && used.size > ar.spawns.length) p.x += Math.random() * 2 - 1;
-      this._place(a, p, Math.atan2(p.x, p.z), r.i, false);
+      this._place(a, p, Math.atan2(ar.wrapD(p.x - this.zone.cx), p.z - this.zone.cz), r.i, false);
     }
   }
   _place(a, p, yaw, roof, protect) {
@@ -93,16 +105,18 @@ export class Match {
   _respawnPoint(a) {
     const ar = this.arena, z = this.zone; const sr = Math.max(6, Math.min(z.r, z.nextR) - 2); const foes = this.actors.filter(o => o.alive && o !== a && (!this.teams || o.team !== a.team));
     let best = null, bs = -1e9; const _e = new V3(), _q = new V3();
-    for (let tries = 0; tries < 60; tries++) {
-      const r = ar.roofs[(Math.random() * ar.roofs.length) | 0]; if (!r.cells.length || ar.safeCount(r, sr) < 8) continue;
-      const k = r.cells[(Math.random() * r.cells.length) | 0]; const c = ar.cellPos(r, k, new V3()); if (Math.hypot(c.x - z.cx, c.z - z.cz) > sr) continue;
+    const open = ar.roofs.filter(r => r.cells.length && ar.safeCount(r, sr) >= 8);   // roofs with room inside the halo (on a big map most have none late on)
+    for (let tries = 0; tries < 60 && open.length; tries++) {
+      const r = open[(Math.random() * open.length) | 0];
+      const k = r.cells[(Math.random() * r.cells.length) | 0]; const c = ar.cellPos(r, k, new V3()); if (zoneD(z, c.x, c.z, sr) > sr) continue;
       let s = Math.random() * 4; let dmin = 1e9;
-      for (const f of foes) { const d = f.pos.distanceTo(c); dmin = Math.min(dmin, d); if (d < 60 && ar.los(f.eye(_e), _q.set(c.x, c.y + 1.4, c.z))) s -= 40; }
+      for (const f of foes) { const d = ar.dist(f.pos, c); dmin = Math.min(dmin, d); if (d < 60 && ar.los(f.eye(_e), _q.set(c.x, c.y + 1.4, c.z))) s -= 40; }
       s += Math.min(dmin, 50) * 0.8; if (this.teams) for (const m of this.actors) if (m.alive && m !== a && m.team === a.team) s += Math.max(0, 25 - m.pos.distanceTo(c)) * 0.3;
       if (s > bs) { bs = s; best = { c, r }; }
     }
-    if (!best) { const r = ar.spawns[(Math.random() * ar.spawns.length) | 0]; best = { c: new V3(...r.spawnPt), r }; }
-    return { p: best.c, roof: best.r.i, yaw: Math.atan2(best.c.x - z.cx, best.c.z - z.cz) };
+    if (!best) { let r = ar.spawns[(Math.random() * ar.spawns.length) | 0]; if (ar.ring) for (const s of ar.spawns) if (zoneD(z, s.spawnPt[0], s.spawnPt[2], 0) < zoneD(z, r.spawnPt[0], r.spawnPt[2], 0)) r = s;   // nothing free inside: the nearest spawn to the halo
+      best = { c: new V3(...r.spawnPt), r }; }
+    return { p: best.c, roof: best.r.i, yaw: Math.atan2(ar.wrapD(best.c.x - z.cx), best.c.z - z.cz) };
   }
 
   // ------------------------------------------------------------------ zone + angel
@@ -112,7 +126,7 @@ export class Match {
     if (!this.S.halo) { z.r = z.nextR = Z.phases[0].r; z.shrinking = false; z.dps = 0; }   // no halo: the angel still looks on the same beat
     this.gearSim.phase(i);   // the angel's shadow moves to a new roof each phase
     if (dt <= 0) return;
-    const sink = (1 - clamp(z.r / 30, 0, 1)) * 5; this.angel.eye.set(0, 71.5 - sink, 0);
+    const sink = (1 - clamp(z.r / 30, 0, 1)) * 5; this.angel.eye.set(z.cx, 71.5 - sink, z.cz);
     if (next && z.toNext <= 5.5 && this.gazeWarned < i) { this.gazeWarned = i; this.angel.state = 'warn'; if (this.S.angelGaze) for (const b of this.bots) b.hideFromAngel(this.angel.eye); }
     if (i > 0 && this.gazeDone < i) {
       this.gazeDone = i; this.angel.state = 'look'; if (this.S.angelGaze) { this.angel.pulseOn = true; this.angel.pulseR = 0; for (const a of this.actors) a._gazed = false; }
@@ -120,8 +134,8 @@ export class Match {
       if (this.S.angelShots) this.gearSim.volley(i >= 3 ? Math.max(2, this.S.angelShots) : this.S.angelShots, this.angel.eye);
     }
     // the reveal skips whoever stands on the shadow roof
-    if (this.angel.pulseOn) { this.angel.pulseR += dt * 78; for (const a of this.actors) { if (!a.alive || a._gazed) continue; if (a.chest().distanceTo(this.angel.eye) <= this.angel.pulseR) { a._gazed = true; const seen = !this.gearSim.onShadow(a) && this.arena.los(this.angel.eye, a.chest()); if (seen) a.revealedUntil = this.time + 5.5; this.events.push({ t: 'gaze', id: a.netId, seen }); } } if (this.angel.pulseR > 260) this.angel.pulseOn = false; }
-    if (this.S.halo) for (const a of this.actors) { if (!a.alive) continue; const out = Math.hypot(a.pos.x - z.cx, a.pos.z - z.cz) > z.r; if (out) { a.outT = (a.outT || 0) + dt; if (a.outT > 2.5) { a.zoneAcc = (a.zoneAcc || 0) + z.dps * dt; if (a.zoneAcc >= 3) { const d = a.zoneAcc; a.zoneAcc = 0; this.damage(a, d, null, { cause: 'zone' }); } } } else { a.outT = Math.max(0, (a.outT || 0) - dt * 2); a.zoneAcc = 0; } }
+    if (this.angel.pulseOn) { this.angel.pulseR += dt * 78; for (const a of this.actors) { if (!a.alive || a._gazed) continue; if (this.arena.dist(a.chest(), this.angel.eye) <= this.angel.pulseR) { a._gazed = true; const seen = !this.gearSim.onShadow(a) && this.arena.los(this.angel.eye, a.chest()); if (seen) a.revealedUntil = this.time + 5.5; this.events.push({ t: 'gaze', id: a.netId, seen }); } } if (this.angel.pulseR > 260) this.angel.pulseOn = false; }
+    if (this.S.halo) for (const a of this.actors) { if (!a.alive) continue; const out = zoneD(z, a.pos.x, a.pos.z) > z.r; if (out) { a.outT = (a.outT || 0) + dt; if (a.outT > 2.5) { a.zoneAcc = (a.zoneAcc || 0) + z.dps * dt; if (a.zoneAcc >= 3) { const d = a.zoneAcc; a.zoneAcc = 0; this.damage(a, d, null, { cause: 'zone' }); } } } else { a.outT = Math.max(0, (a.outT || 0) - dt * 2); a.zoneAcc = 0; } }
   }
   gazeHit() {}
 
@@ -169,15 +183,19 @@ export class Match {
     if (typeof m.seq === 'number') { if (m.seq <= a.lastSeq && a.lastSeq - m.seq < 60) return; a.lastSeq = m.seq; }   // a big jump back: the client restarted its count (reconnect)
     const p = m.p; if (!Array.isArray(p) || p.length !== 3 || !p.every(Number.isFinite)) return;
     const now = this.time; const dt = clamp(now - (a.lastIn || now - 0.05), 0.01, 0.5); a.lastIn = now;
-    const nx = p[0], ny = p[1], nz = p[2]; const dh = Math.hypot(nx - a.valid.x, nz - a.valid.z), dv = ny - a.valid.y;
+    const ar = this.arena, ring = ar.ring; const nx = ring ? ar.wrapX(p[0]) : p[0], ny = p[1], nz = p[2]; const dh = Math.hypot(ar.wrapD(nx - a.valid.x), nz - a.valid.z), dv = ny - a.valid.y;
     // movement allowance: sprint 7.3 m/s (+ air control), launch pads up to ~26 m/s, ziplines 13 m/s; a burst budget absorbs jitter
     const riding = m.mode === 'link' && Number.isInteger(m.link) && this.arena.links[m.link];
-    const cap = riding ? (riding.kind === 'pad' ? 30 : 16) : 9.5; a.budget = Math.min(6, a.budget + dt * cap);
-    let ok = dh <= a.budget + 0.05 && dv < (riding ? 14 : 3.2) && nx > -180 && nx < 180 && nz > -180 && nz < 180 && ny < 120;
-    if (riding && ok) { const l = riding; const d0 = Math.hypot(nx - (l.p0.x + l.p1.x) / 2, nz - (l.p0.z + l.p1.z) / 2); ok = d0 < l.len / 2 + 8 || d0 < 30; }
+    // a hub line is flown at 21 m/s, but near the middle of the wheel a metre of cable is many metres of chart: the cable itself is the check
+    const hub = riding && riding.hub; const cap = riding ? (hub ? 600 : riding.kind === 'pad' ? 30 : 16) : 9.5; a.budget = Math.min(hub ? 60 : 6, a.budget + dt * cap);
+    const B = ring ? ar.zmax + 1 : 180;   // the play area: a square on the city map, the strip between the rims on the ring
+    let ok = dh <= a.budget + 0.05 && dv < (riding ? 14 : 3.2) && (ring || (nx > -180 && nx < 180)) && nz > -B && nz < B && ny < 120;
+    if (riding && ok) { const l = riding;
+      if (hub) { _hv.set(nx, ny, nz); ok = hubLineOff(ar, l, _hv) < 9; }   // within a few metres of the straight cable
+      else { const d0 = Math.hypot(ar.wrapD(nx - (l.p0.x + ar.wrapD(l.p1.x - l.p0.x) / 2)), nz - (l.p0.z + l.p1.z) / 2); ok = d0 < l.len / 2 + 8 || d0 < 30; } }
     if (!ok) { a.strikes++; if (a.strikes >= 3) { a.strikes = 0; a.pos.copy(a.valid); a.budget = 0; this.events.push({ t: 'correct', id: a.netId, p: [r2(a.valid.x), r2(a.valid.y), r2(a.valid.z)] }); } return; }
     a.strikes = Math.max(0, a.strikes - 0.25); a.budget = Math.max(0, a.budget - dh);
-    a.vel.set((nx - a.pos.x) / dt, (ny - a.pos.y) / dt, (nz - a.pos.z) / dt); a.pos.set(nx, ny, nz); a.valid.copy(a.pos);
+    a.vel.set(ar.wrapD(nx - a.pos.x) / dt, (ny - a.pos.y) / dt, (nz - a.pos.z) / dt); a.pos.set(nx, ny, nz); a.valid.copy(a.pos);
     a.yaw = Number.isFinite(m.yaw) ? m.yaw : a.yaw; a.pitch = Number.isFinite(m.pitch) ? clamp(m.pitch, -1.6, 1.6) : a.pitch; a.crouchK = clamp(+m.c || 0, 0, 1);
     a.mode = m.mode === 'link' || m.mode === 'mantle' ? m.mode : 'walk'; a.link = riding ? m.link : -1; a.speed = Math.hypot(a.vel.x, a.vel.z); a.wpn = m.w === 'pistol' ? 'pistol' : 'rifle'; a.ads = clamp(+m.ads || 0, 0, 1);
     a.roofI = this.arena.roofAt(nx, nz, ny);
@@ -236,7 +254,7 @@ export class Match {
     this.events.push({ t: 'ammo', id: a.netId, ammo: this._ammo(a) });
   }
   _ammo(a) { return { rifle: [a.ammo.rifle.mag, a.ammo.rifle.reserve], pistol: [a.ammo.pistol.mag, a.ammo.pistol.reserve] }; }
-  _poseAt(o, t) { const h = this.hist.get(o.netId); if (!h || !h.length) return null; for (let i = h.length - 1; i > 0; i--) { if (h[i - 1][0] <= t) { const A = h[i - 1], B = h[i]; const k = clamp((t - A[0]) / Math.max(1e-6, B[0] - A[0]), 0, 1); const N = k < 0.5 ? A : B; return [t, lerp(A[1], B[1], k), lerp(A[2], B[2], k), lerp(A[3], B[3], k), lerp(A[4], B[4], k), lerp(A[5] || 0, B[5] || 0, k), N[6] || 0, N[7] || 0]; } } return h[0]; }
+  _poseAt(o, t) { const h = this.hist.get(o.netId); if (!h || !h.length) return null; for (let i = h.length - 1; i > 0; i--) { if (h[i - 1][0] <= t) { const A = h[i - 1], B = h[i]; const k = clamp((t - A[0]) / Math.max(1e-6, B[0] - A[0]), 0, 1); const N = k < 0.5 ? A : B; return [t, Math.abs(B[1] - A[1]) > 200 ? N[1] : lerp(A[1], B[1], k), lerp(A[2], B[2], k), lerp(A[3], B[3], k), lerp(A[4], B[4], k), lerp(A[5] || 0, B[5] || 0, k), N[6] || 0, N[7] || 0]; } } return h[0]; }
 
   // ------------------------------------------------------------------ the tick
   step(dt) {
@@ -247,9 +265,9 @@ export class Match {
     for (const a of this.humans) {
       if (!a.alive) continue;
       if (a.reloadUntil && this.time >= a.reloadUntil) { const W = WEAPONS[a.reloadW]; const st = a.ammo[a.reloadW]; const take = Math.min(W.mag - st.mag, st.reserve); st.mag += take; st.reserve -= take; a.reloadUntil = 0; this.events.push({ t: 'ammo', id: a.netId, ammo: this._ammo(a) }); }
-      if (a.pos.y < 9.5) this.damage(a, 999, null, { cause: 'drop' });
+      if (a.pos.y < this.dropY) this.damage(a, 999, null, { cause: 'drop' });
     }
-    for (const b of this.bots) { b.update(dt); if (b.alive && b.pos.y < 9.5) this.damage(b, 999, null, { cause: 'drop' }); }
+    for (const b of this.bots) { b.update(dt); this.arena.norm(b.pos); if (b.alive && b.pos.y < this.dropY) this.damage(b, 999, null, { cause: 'drop' }); }
     this.gearSim.update(dt);   // cans in flight, gas clouds, decoys, angel strikes, bots' gear
     this.extras.update(dt);
     this.power.update(dt);
