@@ -93,7 +93,9 @@ room codes or chat are sent. There is no cookie-consent banner yet.
 
 Every push to `main` deploys to the Oracle server (`.github/workflows/deploy.yml` → `deploy/deploy.sh`): the workflow
 packages the repo, copies it up over SSH, reinstalls the server's dependencies, restarts the `sniper` service and
-checks `/healthz` from the internet. It needs the `DEPLOY_HOST`, `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` secrets.
+checks `/healthz` from the internet. The deploy records the package id in `BUILD`. `/healthz` returns it as `build`,
+and the home page loads `game.js?v=` that id, so a four-hour edge cache cannot keep the previous client. It needs the
+`DEPLOY_HOST`, `DEPLOY_SSH_KEY` and `DEPLOY_KNOWN_HOSTS` secrets.
 
 Any other host that runs a long-lived Node process with WebSockets works too (Render, Railway, Fly.io, a VPS).
 `Dockerfile` included; `GET /healthz` for health checks. Set `ALLOWED_ORIGINS` in production. One process handles

@@ -92,7 +92,7 @@ test('engine: back to the rifle when its bullets are out, on death, after a resp
   // a rifle reload in progress is dropped on pickup
   B.reset(); B.ammo.rifle.mag = 1; m.reload('B', 'rifle'); assert.ok(B.reloadUntil > m.time); m.extras.awmOn(B); assert.equal(B.reloadUntil, 0);
   // what a reconnecting player is told
-  const st = m.extras.state(B); assert.deepEqual(st.map((e) => [e.t, e.on]), [['awm', 1]]); assert.deepEqual(st[0].ammo.rifle, [3, 0]); assert.equal(st[0].re, 1);
+  const st = m.extras.state(B); assert.deepEqual(st.map((e) => [e.t, e.t === 'rpgleft' ? e.left : e.on]), [['awm', 1], ['rpgleft', X.rpgAmmo]]); assert.deepEqual(st[0].ammo.rifle, [3, 0]); assert.equal(st[0].re, 1); assert.equal(st[1].re, 1);
 });
 
 // ------------------------------------------------------------------ over real sockets
