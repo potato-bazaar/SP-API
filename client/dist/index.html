@@ -350,6 +350,36 @@ input[type=range]{accent-color:var(--lime)} .go label.lab{color:var(--paper);let
 @media (max-width:760px) and (orientation:landscape){ #app.touch #hpbar{width:calc(var(--u)*3 + 34px)} #app.touch #hpn{font-size:calc(var(--u)*1.4 + 14px)} #app.touch #hp{padding:4px 9px} }
 #app.touch #feed{left:calc(var(--gl) + 132px)}
 #app.edit #pmenu{display:none}
+/* ---------- phone layout v3: sized to the screen height; fire under the right thumb, stance on the right edge, guns bottom-centre */
+#touch{--b:clamp(40px,12.6vh,54px);--f:clamp(62px,19vh,84px);--e:calc(var(--gr) + 4px)}
+#touch button span{font:700 8px/1 var(--display);letter-spacing:.12em;pointer-events:none;opacity:.9}
+#touch button svg{width:calc(var(--b)*.44);height:calc(var(--b)*.44)}
+#b-fire{right:calc(var(--e) + var(--b) + 14px);bottom:calc(var(--tb) + var(--b)*.9);width:var(--f);height:var(--f)}
+#b-fire svg{width:calc(var(--f)*.52);height:calc(var(--f)*.52)}
+#b-ads{right:var(--e);bottom:calc(var(--tb) + var(--b)*2.3 + 12px);width:calc(var(--b) + 6px);height:calc(var(--b) + 6px)}
+#b-jump{right:var(--e);bottom:calc(var(--tb) + var(--b)*1.15 + 6px);width:var(--b);height:var(--b)}
+#b-crouch{right:var(--e);bottom:var(--tb);width:var(--b);height:var(--b)}
+#b-zoom{right:calc(var(--e) + var(--b) + 26px);bottom:calc(var(--tb) + var(--b)*.9 + var(--f) + 10px);width:calc(var(--b)*.86);height:calc(var(--b)*.86)}
+#b-reload{right:calc(var(--e) + var(--b) + var(--f) + 26px);bottom:calc(var(--tb) + var(--b)*1.2);width:var(--b);height:var(--b)}
+#b-melee{right:calc(var(--e) + var(--b) + var(--f) + 26px);bottom:var(--tb);width:var(--b);height:var(--b)}
+#b-nade{right:calc(var(--e) + var(--b)*2 + var(--f) + 38px);bottom:var(--tb);width:var(--b);height:var(--b)}
+#b-melee svg{width:calc(var(--b)*.4);height:calc(var(--b)*.4)} #b-melee span{font-size:8px}
+#b-weap{right:auto;left:calc(50% - 76px);top:auto;bottom:calc(var(--u)*1 + 58px);width:152px}
+#b-swap{right:auto;left:calc(50% + 84px);top:auto;bottom:calc(var(--u)*1 + 60px);width:calc(var(--b)*.8);height:calc(var(--b)*.8)}
+#b-swap svg{width:calc(var(--b)*.34);height:calc(var(--b)*.34)}
+#b-power{right:var(--e);top:calc(var(--u)*1.4 + var(--mapw)*1.12 + 10px);bottom:auto;width:calc(var(--b)*.9);height:calc(var(--b)*.9)}
+#b-vis{right:calc(var(--e) + var(--b) + 4px)!important;top:calc(var(--u)*1.4 + var(--mapw)*1.12 + 10px)!important;bottom:auto!important;width:calc(var(--b)*.9)!important;height:calc(var(--b)*.9)!important}
+#b-sprint{left:calc(var(--gl) + 22px + 75px - var(--b)/2);bottom:calc(var(--tb) + 152px);width:var(--b);height:var(--b)}
+#b-leanl{left:calc(var(--gl) + 22px + 75px - var(--b)*1.5 - 10px);bottom:calc(var(--tb) + 146px);width:calc(var(--b)*.9);height:calc(var(--b)*.9)}
+#b-leanr{left:calc(var(--gl) + 22px + 75px + var(--b)*.6 + 10px);bottom:calc(var(--tb) + 146px);width:calc(var(--b)*.9);height:calc(var(--b)*.9)}
+#b-leanl svg,#b-leanr svg,#b-sprint svg{width:calc(var(--b)*.44);height:calc(var(--b)*.44)}
+#app.touch #hp{left:50%;transform:translateX(-50%)}
+/* the control editor is one slim bar; MORE unfolds the rest */
+#ctl{top:4px;width:auto;max-width:96%;padding:5px 8px;max-height:none;overflow:visible;border-radius:4px}
+#ctl .ctl-row{margin-top:0;flex-wrap:nowrap;gap:6px 10px;overflow-x:auto;scrollbar-width:none} #ctl .ctl-x{display:none;margin-top:6px;flex-wrap:wrap} #ctl.more .ctl-x{display:flex}
+#ctl-sel{margin:0;font-size:10px;letter-spacing:.14em;max-width:15em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+#ctl .lab{font-size:10px;letter-spacing:.14em;white-space:nowrap} #ctl .ctl-row input[type=range]{width:5.5em}
+#ctl .tog{padding:6px 8px;font-size:11px;letter-spacing:.12em;white-space:nowrap} #ctl .btn{margin-left:4px;font-size:12px;padding:.5em 1em;letter-spacing:.2em}
 @media (orientation:portrait){
   #app.touch #hp{left:50%}
   #stick-home{left:calc(var(--gl) + 4px);bottom:calc(var(--tb) - 6px);width:120px;height:120px}
@@ -419,17 +449,17 @@ html.booted #play,html.booted #playnote{display:none}
     <button id="b-pause" type="button" aria-label="Pause">II</button>
     <button id="b-use" type="button" hidden>USE</button>
     <button id="b-zoom" type="button" aria-label="Zoom">4×</button>
-    <button id="b-swap" type="button" aria-label="Swap weapon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15M15.5 4.5L19 8l-3.5 3.5M20 16H5M8.5 12.5L5 16l3.5 3.5"/></svg></button>
-    <button id="b-reload" type="button" aria-label="Reload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 3.5V9h-5.5"/></svg></button>
-    <button id="b-crouch" type="button" aria-label="Crouch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="13" cy="5" r="2.2" fill="currentColor" stroke="none"/><path d="M13 8l-4 4 4 3-1 5M9 12l-3 3v4M13 15h5v5"/></svg></button>
-    <button id="b-jump" type="button" aria-label="Jump"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4" r="2.2" fill="currentColor" stroke="none"/><path d="M12 7.5v6.5M12 9.5L8 6.5M12 9.5l4-3M12 14l-3.5 3.5V21M12 14l3.5 3.5V21"/><path d="M3 22h5M16 22h5"/></svg></button>
-    <button id="b-ads" type="button" aria-label="Scope"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></button>
-    <button id="b-leanl" type="button" aria-label="Peek left"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="4.5" r="2.2" fill="currentColor" stroke="none"/><path d="M11 7.5l3 6.5M14 14l-2 7M14 14l4 6M11.5 9l-4 2.5M12.5 10.5l4.5-1.5"/><path d="M5.5 14.5L3 17.5l2.5 3"/></svg></button>
-    <button id="b-leanr" type="button" aria-label="Peek right"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="4.5" r="2.2" fill="currentColor" stroke="none"/><path d="M11 7.5l3 6.5M14 14l-2 7M14 14l4 6M11.5 9l-4 2.5M12.5 10.5l4.5-1.5"/><path d="M5.5 14.5L3 17.5l2.5 3"/></svg></button>
-    <button id="b-sprint" type="button" aria-label="Sprint"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="16" cy="4" r="2.2" fill="currentColor" stroke="none"/><path d="M14.5 7.5L10 12l3.5 3-1.5 6M10 12l-3 4H3.5M13.5 15l4.5-.5 2 4M14.5 7.5l3.5 3H21"/><path d="M2 8h4M1.5 11h3"/></svg></button>
+    <button id="b-swap" type="button" aria-label="Swap weapon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h15M15.5 4.5L19 8l-3.5 3.5M20 16H5M8.5 12.5L5 16l3.5 3.5"/></svg><span>SWAP</span></button>
+    <button id="b-reload" type="button" aria-label="Reload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 3.5V9h-5.5"/></svg><span>LOAD</span></button>
+    <button id="b-crouch" type="button" aria-label="Crouch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11M6.5 8.5L12 14l5.5-5.5"/><path d="M5 20h14"/></svg><span>DUCK</span></button>
+    <button id="b-jump" type="button" aria-label="Jump"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M6.5 9.5L12 4l5.5 5.5"/><path d="M5 20h14"/></svg><span>JUMP</span></button>
+    <button id="b-ads" type="button" aria-label="Scope"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg><span>SCOPE</span></button>
+    <button id="b-leanl" type="button" aria-label="Peek left"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5v14"/><path d="M11 12H3M6.5 8.5L3 12l3.500 3.500"/></svg><span>PEEK</span></button>
+    <button id="b-leanr" type="button" aria-label="Peek right"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5v14"/><path d="M11 12H3M6.5 8.5L3 12l3.500 3.500"/></svg><span>PEEK</span></button>
+    <button id="b-sprint" type="button" aria-label="Sprint"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="16" cy="4" r="2.2" fill="currentColor" stroke="none"/><path d="M14.5 7.5L10 12l3.5 3-1.5 6M10 12l-3 4H3.5M13.5 15l4.5-.5 2 4M14.5 7.5l3.5 3H21"/><path d="M2 8h4M1.5 11h3"/></svg><span>RUN</span></button>
     <button id="b-melee" type="button" aria-label="Hammer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3.5l7 7-2.8 2.8-7-7z" fill="currentColor"/><path d="M12.6 10.4L4 19l1.8 1.8 8.6-8.6"/></svg><span>HIT</span></button>
-    <button id="b-nade" type="button" aria-label="Gas grenade"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="14.5" r="6"/><path d="M9 8.5h4v-2H9zM12.5 6.5l4-2.5 2.5 2.2"/><path d="M8.5 13.5h5M8.5 16h5"/></svg><b class="n">0</b></button>
-    <button id="b-power" type="button" aria-label="Decoy and play dead"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2L4.5 13.5H11L10 22l9-11.5h-6.5z"/></svg></button>
+    <button id="b-nade" type="button" aria-label="Gas grenade"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="14.5" r="6"/><path d="M9 8.5h4v-2H9zM12.5 6.5l4-2.5 2.5 2.2"/><path d="M8.5 13.5h5M8.5 16h5"/></svg><span>GAS</span><b class="n">0</b></button>
+    <button id="b-power" type="button" aria-label="Decoy and play dead"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2L4.5 13.5H11L10 22l9-11.5h-6.5z"/></svg><span>MORE</span></button>
     <button id="b-weap" type="button" aria-label="Weapons"><div class="slot" id="ws-rifle" data-k="w1"><svg viewBox="0 0 64 16" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path d="M1 8.6L4.5 7h9l2-1.4h17V4.2h2.2v1.4h3.4V4.6h8.6V6h2v1h14.3v1.7H47.2l-.6 1.5h-6.1l-1.7 3.5h-3.3l.9-3.5H18l-3.4 3.6H8.6l1.2-3.4L1 10.4z"/><path d="M20.5 1.2h13.5v3.1H20.5z"/></svg><span class="m">5</span><span class="r">/ 20</span><i class="bar"></i></div><div class="slot" id="ws-pistol" data-k="w2"><svg viewBox="0 0 64 16" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path d="M19 1.5h27v5.2H32.6l-1.1 1.9h-2.3l-2.7 6.9h-5.4l2.8-8.8H19z"/></svg><span class="m">7</span><span class="r">/ 21</span><i class="bar"></i></div></button>
     <div id="pmenu" hidden><div class="pm" data-k="decoy"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6.5" r="3.5"/><path d="M5.5 16.5c0-3.5 2.9-5.5 6.5-5.5s6.5 2 6.5 5.5zM12 16.5V22M8 22h8"/></svg><span>DECOY</span><b class="n">0</b></div><div class="pm" data-k="dead"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a7 7 0 0 1 14 0v3l-2 2v3H7v-3l-2-2z"/><path d="M9 11.5h.5M14.5 11.5h.5" stroke-width="3"/><path d="M10.5 19v-2M13.5 19v-2"/></svg><span>DEAD</span></div><div class="pm" data-k="pray"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M7 8h10"/><path d="M5 21c1.5-3 4-4.500 7-4.500s5.500 1.500 7 4.500"/></svg><span>PRAY</span></div><div class="pm" data-k="rpg"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15l11-7 2 3-11 7zM14 8l4-3 3 1-1 3-4 2M5 18l-2 3"/></svg><span>RPG</span></div><div class="pm" data-k="smoke"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 16a4 4 0 0 1 .6-7.9A5 5 0 0 1 17 9a3.5 3.5 0 0 1 0 7z"/><path d="M8 20h8"/></svg><span>SMOKE</span></div><div class="pm" data-k="knife"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l5-5M8 14l10-11 3 3-11 10z"/></svg><span>KNIFE</span></div><div class="pm" data-k="pu1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><circle cx="18" cy="7" r="3"/><path d="M6 7l4 5h4l4-5M10 12v4h4v-4"/></svg><span>DRONE</span></div><div class="pm" data-k="pu2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 9h-6zM9 11v6l3 5 3-5v-6M5 15l4-2M19 15l-4-2"/></svg><span>STRIKE</span></div><div class="pm" data-k="pu3"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 9h-6zM9 11v6l3 5 3-5v-6M5 15l4-2M19 15l-4-2"/></svg><span>AWM</span></div></div>
     <button id="b-decoy" type="button">DECOY</button>
@@ -563,20 +593,21 @@ html.booted #play,html.booted #playnote{display:none}
   </div>
 
   <div id="ctl" hidden>
-    <div id="ctl-sel" class="lab">drag any button to move it</div>
     <div class="ctl-row">
+      <span id="ctl-sel" class="lab">drag any button to move it</span>
       <label class="lab">size <input id="ctl-size" type="range" min="0.3" max="1.8" step="0.05" value="1"></label>
-      <label class="lab">see-through <input id="ctl-alpha" type="range" min="0.25" max="1" step="0.05" value="1"></label>
       <button id="ctl-hide" class="tog" type="button">HIDE BUTTON</button>
-      <button id="ctl-mirror" class="tog" type="button" aria-pressed="false">LEFT-HANDED</button>
+      <button id="ctl-more" class="tog" type="button" aria-expanded="false" onclick="var c=document.getElementById('ctl'),o=c.classList.toggle('more');this.setAttribute('aria-expanded',o);this.textContent=o?'LESS':'MORE'">MORE</button>
+      <button id="ctl-reset" class="tog" type="button">RESET</button>
+      <button id="ctl-done" class="btn red" type="button">Done</button>
     </div>
-    <div class="ctl-row">
+    <div class="ctl-row ctl-x">
+      <label class="lab">see-through <input id="ctl-alpha" type="range" min="0.25" max="1" step="0.05" value="1"></label>
+      <button id="ctl-mirror" class="tog" type="button" aria-pressed="false">LEFT-HANDED</button>
       <button id="ctl-gyro" class="tog" type="button" aria-pressed="false">GYRO OFF</button>
       <label class="lab" id="ctl-gs-l" hidden>gyro speed <input id="ctl-gsens" type="range" min="0.3" max="2.5" step="0.05" value="1"></label>
       <button id="ctl-ginv" class="tog" type="button" hidden>GYRO DIRECTION · NORMAL</button>
       <button id="ctl-diag" class="tog" type="button" aria-pressed="false">DIAGNOSTICS</button>
-      <button id="ctl-reset" class="tog" type="button">RESET</button>
-      <button id="ctl-done" class="btn red" type="button">Done</button>
     </div>
   </div>
   <div id="toast" hidden></div>
