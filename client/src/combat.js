@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 
 export const WEAPONS = {
-  rifle: { key: 'rifle', name: 'BALLISTA .338', mag: 5, reserve: 20, cycle: 1.3, reload: 2.6, dmg: [160, 74, 44], hip: 0.05, zooms: [4, 8], swap: 0.38 },
-  pistol: { key: 'pistol', name: 'SIDEARM 9MM', mag: 12, reserve: 36, cycle: 0.16, reload: 1.45, dmg: [60, 27, 17], hip: 0.011, zooms: [1.35], swap: 0.28, falloff: [22, 75] },
+  // hip spread kept near zero for the short map (~0.01% of the old cone)
+  rifle: { key: 'rifle', name: 'BALLISTA .338', mag: 5, reserve: 20, cycle: 1.3, reload: 2.6, dmg: [160, 74, 44], hip: 0.000005, zooms: [4, 8], swap: 0.38 },
+  pistol: { key: 'pistol', name: 'SIDEARM 9MM', mag: 12, reserve: 36, cycle: 0.16, reload: 1.45, dmg: [60, 27, 17], hip: 0.0000011, zooms: [1.35], swap: 0.28, falloff: [22, 75] },
 };
 export const ZONE_NAMES = ['HEAD', 'BODY', 'LIMB'];
 
