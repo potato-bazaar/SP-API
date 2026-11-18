@@ -4633,7 +4633,7 @@ function OPS(g){
 /* ---------- the nest (solo): eggs on every roof that burst when shot, a blind hunter that comes to gunfire, and silencers to find ---------- */
 function NEST(g){
   const S=g.gfx.scene,A=g.arena,DOWN=new I(0,-1,0),E={R:6,KILL:2.4,MAX:90,CHAIN:4.2,HIT:.36,PER:2},
-        H={hear:70,speed:8.6,bite:55,biteR:2.5,cool:.9,hp:260,dmg:65,r:.75,lose:9,respawn:45,pts:150};
+        H={hear:70,walk:3.4,climb:2.4,bite:55,biteR:2.5,cool:.9,hp:260,dmg:65,r:.75,lose:60,respawn:45,pts:150};
   let eggs=[],last=1e9,alien=null,rnd=1,sil=[];const SIL={N:7,R:1.4};
   const rand=()=>{rnd=(rnd*16807)%2147483647;return rnd/2147483647};
   const shell=new Ye({color:1380879,emissive:16721434,emissiveIntensity:.2});Gi(shell,ou(.3));
@@ -4665,28 +4665,32 @@ function NEST(g){
     hear(by,pt)};
   const seg=(o,e,c,r)=>{let dx=e.x-o.x,dy=e.y-o.y,dz=e.z-o.z,L=Math.hypot(dx,dy,dz);if(L<.3)return!1;let cx=c.x-o.x,cy=c.y-o.y,cz=c.z-o.z,u=(cx*dx+cy*dy+cz*dz)/L;return u>.3&&u<L+r&&cx*cx+cy*cy+cz*cz-u*u<r*r};
   /* ---- the blind one: a stand-in beast on the guard dog's skeleton until an original model arrives ---- */
-  const mk=()=>{let d=g.sx&&g.sx.D&&g.sx.D[0];if(!d||!d.mixer)return null;let src=d.grp.children[0],sc=iu(src),grp=new ce,mat=new Ye({color:328965,emissive:5570560,emissiveIntensity:.35});Gi(mat,ou(.5));
+  const mk=()=>{let d=g.sx&&g.sx.D&&g.sx.D[0];if(!d||!d.mixer)return null;let src=d.grp.children[0],sc=iu(src),grp=new ce,mat=new Ye({color:328965,emissive:5570560,emissiveIntensity:.06});Gi(mat,ou(.42));
     sc.traverse(o=>{o.isMesh&&(o.material=mat,o.frustumCulled=!1)});sc.scale.multiplyScalar(2.1);grp.add(sc);S.add(grp);
     let mixer=new Wa(sc),clip=null;try{clip=d.mixer._actions[0].getClip()}catch(x){}clip&&mixer.clipAction(clip).play();
     return{grp,mixer,pos:new I,yaw:0,state:0,hp:H.hp,to:null,who:null,heardAt:-99,cool:0,wait:0,dead:0,told:!1}};
-  const den=()=>{let p=g.player.pos,rs=A.roofs.filter(r=>Math.hypot(r.x-p.x,r.z-p.z)>38),r=(rs.length?rs:A.roofs)[Math.floor(Math.random()*(rs.length||A.roofs.length))];alien.pos.set(r.x,r.roofY,r.z);alien.state=0;alien.hp=H.hp;alien.to=null;alien.who=null;alien.grp.visible=!0};
+  const den=()=>{let p=g.player.pos,rs=A.roofs.filter(r=>Math.hypot(r.x-p.x,r.z-p.z)>38),r=(rs.length?rs:A.roofs)[Math.floor(Math.random()*(rs.length||A.roofs.length))];alien.pos.set(r.x,r.roofY,r.z);alien.state=0;alien.hp=H.hp;alien.to=null;alien.who=null;alien.pitch=0;alien.tilt=0;alien.hop=0;alien.grp.visible=!0};
   const hurt=(a,n,by)=>{if(a.state===3)return;a.hp-=n;if(a.hp<=0){a.state=3;a.dead=0;a.grp.visible=!1;try{g.sx.shatter(a.pos.clone().setY(a.pos.y+.8))}catch(x){}
       if(by&&by.isPlayer){try{g.pu&&(g.pu.pts+=H.pts)}catch(x){}g.hud.banner("the blind one is down",2.4,!0,"+"+H.pts+" points")}}else by&&by.pos&&(a.to=by.pos.clone(),a.who=by,a.heardAt=g.time,a.state=1)};
   const hear=(who,at)=>{let a=alien;if(!a||a.state===3||!who||!at)return;let d=at.distanceTo(a.pos);if(d>H.hear)return;
     if(a.state===1&&a.who!==who&&a.to&&a.to.distanceTo(a.pos)<d)return;   // it keeps the nearer noise
-    a.to=at.clone();a.who=who;a.heardAt=g.time;if(a.state!==1){a.state=1;who.isPlayer&&(g.hud.banner("it heard you",2.4,!0,"the blind one hunts gunfire — stay quiet or move",!0),a.told=!0)}};
+    a.to=at.clone();a.who=who;a.heardAt=g.time;if(a.state!==1){a.state=1;who.isPlayer&&(g.hud.banner("it heard you",2.4,!0,"the blind one is coming for the noise \u2014 it climbs, slowly",!0),a.told=!0)}};
+  const top=(x,z,y)=>{try{let h=A.raycast(new I(x,160,z),DOWN,400);return h&&h.point?h.point.y:y}catch(e){return y}};   // the highest thing at (x,z): a roof, a prop or the street
   const stepAlien=t=>{let a=alien;if(!a){if(!(alien=mk()))return;a=alien;den()}
     if(a.state===3){a.dead+=t;a.dead>H.respawn&&den();return}
     a.cool=Math.max(0,a.cool-t);let moving=!1;
     if(a.state===1&&a.to){let dx=a.to.x-a.pos.x,dz=a.to.z-a.pos.z,d=Math.hypot(dx,dz);
-      if(d>1.2){let st=Math.min(d,H.speed*t);a.pos.x+=dx/d*st;a.pos.z+=dz/d*st;a.yaw=Math.atan2(dx,dz);moving=!0;
-        let fy=floor(a.pos.x,a.pos.y+1.5,a.pos.z),ty=fy!=null&&fy>a.pos.y-3?fy:a.pos.y+(a.to.y-1.5-a.pos.y)*Math.min(1,st/Math.max(d,.01));   // over a gap it leaps toward the sound
-        a.pos.y+=(ty-a.pos.y)*Math.min(1,t*14)}
-      else{a.state=2;a.wait=2.6}
-      g.time-a.heardAt>H.lose&&d>1.2&&(a.state=2,a.wait=1.5)}
+      // It walks, and it cannot fly: at a roof edge it climbs down the wall, crosses the street, and climbs the next wall.
+      if(d>1.2){dx/=d;dz/=d;a.yaw=Math.atan2(dx,dz);moving=!0;let st=Math.min(d,H.walk*t),here=top(a.pos.x,a.pos.z,a.pos.y),ahead=top(a.pos.x+dx*.8,a.pos.z+dz*.8,a.pos.y);
+        if(ahead-a.pos.y>.6){a.pos.y=Math.min(ahead,a.pos.y+H.climb*t);a.pitch=-1;a.hop=1.4}                          // a wall in front: up it
+        else if(a.pos.y-here>.6&&!(a.hop>0)){a.pos.y=Math.max(here,a.pos.y-H.climb*t);a.pitch=1}                      // past an edge: down the face
+        else{a.pos.x+=dx*st;a.pos.z+=dz*st;a.hop=Math.max(0,(a.hop||0)-st);let h=top(a.pos.x,a.pos.z,a.pos.y);h>a.pos.y-.6&&(a.pos.y+=(h-a.pos.y)*Math.min(1,t*12));a.pitch=0}}
+      else{a.state=2;a.wait=2.6;a.pitch=0}
+      g.time-a.heardAt>H.lose&&d>1.2&&(a.state=2,a.wait=1.5,a.pitch=0)}
     else if(a.state===2){a.wait-=t;a.yaw+=t*2.2;a.wait<=0&&(a.state=0,a.to=null,a.who=null)}
     if(a.state!==0&&a.cool<=0)for(let v of g.actors){if(!v.alive||v.decoy)continue;if(Math.hypot(v.pos.x-a.pos.x,v.pos.z-a.pos.z)<H.biteR&&Math.abs(v.pos.y-a.pos.y)<2.2){a.cool=H.cool;g.damage(v,H.bite,null,{cause:"alien"});try{g.sx.shatter(v.pos.clone().setY(v.pos.y+1))}catch(x){}break}}
-    a.mixer&&a.mixer.update(moving?t*1.5:a.state===0?0:t*.35);a.grp.position.copy(a.pos);a.grp.rotation.y=a.yaw;a.grp.scale.y=a.state===0?.55:1};
+    a.mixer&&a.mixer.update(moving?t*(a.pitch?.5:.62):a.state===0?0:t*.25);a.grp.position.copy(a.pos);a.grp.rotation.y=a.yaw;a.grp.scale.y=a.state===0?.55:1;
+    let body=a.grp.children[0];body&&(a.tilt=(a.tilt||0)+((a.pitch||0)*1.42-(a.tilt||0))*Math.min(1,t*6),body.rotation.x=a.tilt,body.position.set(0,Math.abs(a.tilt)*.35,-Math.abs(a.tilt)*.3))};
   const os=g.onShot.bind(g);
   g.onShot=(who,o,w)=>{let quiet=!g.net&&g.silenced&&who&&who.isPlayer;quiet||os(who,o,w);if(g.net||!w||!w.point)return;try{for(let e of eggs)e.alive&&seg(o,w.point,e.p,E.HIT)&&burst(e,who);
     alien&&alien.state!==3&&seg(o,w.point,new I(alien.pos.x,alien.pos.y+.8,alien.pos.z),H.r)&&hurt(alien,H.dmg,who);quiet||hear(who,o)}catch(x){console.warn("nest",x)}};
