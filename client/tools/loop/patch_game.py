@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RING(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
@@ -85,6 +85,22 @@ R('t.startNet=function(e,i,n){let s=this.player;','t.startNet=function(e,i,n){le
 R('_apply(t,e,i){let n=a=>t[a]+(e[a]-t[a])*i,','_apply(t,e,i){let n=a=>t[a]+(a===1&&RWD?RWD(e[a]-t[a]):e[a]-t[a])*i,')
 R('["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],','["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],["map","map",[["city","SNIPER CITY"],["loop","LOOP CITY"]]],')
 R('district:()=>pan(`<h2>DISTRICT ROTATION</h2><p>One district is live: <b style="color:#fff">Hong Kong \xB7 District 04</b>, 24 rooftops around the angel.</p><p class="note">More districts mean building new maps. None exist yet, so there is nothing to rotate.</p>`),','district:()=>RDIST(pan),')
+# ---- cameras that look at something far away look along the real line to it (kill cam, spectator orbit, cut scenes)
+R('let cam=g.gfx.camera,d=K.to.clone().sub(K.from),len=d.length()||1;','let cam=g.gfx.camera,d=g.arena.rel(new I,K.from,K.to),len=d.length()||1;')
+R('.setY(K.from.y+.55+k*.25);cam.lookAt(K.to);','.setY(K.from.y+.55+k*.25);RLOOK(g,cam,K.to.x,K.to.y,K.to.z);')
+R('let d=K.from.distanceTo(K.to),how=','let d=g.arena.dist(K.from,K.to),how=')
+R('a.position.set(c+Math.cos(this.orbit)*u,d,h+Math.sin(this.orbit)*u),a.lookAt(c,l,h)}','a.position.set(c+Math.cos(this.orbit)*u,d,h+Math.sin(this.orbit)*u),RLOOK(this,a,c,l,h)}')
+R('cam.lookAt(c.x,(c.y+p.pos.y)*.5+6,c.z);cam.updateMatrixWorld();','RLOOK(g,cam,c.x,(c.y+p.pos.y)*.5+6,c.z);cam.updateMatrixWorld();')
+R('cam.lookAt(cx,cy+4,cz);cam.updateMatrixWorld();','RLOOK(g,cam,cx,cy+4,cz);cam.updateMatrixWorld();')
+# ---- eggs: on the loop one on every fourth rooftop is plenty (there are many more roofs, and the streets stay clear)
+R('for(let r of A.roofs)for(let k=0;k<E.PER;k++)for(let t=0;t<8;t++){','for(let r of A.roofs)for(let k=0;k<(SCLOOP?(r.kind==="roof"&&r.i%4===0?1:0):E.PER);k++)for(let t=0;t<8;t++){')
+# ---- solo gear: a decoy fires along the real line; the missile view stays under the hub and probes down from there
+R('n?o.copy(n.chest(wc)).sub(i).normalize():o.set(Math.random()-.5,0,Math.random()-.5).normalize()','n?e.arena.rel(o,i,n.chest(wc)).normalize():o.set(Math.random()-.5,0,Math.random()-.5).normalize()')
+R('c=new De().copy(i).addScaledVector(o,a?a.distance:300);t.fake.lastShot=e.time','c=e.arena.unsee(new De,new De().copy(i).addScaledVector(o,a?a.distance:300),i.x);t.fake.lastShot=e.time')
+R('h=g.arena.raycast(new V3(s.x,140,s.z),new V3(0,-1,0),200)','h=g.arena.raycast(new V3(s.x,g.arena.ring?g.arena.ring.R-6:140,s.z),new V3(0,-1,0),200)')
+R('cam.position.set(s.x,s.home.y+118,s.z);cam.rotation.set(-Math.PI/2,0,0,"YXZ");','cam.position.set(s.x,g.arena.ring?Math.min(s.home.y+118,g.arena.ring.R-14):s.home.y+118,s.z);cam.rotation.set(-Math.PI/2,0,0,"YXZ");')
+# ---- crates and panels: the loop has ten times the regions; one set on every third rooftop keeps the draw calls where they were
+R('function QM(r){let t=[],e=0;for(let i of r.roofs){if(!i.cells||i.cells.length<16)continue;','function QM(r){let t=[],e=0;for(let i of r.roofs){if(!i.cells||i.cells.length<16||r.ring&&(i.kind!=="roof"||i.i%3))continue;')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))

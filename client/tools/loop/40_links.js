@@ -6,15 +6,23 @@ function RCPTS(ar,l){
   else{const dx=ar.wrapD(b.x-a.x),n=Math.max(2,Math.ceil(Math.hypot(dx,b.z-a.z)/3));for(let k=0;k<=n;k++)pts.push(new I(a.x+dx*k/n,a.y+(b.y-a.y)*k/n,a.z+(b.z-a.z)*k/n))}
   return l._cp=pts;
 }
+// All cables share one mesh (eighty separate draws were too many for a phone). A cut cable drops out of the index until it is restrung.
+var RCB=null;
 function RCABLE(g,l,mat){
-  const ar=g.arena,pts=RCPTS(ar,l),w=l.hub?.075:.034,P=[],Ix=[],t=new I,u=new I,v=new I,Y=new I(0,1,0),X=new I(1,0,0);
+  const ar=g.arena,pts=RCPTS(ar,l),w=l.hub?.075:.034,t=new I,u=new I,v=new I,Y=new I(0,1,0),X=new I(1,0,0);
+  if(!RCB){RCB={P:[],parts:[],mesh:new Qt(new se,mat),dirty:!0};RCB.mesh.matrixAutoUpdate=!1;RCB.mesh.name="loop:cables";
+    RCB.flush=()=>{const B=RCB;if(!B.dirty)return;B.dirty=!1;const geo=B.mesh.geometry;if(!geo.getAttribute("position")||geo.getAttribute("position").count*3!==B.P.length)geo.setAttribute("position",new Ft(new Float32Array(B.P),3));
+      let n=0;for(const p of B.parts)p.on&&(n+=p.ix.length);const ix=new Uint32Array(n);let o=0;for(const p of B.parts)p.on&&(ix.set(p.ix,o),o+=p.ix.length);geo.setIndex(new Ft(ix,1))};
+    g.gfx.scene.add(RCB.mesh);setInterval(()=>RCB.flush(),120)}
+  const P=RCB.P,Ix=[];
   const ring=(p,a,b,r)=>{P.push(p.x+a.x*r,p.y+a.y*r,p.z+a.z*r,p.x+b.x*r,p.y+b.y*r,p.z+b.z*r,p.x-a.x*r,p.y-a.y*r,p.z-a.z*r,p.x-b.x*r,p.y-b.y*r,p.z-b.z*r)};
   const tube=(list,r)=>{const o=P.length/3;for(let k=0;k<list.length;k++){const a=list[Math.max(0,k-1)],b=list[Math.min(list.length-1,k+1)];t.copy(b).sub(a).normalize();u.crossVectors(t,Math.abs(t.y)>.9?X:Y).normalize();v.crossVectors(t,u).normalize();ring(list[k],u,v,r)}
     for(let k=0;k+1<list.length;k++)for(let q=0;q<4;q++){const a=o+k*4+q,b=o+k*4+(q+1)%4,c=a+4,d=b+4;Ix.push(a,b,c,b,d,c)}};
   tube(pts,w);
   for(const e of[0,1]){const p=e?l.p1:l.p0,top=pts[e?pts.length-1:0];tube([new I(top.x,p.y,p.z),new I(top.x,top.y+(l.hub?3.2:.25),top.z)],l.hub?.07:.045)}   // the mast at each end
-  const geo=new se;geo.setAttribute("position",new Ft(new Float32Array(P),3));geo.setIndex(new Ft(new Uint32Array(Ix),1));
-  const m=new Qt(geo,mat);m.matrixAutoUpdate=!1;return m;
+  const part={ix:Ix,on:!0};RCB.parts.push(part);RCB.dirty=!0;
+  // what LOOK keeps per cable: something with .visible and .frustumCulled. The scene gets a stand-in that draws nothing.
+  const stand=new ce;Object.defineProperty(stand,"visible",{get(){return part.on},set(x){x=!!x;x!==part.on&&(part.on=x,RCB.dirty=!0)}});return stand;
 }
 function RLINKS(g){
   const ar=g.arena,scene=g.gfx.scene,T=g.ringT;

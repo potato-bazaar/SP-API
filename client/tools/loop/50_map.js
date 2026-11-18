@@ -10,7 +10,7 @@ function RMAP(g){
   const roofs=ar.roofs.filter(r=>r.kind==="roof");
   hud._map=function(t){
     const N=cv.width,s=N/2,i=ctx,a=t.player,c=t.zone,dead=!a.alive,T=t.clock||0,mx=dead?t.gfx.camera.position.x:a.pos.x;
-    const ro=s-34,ri=ro*.58,rm=(ro+ri)/2,hb=(ro-ri)/2,m=N/480;
+    const ro=s-48,ri=ro*.56,rm=(ro+ri)/2,hb=(ro-ri)/2,m=N/480;
     const X=(x,z)=>s+(rm+Math.max(-1,Math.min(1,z/ZM))*hb)*Math.sin((x-mx)/R),Y=(x,z)=>s+(rm+Math.max(-1,Math.min(1,z/ZM))*hb)*Math.cos((x-mx)/R);
     if(t.gazeDone!==lastGaze){lastGaze!=null&&t.gazeDone>=0&&t.state==="live"&&(scanUntil=t.time+SCAN);lastGaze=t.gazeDone}
     if(t.time<scanUntil-SCAN-1)scanUntil=-1;const scan=Math.max(0,scanUntil-t.time),sk=Math.min(1,scan/1.2);

@@ -1,4 +1,5 @@
 // Which map: chosen on the menu (the page reloads into it), or decided by the room you join.
+function RLOOK(g,cam,x,y,z){if(SCLOOP){RQ.set(x,y,z);g.arena.see(RQ,RQ,cam.position.x);cam.lookAt(RQ)}else cam.lookAt(x,y,z)}   // look at a chart point from wherever the camera is
 var RWD=null;   // on the ring: the shortest way round between two x (used where net code blends positions)
 function RSWITCH(map,code){
   try{localStorage.setItem("sc.map",map==="loop"?"loop":"city")}catch(e){}
@@ -18,5 +19,12 @@ function RNET(g){
   const st=g.start;g.start=function(){if(!this.net&&Zd.centers&&Zd.centers.length){const c=Zd.centers[Math.random()*Zd.centers.length|0];T.setZone(c[0],c[1])}return st.apply(this,arguments)};
   // words on the menu that belong to the other map
   try{const q=s=>document.querySelector(s),live=q(".m2-live");live&&live.lastChild&&(live.lastChild.textContent="LOOP CITY · RING 01");const d=q(".m2-dist span");d&&(d.textContent="LOOP CITY · RING 01");const sub=q(".m2-sub");sub&&(sub.textContent="Eight snipers. One wheel. The far side is over your head.");
-    document.querySelectorAll("#m2 *").forEach(n=>{n.childNodes.length===1&&n.firstChild.nodeType===3&&/Stay on the Rooftops/i.test(n.textContent)&&(n.textContent="Roofs and streets.")})}catch(e){}
+    const w=document.createTreeWalker(document.getElementById("m2")||document.body,4);for(let n;n=w.nextNode();)/Stay on the Rooftops/i.test(n.nodeValue)&&(n.nodeValue=n.nodeValue.replace(/Stay on the Rooftops\.?/i,"Roofs and streets. Look up."))}catch(e){}
+}
+// the map shows on the menu, both maps: a chip beside players / duration / mode that opens the chooser
+function RMENU(g){
+  try{const chips=document.querySelector(".m2-chips");if(!chips||document.getElementById("m2-mapchip"))return;const loop=window.SCMAP==="loop";
+    const b=document.createElement("button");b.type="button";b.id="m2-mapchip";b.className="m2-chip";b.dataset.n="district";b.style.cssText="cursor:pointer;font:inherit;color:inherit;text-align:left;border-color:var(--lime,#c8f31d);position:relative";
+    b.innerHTML=`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/></svg><div><b>${loop?"LOOP":"CITY"}</b><span>MAP · CHANGE</span></div>`+(loop?"":`<i style="position:absolute;top:-7px;right:-6px;background:var(--lime,#c8f31d);color:#050505;font:800 10px/1 sans-serif;font-style:normal;letter-spacing:.08em;padding:3px 5px">NEW</i>`);
+    chips.appendChild(b)}catch(e){}
 }
