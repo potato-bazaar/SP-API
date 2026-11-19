@@ -272,6 +272,9 @@ R('this.w={rifle:{mag:Vi.rifle.mag,reserve:Vi.rifle.reserve,cool:0}','this.w={ri
 R('this.ads=zr(this.ads+(h?t/.16:-t/.12),0,1)','this.ads=zr(this.ads+(h?t/(this.kitRifle&&this.cur==="rifle"&&this.kitRifle.ads||.16):-t/.12),0,1)')
 R('this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:window.SCPARTS||[0,0,0,0]}),')
 R('this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"}})','this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"},parts:window.SCPARTS||[0,0,0,0]})')
+# ---- the menu says WEAPON (finish, scope, parts: 82_workshop.js) and has no STORE
+R('<button data-n="arsenal">ARSENAL</button>','<button data-n="arsenal">WEAPON</button>')
+R('<button data-n="store">${I.cart}STORE</button>','')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ').replace('export const ','const ')
 ring+='\n/* ---------- parts.js (client/src/parts.js, verbatim) ---------- */\n'+open(REPO+'/client/src/parts.js').read().replace('export function ','function ').replace('export const ','const ')

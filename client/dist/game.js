@@ -4919,7 +4919,7 @@ body.m2on #title>:not(#m2){display:none!important}
   document.head.appendChild(css);
   const el=document.createElement("div");el.id="m2";
   el.innerHTML=`<header class="m2-top"><div class="m2-logo">${I.cross}<div>SNIPER CITY<small>狙擊之城</small></div></div>
-<nav class="m2-nav"><button class="on" data-n="play">PLAY</button><button data-n="arsenal">ARSENAL</button><button data-n="ops">OPERATORS</button><button data-n="ranked">RANKED</button><button data-n="board">LEADERBOARD</button><button data-n="store">${I.cart}STORE</button></nav>
+<nav class="m2-nav"><button class="on" data-n="play">PLAY</button><button data-n="arsenal">WEAPON</button><button data-n="ops">OPERATORS</button><button data-n="ranked">RANKED</button><button data-n="board">LEADERBOARD</button></nav>
 <button class="m2-ic" data-n="news" aria-label="News">${I.bell}<i class="dot" id="m2-newdot"></i></button><button class="m2-ic" data-n="set" aria-label="Settings">${I.gear}</button>
 <div class="m2-prof"><div class="m2-av">${I.user}</div><div><b id="m2-name">SNIPER</b><div class="lv"><span id="m2-lv">LV. 1</span><span class="tr"><i id="m2-bar"></i></span></div></div><div class="xp" id="m2-xp">0 XP</div></div></header>
 <div class="m2-mid"><section class="m2-left"><div class="m2-live"><b>LIVE OPERATION</b>HONG KONG · DISTRICT 04</div><h1 class="m2-h">ROOFTOP ELIMINATION</h1><p class="m2-sub">Eight snipers. One city. Survive until the halo closes.</p>
@@ -5890,36 +5890,43 @@ ${RGS.on?'<span style="color:var(--lime,#c8f31d);letter-spacing:.14em;font-size:
 <button type="button" id="rg-ws" style="padding:8px 0;font:600 13px/1 inherit;letter-spacing:.12em;border:0;border-bottom:2px solid #e0182d;cursor:pointer;background:none;color:#fff">SEE IT IN THE WORKSHOP</button></div></div></div>`}
 function RGWIRE(open){const b=document.getElementById("rg-eq");b&&b.addEventListener("click",()=>{RGS.set&&RGS.set(!RGS.on);open&&open()})}
 
-/* ---------- the workshop: ARSENAL opens a bench with your rifle on it, drawn large by a small renderer of its own.
-   Drag to turn it, scroll or pinch to look closer, pick a finish from the tags along the bottom, equip it.
-   Finishes are looks only: every rifle in the game shoots the same. ---------- */
+/* ---------- WEAPON: one screen for everything about your rifle. The rifle sits on a bench, drawn large by a small
+   renderer of its own (drag to turn, scroll or pinch to look closer). Three tabs: PARTS (barrel, magazine, stock,
+   ammunition: 99_parts.js), SCOPE (ten reticles and their colour: 98_scopes.js), SKINS (finishes: 80_graphite.js).
+   The left column always shows what your rifle does now and how that differs from the standard one. ---------- */
 var RWK=null;
 function RWORKSHOP(g){
   const SK=[{id:"std",name:"BALLISTA .338",line:"Standard issue",text:"Bolt action, five rounds, 4× and 8× glass. The rifle every sniper in the city carries.",sw:"linear-gradient(135deg,#2a2b30,#0b0b0d 60%,#b51224 61%,#b51224 66%,#0b0b0d 67%)"},
     {id:"graphite",name:"GRAPHITE .408",line:"Carbon fibre collection · free",text:"Carbon weave and black gunmetal, cut with red. A long-range body for the same rifle.",sw:"repeating-linear-gradient(45deg,#17181b 0 4px,#26272c 4px 8px),linear-gradient(#e0182d,#e0182d)"}];
-  const css=`#wk{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 90% at 62% 40%,#1b1c20 0,#0a0a0c 55%,#050505 100%);color:#f2f2ef;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
-#wk:before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.055) 1.2px,transparent 1.6px);background-size:34px 34px;-webkit-mask-image:linear-gradient(#000 0,#000 52%,transparent 70%);mask-image:linear-gradient(#000 0,#000 52%,transparent 70%)}
-#wk canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}#wk canvas:active{cursor:grabbing}
-#wk .hd{position:absolute;left:max(22px,env(safe-area-inset-left));top:max(18px,env(safe-area-inset-top));max-width:min(30rem,62vw);pointer-events:none}
-#wk .kick{font:400 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90;letter-spacing:.06em}
-#wk h2{margin:8px 0 2px;font:italic 800 clamp(34px,6.2vw,74px)/.9 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:-.01em}
-#wk .ln{font:600 15px/1.2 "Barlow Condensed",sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#e0182d}
-#wk .tx{margin:10px 0 0;font:400 15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#cfd0d2;max-width:24rem}
-#wk .bk{position:absolute;right:max(20px,env(safe-area-inset-right));top:max(16px,env(safe-area-inset-top));font:600 15px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#f2f2ef;background:none;border:0;padding:10px 4px;cursor:pointer;border-bottom:2px solid #e0182d}
-#wk .ft{position:absolute;left:max(22px,env(safe-area-inset-left));right:max(22px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
-#wk .tags{display:flex;gap:10px;flex:1;min-width:0;overflow-x:auto;padding:14px 2px 2px}
-#wk .tag{position:relative;flex:0 0 auto;width:158px;text-align:left;background:#101013;border:0;border-top:3px solid #3a3b40;color:inherit;padding:9px 11px 10px;cursor:pointer;font:inherit}
-#wk .tag:nth-child(odd){transform:rotate(-.8deg)}#wk .tag:nth-child(even){transform:rotate(.6deg) translateY(3px)}
-#wk .tag:before{content:"";position:absolute;left:14px;top:-13px;width:9px;height:9px;border-radius:50%;border:2px solid #55565c;background:#050505}
-#wk .tag.sel{border-top-color:#c8f31d;background:#16171b}#wk .tag i{display:block;height:26px;margin-bottom:8px;background-size:auto,100% 4px;background-repeat:repeat,no-repeat;background-position:0 0,0 100%}
-#wk .tag b{display:block;font:700 17px/1 "Barlow Condensed",sans-serif;letter-spacing:.06em}#wk .tag small{display:block;margin-top:4px;font:400 11px/1 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90}
-#wk .tag.eq small{color:#c8f31d}
-#wk .go{flex:0 0 auto;padding:15px 30px;border:0;background:#c8f31d;color:#050505;font:italic 800 24px/1 "Barlow Condensed",sans-serif;letter-spacing:.06em;cursor:pointer}
-#wk .go[disabled]{background:#26272c;color:#8c8d90;cursor:default}
-#wk .hand{position:absolute;right:max(26px,env(safe-area-inset-right));bottom:calc(max(16px,env(safe-area-inset-bottom)) + 92px);transform:rotate(-3deg);font:italic 19px/1.2 "Bradley Hand","Segoe Print","Ink Free",cursive;color:#d9d4c2;text-align:right;pointer-events:none}
-#wk .hint{position:absolute;left:50%;top:max(20px,env(safe-area-inset-top));transform:translateX(-50%);font:400 11px/1 "JetBrains Mono",ui-monospace,monospace;color:#6d6e72;pointer-events:none;white-space:nowrap}
-#wk .lo{font:600 13px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#8c8d90;background:none;border:0;cursor:pointer;text-decoration:underline;padding:8px 0;pointer-events:auto}
-@media (max-height:460px){#wk .tx{display:none}#wk .hand{display:none}#wk .tag i{height:14px}}@media (max-width:640px){#wk .hint{display:none}}`;
+  const css=`#wk{position:fixed;inset:0;z-index:60;background:radial-gradient(110% 80% at 64% 30%,#1c1d22 0,#0b0b0d 55%,#050505 100%);color:#f2f2ef;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;display:grid;grid-template-columns:minmax(230px,27%) minmax(0,1fr);grid-template-rows:auto minmax(0,40%) minmax(0,1fr);gap:10px 18px;padding:max(12px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left))}
+#wk .top{grid-column:1/-1;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+#wk .kick{font:400 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90}#wk h2{margin:5px 0 0;font:italic 800 clamp(26px,3.8vw,48px)/.9 "Barlow Condensed","Arial Narrow",sans-serif}#wk h2 em{color:#e0182d;font-style:inherit}
+#wk .tag0{font:italic 400 14px/1.2 system-ui,sans-serif;color:#a9aaae;margin-top:4px}
+#wk .tabs{display:flex;gap:4px;background:#0d0d10;padding:4px;transform:skewX(-8deg)}#wk .tabs button{font:700 17px/1 "Barlow Condensed","Arial Narrow",sans-serif;letter-spacing:.14em;color:#cfd0d2;background:none;border:0;padding:11px 24px 10px;cursor:pointer}#wk .tabs button span{display:inline-block;transform:skewX(8deg)}
+#wk .tabs button.on{color:#f2f2ef;background:#b51224;box-shadow:0 3px 0 #ff2d3c}
+#wk .bk{font:600 15px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#f2f2ef;background:none;border:0;padding:10px 4px;cursor:pointer;border-bottom:2px solid #e0182d;white-space:nowrap}
+#wk .left{grid-row:2/4;display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
+#wk .box{background:rgba(16,16,19,.86);border-top:2px solid #2c2d32;padding:10px 12px 12px}#wk .box h3{margin:0 0 9px;font:700 14px/1 "Barlow Condensed",sans-serif;letter-spacing:.16em;color:#f2f2ef}#wk .box h3 small{color:#8c8d90;font:400 11px/1 "JetBrains Mono",monospace;letter-spacing:0;margin-left:6px}
+#wk .st{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:center}#wk .st b{font:500 14px/1 "Barlow Condensed",sans-serif;letter-spacing:.06em;color:#cfd0d2;white-space:nowrap}
+#wk .bar{height:7px;background:#1d1e22;position:relative;border-radius:4px;overflow:hidden}#wk .bar i{position:absolute;inset:0 auto 0 0;background:#c8f31d;border-radius:4px}#wk .bar i.dn{background:#ffc24a}
+#wk .st span{font:400 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#f2f2ef;min-width:4.4em;text-align:right}
+#wk .fx{display:grid;grid-template-columns:auto 1fr auto;gap:6px 9px;align-items:center;font:400 13px/1 system-ui,sans-serif;color:#cfd0d2}#wk .fx i{font-style:normal;width:1em;text-align:center}#wk .fx .up{color:#c8f31d}#wk .fx .dn{color:#ff5c6a}#wk .fx .eq{color:#6d6e72}#wk .fx span{font:400 12px/1 "JetBrains Mono",monospace;text-align:right}
+#wk .lens{aspect-ratio:1;max-width:240px;width:100%;align-self:center;border-radius:50%;border:5px solid #050505;outline:1px solid #3a3b40;background:radial-gradient(circle at 44% 38%,#b9c6dc 0,#6b7c99 34%,#27314a 70%,#0c1020 100%);position:relative;overflow:hidden;flex:0 0 auto}#wk .lens svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#wk .rs{align-self:flex-start;font:600 13px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#8c8d90;background:none;border:0;text-decoration:underline;cursor:pointer;padding:4px 0}
+#wk .stage{position:relative;min-height:0;touch-action:none}#wk canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab}#wk canvas:active{cursor:grabbing}
+#wk .nm{position:absolute;right:0;top:0;text-align:right;pointer-events:none}#wk .nm b{display:block;font:italic 800 22px/1 "Barlow Condensed",sans-serif;letter-spacing:.04em}#wk .nm small{font:400 11px/1.4 "JetBrains Mono",monospace;color:#c8f31d;white-space:pre-line}
+#wk .hint{position:absolute;left:0;bottom:0;font:400 11px/1 "JetBrains Mono",ui-monospace,monospace;color:#6d6e72;pointer-events:none}
+#wk .body{min-height:0;overflow-y:auto;padding-right:2px}#wk .slot h3{margin:0 0 6px;font:700 14px/1 "Barlow Condensed",sans-serif;letter-spacing:.2em;color:#f2f2ef;padding-left:10px;border-left:3px solid #e0182d}#wk .slot{margin-bottom:11px}
+#wk .opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#wk .opt{position:relative;background:#101013;border:1px solid #26272c;border-radius:6px;color:inherit;font:inherit;text-align:left;padding:9px 30px 10px 12px;cursor:pointer}#wk .opt b{display:block;font:700 17px/1 "Barlow Condensed",sans-serif;letter-spacing:.04em}#wk .opt small{display:block;margin-top:5px;font:400 12px/1.3 system-ui,sans-serif;color:#a9aaae}
+#wk .opt.sel{border-color:#c8f31d;background:#15171a;box-shadow:inset 0 0 0 1px #c8f31d}#wk .opt.sel:after{content:"✓";position:absolute;right:9px;top:8px;width:18px;height:18px;border-radius:50%;background:#c8f31d;color:#050505;font:800 12px/18px system-ui,sans-serif;text-align:center}
+#wk .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}#wk .card{display:grid;grid-template-columns:46px 1fr;gap:9px;align-items:center;padding:8px 26px 8px 9px}#wk .card i{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 44% 38%,#b9c6dc,#5d6e8c 55%,#1c2438);display:block;overflow:hidden}#wk .card i svg{width:100%;height:100%;overflow:visible}
+#wk .card small em{font-style:normal;color:#c8f31d}#wk .cols{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin:0 0 11px}#wk .cols span{font:400 11px/1 "JetBrains Mono",monospace;color:#8c8d90;margin-right:4px}
+#wk .sw{width:30px;height:30px;border-radius:50%;border:2px solid #3a3b40;cursor:pointer;padding:0}#wk .sw.sel{border-color:#f2f2ef;box-shadow:0 0 0 2px #050505,0 0 0 4px #c8f31d}
+#wk .skin i{display:block;height:34px;border-radius:4px;margin-bottom:8px;background-size:auto,100% 4px;background-repeat:repeat,no-repeat;background-position:0 0,0 100%}#wk .skin .go{display:inline-block;margin-top:8px;padding:7px 14px;background:#c8f31d;color:#050505;font:800 14px/1 "Barlow Condensed",sans-serif;letter-spacing:.1em;border-radius:3px}#wk .skin.eq .go{background:#26272c;color:#8c8d90}
+#wk .lo{font:600 13px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#8c8d90;background:none;border:0;cursor:pointer;text-decoration:underline;padding:10px 0 2px}
+@media (max-height:520px){#wk{grid-template-rows:auto minmax(0,34%) minmax(0,1fr);gap:6px 12px}#wk h2{font-size:24px}#wk .tag0,#wk .kick,#wk .fxbox,#wk .hint{display:none}#wk .tabs button{padding:8px 14px 7px;font-size:15px}#wk .opt small{font-size:11px}#wk .lens{max-width:130px}#wk .box{padding:7px 9px 8px}#wk .st{gap:5px 8px}}
+@media (orientation:portrait){#wk{grid-template-columns:1fr;grid-template-rows:auto minmax(0,26%) auto minmax(0,1fr)}#wk .left{grid-row:3;max-height:24vh}#wk .top{flex-wrap:wrap}#wk .opts{grid-template-columns:1fr}#wk .fxbox,#wk .lens{display:none}}`;
   const bbox=o=>{const lo=new I(1e9,1e9,1e9),hi=new I(-1e9,-1e9,-1e9),v=new I;o.updateMatrixWorld(!0);o.traverse(m=>{if(!m.isMesh)return;const p=m.geometry.getAttribute("position");for(let i=0;i<p.count;i+=7){v.fromBufferAttribute(p,i).applyMatrix4(m.matrixWorld);lo.min(v);hi.max(v)}});return{lo,hi}};
   // a copy of a rifle for the bench: the same geometry, plain lit materials (the game's own carry the map's shader)
   const copy=(meshes,frame,graph)=>{const grp=new ce,inv=new gt().copy(frame.matrixWorld).invert();
@@ -5931,13 +5938,15 @@ function RWORKSHOP(g){
     if(id==="graphite"){const G=RGS.grp;if(!G)return null;G.updateMatrixWorld(!0);return copy(G.children.filter(m=>m.isMesh),G,!0)}
     const hand=m=>{for(let p=m.parent;p&&p!==R;p=p.parent)if(p.name==="hands"||p.name==="graphite")return!0;return!1},all=[];R.traverse(m=>{m.isMesh&&!hand(m)&&all.push(m)});return copy(all,R,!1)};
   const open=()=>{
-    if(RWK)return!0;const R0=g.gfx&&g.gfx.renderer,F0=g.fp;if(!R0||!F0||!F0.rifle||!F0.hemi||!F0.key)return!1;
-    const el=document.createElement("div");el.id="wk";el.innerHTML=`<style>${css}</style><canvas></canvas><div class="hd"><div class="kick">the workshop · rooftop ${SCLOOP?"ring 01":"block 04"}</div><h2></h2><div class="ln"></div><p class="tx"></p><button class="lo" type="button">what every sniper carries</button><button class="lo" type="button" data-open="scopes" style="margin-left:18px;color:#c8f31d">scopes and reticle colour</button><button class="lo" type="button" data-open="parts" style="margin-left:18px;color:#c8f31d">rifle parts</button></div>
-<div class="hint">drag to turn · scroll to look closer</div><button class="bk" type="button">BACK TO THE ROOF</button><div class="hand">looks only —<br>every rifle shoots the same</div><div class="ft"><div class="tags"></div><button class="go" type="button"></button></div>`;
-    document.body.appendChild(el);const cv=el.querySelector("canvas"),q=s=>el.querySelector(s);
+    if(RWK)return!0;const R0=g.gfx&&g.gfx.renderer,F0=g.fp;if(!R0||!F0||!F0.rifle||!F0.hemi||!F0.key||!g.scopes||!g.parts)return!1;
+    const el=document.createElement("div");el.id="wk";el.innerHTML=`<style>${css}</style><div class="top"><div><div class="kick">weapon · the workshop · rooftop ${SCLOOP?"ring 01":"block 04"}</div><h2>YOUR <em>SNIPER</em></h2><div class="tag0">Every part gives and takes. Everything here is free.</div></div>
+<div class="tabs"><button type="button" data-tab="parts"><span>PARTS</span></button><button type="button" data-tab="scope"><span>SCOPE</span></button><button type="button" data-tab="skins"><span>SKINS</span></button></div><button class="bk" type="button">‹ BACK TO THE ROOF</button></div>
+<div class="left"><div class="box"><h3>RIFLE STATS</h3><div class="st"></div></div><div class="box fxbox"><h3>BUILD EFFECT<small>vs. standard</small></h3><div class="fx"></div></div><div class="lens" hidden><svg viewBox="-100 -100 200 200"></svg></div><button class="rs" type="button">back to standard parts</button><button class="lo" type="button">what every sniper carries</button></div>
+<div class="stage"><canvas></canvas><div class="nm"><b></b><small></small></div><div class="hint">drag to turn · scroll to look closer</div></div><div class="body"></div>`;
+    document.body.appendChild(el);const cv=el.querySelector("canvas"),stage=el.querySelector(".stage"),q=s=>el.querySelector(s);
     let r;try{r=new R0.constructor({canvas:cv,antialias:!0,alpha:!0})}catch(x){el.remove();return!1}
     r.setPixelRatio(Math.min(devicePixelRatio||1,2));const sc=new g.gfx.scene.constructor,cam=new g.gfx.camera.constructor(30,1,.05,40);
-    sc.add(new F0.hemi.constructor(13160660,1579548,1.05));const key=new F0.key.constructor(16777215,2.4);key.position.set(-1.6,2.6,2.2);sc.add(key);const rim=new F0.key.constructor(16719913,2.2);rim.position.set(2.2,.9,-2.4);sc.add(rim);
+    sc.add(new F0.hemi.constructor(13160660,2632240,1.7));const key=new F0.key.constructor(16777215,2.4);key.position.set(-1.6,2.6,2.2);sc.add(key);const rim=new F0.key.constructor(16719913,2.2);rim.position.set(2.2,.9,-2.4);sc.add(rim);
     // the bench: a scratched top with a cutting grid and a chalked note, two rests, a soft shadow
     const bt=(()=>{const c=document.createElement("canvas");c.width=1024;c.height=512;const x=c.getContext("2d");x.fillStyle="#141518";x.fillRect(0,0,1024,512);x.strokeStyle="rgba(255,255,255,.05)";x.lineWidth=1;for(let i=0;i<=1024;i+=32){x.beginPath();x.moveTo(i,0);x.lineTo(i,512);x.stroke()}for(let i=0;i<=512;i+=32){x.beginPath();x.moveTo(0,i);x.lineTo(1024,i);x.stroke()}
       for(let i=0;i<260;i++){x.strokeStyle=`rgba(255,255,255,${.02+Math.random()*.05})`;x.beginPath();const a=Math.random()*1024,b=Math.random()*512,t=Math.random()*6.28,l=10+Math.random()*90;x.moveTo(a,b);x.lineTo(a+Math.cos(t)*l,b+Math.sin(t)*l);x.stroke()}
@@ -5945,26 +5954,40 @@ function RWORKSHOP(g){
     const bench=new Qt(new an(4.4,.08,1.7),new Ye({map:bt}));bench.position.y=-.5;sc.add(bench);
     const sh=(()=>{const c=document.createElement("canvas");c.width=256;c.height=64;const x=c.getContext("2d"),G=x.createRadialGradient(128,32,4,128,32,120);G.addColorStop(0,"rgba(0,0,0,.75)");G.addColorStop(1,"rgba(0,0,0,0)");x.fillStyle=G;x.fillRect(0,0,256,64);const t=new rs(c);const m=new Qt(new os(2.6,.7),new _e({map:t,transparent:!0,depthWrite:!1}));m.rotation.x=-Math.PI/2;m.position.y=-.455;return m})();sc.add(sh);
     const restM=new Ye({color:new Tt(.012,.012,.014)}),rests=[-.46,.4].map(x=>{const o=new Qt(new an(.07,1,.2),restM);o.position.x=x;sc.add(o);return o});
-    const turn=new ce;sc.add(turn);
-    const st={el,r,sc,cam,turn,spin:-.5,tilt:.1,dist:1,sel:RGS.on?"graphite":"std",drag:null,raf:0,pinch:0,idle:0,cur:null,curId:""};RWK=st;
-    const show=()=>{const k=SK.find(s=>s.id===st.sel),on=(RGS.on?"graphite":"std")===st.sel;q("h2").textContent=k.name;q(".ln").textContent=k.line;q(".tx").textContent=k.text;const go=q(".go");go.textContent=on?"EQUIPPED":"EQUIP";go.disabled=on;
-      q(".tags").innerHTML=SK.map(s=>`<button type="button" class="tag${s.id===st.sel?" sel":""}${(RGS.on?"graphite":"std")===s.id?" eq":""}" data-s="${s.id}"><i style="background-image:${s.sw}"></i><b>${s.name}</b><small>${(RGS.on?"graphite":"std")===s.id?"equipped":"free · tap to look"}</small></button>`).join("");
-      if(st.curId!==st.sel){const m=model(st.sel);if(m){st.cur&&turn.remove(st.cur);st.cur=m;st.curId=st.sel;turn.add(m);const y0=-.46,bot=-m.userData.h/2;turn.position.y=y0-bot+.1;rests.forEach(o=>{o.scale.y=.1+m.userData.h*.22;o.position.y=y0+o.scale.y/2})}
-        else if(st.sel==="graphite")RGLOAD(g).then(()=>{RWK===st&&show()})}};
-    const size=()=>{const w=el.clientWidth||innerWidth,h=el.clientHeight||innerHeight;r.setSize(w,h,!1);cam.aspect=w/h;cam.updateProjectionMatrix();st.fit=w/h<1.25?1.25/(w/h):1};
-    const frame=()=>{st.raf=requestAnimationFrame(frame);st.drag==null&&(st.idle+=1/60,st.idle>2.5&&(st.spin+=.0035));turn.rotation.y=st.spin;turn.rotation.x=st.tilt;const d=2.95*st.dist*st.fit;cam.position.set(0,turn.position.y+.42+st.tilt*.6,d);cam.lookAt(.12,turn.position.y-.06,0);r.render(sc,cam)};
+    const turn=new ce;sc.add(turn);let tab="parts";try{tab=localStorage.getItem("sc.wtab")||"parts"}catch(x){}
+    const eqId=()=>RGS.on?"graphite":"std",st={el,r,sc,cam,turn,spin:-.45,tilt:.08,dist:1,sel:eqId(),drag:null,raf:0,pinch:0,idle:0,cur:null,curId:"",fit:1};RWK=st;
+    const B=Vi.rifle,hits=d=>Math.ceil(100/d),zs=k=>k.zooms.map(z=>z+"×").join(" ");
+    const rifle3d=()=>{if(st.curId===st.sel)return;const m=model(st.sel);if(m){st.cur&&turn.remove(st.cur);st.cur=m;st.curId=st.sel;turn.add(m);const y0=-.46,bot=-m.userData.h/2;turn.position.y=y0-bot+.1;rests.forEach(o=>{o.scale.y=.1+m.userData.h*.22;o.position.y=y0+o.scale.y/2})}else if(st.sel==="graphite")RGLOAD(g).then(()=>{RWK===st&&paint()})};
+    const paint=()=>{const sel=g.parts.sel,R=rifleWith(B,sel),c=g.scopes.cur,k=g.scopes.list.find(s=>s.id===c.id)||g.scopes.list[0],col=RSC_COL[c.col],skin=SK.find(s=>s.id===eqId());
+      el.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));
+      q(".nm b").textContent=skin.name;q(".nm small").textContent=k.name+" · "+col[0].toLowerCase()+" · "+zs(k)+"\n"+PARTS.map((s,i)=>s.opts[sel[i]].name).join(" / ");
+      // what the rifle does now (bars: longer is better, amber where it is worse than standard) and how it differs
+      const rows=[["Magazine",R.mag,B.mag,8,R.mag+" rounds",0,v=>(v>0?"+":"")+v],["Spare rounds",R.reserve,B.reserve,30,R.reserve,0,v=>(v>0?"+":"")+v],["Bolt",R.cycle,B.cycle,1.6,R.cycle.toFixed(2)+" s",1,v=>(v>0?"+":"")+v.toFixed(2)+" s"],["Reload",R.reload,B.reload,4,R.reload.toFixed(1)+" s",1,v=>(v>0?"+":"")+v.toFixed(1)+" s"],["Limb hits to kill",hits(R.dmg[2]),hits(B.dmg[2]),4,hits(R.dmg[2]),1,v=>(v>0?"+":"")+v],["Scope-in time",R.ads,.16,.24,R.ads.toFixed(2)+" s",1,v=>(v>0?"+":"")+v.toFixed(2)+" s"]];
+      q(".st").innerHTML=rows.map(([n,v,b,mx,t,low])=>{const f=low?1.12-v/mx:v/mx,worse=v!==b&&(v>b)===!!low;return`<b>${n}</b><div class="bar"><i class="${worse?"dn":""}" style="width:${Math.max(6,Math.min(100,f*100))}%"></i></div><span>${t}</span>`}).join("")+`<b>Zoom</b><div class="bar"><i style="width:${k.zooms[k.zooms.length-1]*10}%"></i></div><span>${zs(k)}</span>`;
+      q(".fx").innerHTML=rows.map(([n,v,b,mx,t,low,fmt])=>{const d=Math.round((v-b)*100)/100,cls=!d?"eq":(d>0)===!low?"up":"dn";return`<i class="${cls}">${!d?"–":cls==="up"?"▲":"▼"}</i><div>${n}</div><span class="${cls}">${!d?"±0":fmt(d)}</span>`}).join("");
+      q(".fxbox").hidden=tab==="scope";q(".lens").hidden=tab!=="scope";q(".rs").hidden=tab!=="parts"||sel.every(v=>!v);
+      tab==="scope"&&(q(".lens svg").innerHTML=RSCDRAW(k.id,c.col)+(k.range?`<rect x="7" y="-15" width="21.5" height="7.4" rx="1" style="fill:rgba(5,5,5,.72);stroke:${col[1]};stroke-width:1.1;vector-effect:non-scaling-stroke"/><text x="8.8" y="-9.4" style="fill:#f2f2ef;font:600 4.9px 'JetBrains Mono',monospace">172 m</text>`:"")+(k.bear?`<text x="0" y="-70" text-anchor="middle" style="fill:${col[1]};font:600 4.6px 'JetBrains Mono',monospace">BRG 042°</text>`:""));
+      q(".body").innerHTML=tab==="parts"?PARTS.map((s,i)=>`<div class="slot"><h3>${s.name}</h3><div class="opts">${s.opts.map((o,j)=>`<button type="button" class="opt${sel[i]===j?" sel":""}" data-i="${i}" data-k="${j}"><b>${o.name}</b><small>${o.note}</small></button>`).join("")}</div></div>`).join("")
+        :tab==="scope"?`<div class="cols"><span>reticle colour</span>${Object.keys(RSC_COL).map(x=>`<button type="button" class="sw${x===c.col?" sel":""}" data-c="${x}" title="${RSC_COL[x][0]}" aria-label="${RSC_COL[x][0]}" style="background:${RSC_COL[x][1]}"></button>`).join("")}</div><div class="grid">${g.scopes.list.map(s=>`<button type="button" class="opt card${s.id===c.id?" sel":""}" data-id="${s.id}"><i><svg viewBox="-100 -100 200 200">${RSCDRAW(s.id,c.col)}</svg></i><span><b>${s.name}</b><small>${s.tier==="advanced"?"<em>advanced</em>":s.tier} · ${zs(s)}</small></span></button>`).join("")}</div><div class="slot" style="margin-top:11px"><small style="font:400 13px/1.4 system-ui,sans-serif;color:#a9aaae">${k.line}</small></div>`
+        :`<div class="opts">${SK.map(s=>`<button type="button" class="opt skin${s.id===st.sel?" sel":""}${s.id===eqId()?" eq":""}" data-s="${s.id}"><i style="background-image:${s.sw}"></i><b>${s.name}</b><small>${s.line}. ${s.text}</small><span class="go">${s.id===eqId()?"EQUIPPED":"EQUIP"}</span></button>`).join("")}</div><div class="slot" style="margin-top:11px"><small style="font:400 13px/1.4 system-ui,sans-serif;color:#a9aaae">Skins change how the rifle looks in your hands. They do not change how it shoots.</small></div>`;
+      rifle3d()};
+    const size=()=>{const w=stage.clientWidth||innerWidth,h=stage.clientHeight||innerHeight*.4;r.setSize(w,h,!1);cam.aspect=w/h;cam.updateProjectionMatrix();st.fit=w/h<2.1?2.1/(w/h):1};
+    const frame=()=>{st.raf=requestAnimationFrame(frame);st.drag==null&&(st.idle+=1/60,st.idle>2.5&&(st.spin+=.0035));turn.rotation.y=st.spin;turn.rotation.x=st.tilt;const d=2.05*st.dist*st.fit;cam.position.set(0,turn.position.y+.3+st.tilt*.5,d);cam.lookAt(0,turn.position.y-.03,0);r.render(sc,cam)};
     const close=()=>{cancelAnimationFrame(st.raf);removeEventListener("resize",size);removeEventListener("keydown",key0,!0);try{r.dispose();r.forceContextLoss&&r.forceContextLoss()}catch(x){}el.remove();RWK=null};
-    const key0=e=>{e.key==="Escape"&&!document.getElementById("sk")&&!document.getElementById("pk")&&(e.stopPropagation(),close())};st.close=close;
+    const key0=e=>{e.key==="Escape"&&(e.stopPropagation(),close())};st.close=close;
     cv.addEventListener("pointerdown",e=>{st.drag={x:e.clientX,y:e.clientY};st.idle=0;try{cv.setPointerCapture(e.pointerId)}catch(x){}});
     cv.addEventListener("pointermove",e=>{if(!st.drag)return;st.spin+=(e.clientX-st.drag.x)*.011;st.tilt=Math.max(-.5,Math.min(.75,st.tilt+(e.clientY-st.drag.y)*.006));st.drag={x:e.clientX,y:e.clientY};st.idle=0});
     const up=()=>{st.drag=null};cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-    cv.addEventListener("wheel",e=>{e.preventDefault();st.dist=Math.max(.45,Math.min(1.35,st.dist*(e.deltaY>0?1.08:.925)));st.idle=0},{passive:!1});
-    cv.addEventListener("touchmove",e=>{if(e.touches.length!==2)return;const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);st.pinch&&(st.dist=Math.max(.45,Math.min(1.35,st.dist*st.pinch/d)));st.pinch=d;st.drag=null},{passive:!0});cv.addEventListener("touchend",()=>{st.pinch=0});
-    q(".tags").addEventListener("click",e=>{const b=e.target.closest(".tag");b&&(st.sel=b.dataset.s,st.idle=0,show())});
-    q(".go").addEventListener("click",()=>{RGS.set&&RGS.set(st.sel==="graphite");show()});q(".bk").addEventListener("click",close);
-    q(".lo").addEventListener("click",()=>{close();const b=document.querySelector('[data-n="arsenal"]');b&&(RWORKSHOP.skip=1,b.click())});
-    addEventListener("resize",size);addEventListener("keydown",key0,!0);size();show();frame();return!0};
-  // ARSENAL in the menu opens the workshop (the list of what you carry is one tap further in)
+    cv.addEventListener("wheel",e=>{e.preventDefault();st.dist=Math.max(.5,Math.min(1.4,st.dist*(e.deltaY>0?1.08:.925)));st.idle=0},{passive:!1});
+    cv.addEventListener("touchmove",e=>{if(e.touches.length!==2)return;const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);st.pinch&&(st.dist=Math.max(.5,Math.min(1.4,st.dist*st.pinch/d)));st.pinch=d;st.drag=null},{passive:!0});cv.addEventListener("touchend",()=>{st.pinch=0});
+    el.addEventListener("click",e=>{const t=e.target,T=t.closest("[data-tab]"),o=t.closest("[data-i]"),sw=t.closest(".sw"),cd=t.closest("[data-id]"),sk=t.closest("[data-s]");
+      if(T){tab=T.dataset.tab;try{localStorage.setItem("sc.wtab",tab)}catch(x){}st.sel=eqId();paint()}
+      else if(o){g.parts.set(+o.dataset.i,+o.dataset.k);paint()}else if(sw){g.scopes.set(null,sw.dataset.c);paint()}else if(cd){g.scopes.set(cd.dataset.id);paint()}
+      else if(sk){st.sel=sk.dataset.s;st.idle=0;t.closest(".go")&&RGS.set&&RGS.set(st.sel==="graphite");paint()}
+      else if(t.closest(".rs")){g.parts.reset();paint()}else if(t.closest(".bk"))close();
+      else if(t.closest(".lo")){close();const b=document.querySelector('[data-n="arsenal"]');b&&(RWORKSHOP.skip=1,b.click())}});
+    addEventListener("resize",size);addEventListener("keydown",key0,!0);size();paint();frame();return!0};
+  // WEAPON in the menu opens this screen (the list of what you carry is one tap further in)
   document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest('[data-n="arsenal"],#rg-ws');if(!b)return;if(RWORKSHOP.skip){RWORKSHOP.skip=0;return}if(open()){e.stopPropagation();e.preventDefault();const x=document.getElementById("m2-x");b.id==="rg-ws"&&x&&x.click()}},!0);
   g.workshop={open,close:()=>{RWK&&RWK.close()},get state(){return RWK}};
 }
@@ -6147,31 +6170,7 @@ function RSCOPES(g){
     if(k.bracket&&RSC.tgt)s+=`<path d="M0,-6 L6,0 L0,6 L-6,0 Z" style="fill:none;stroke:#ff2d3c;stroke-width:1.6;vector-effect:non-scaling-stroke"/>`;
     if(k.bear){s+=`<text x="0" y="-70" text-anchor="middle" style="fill:${c};stroke:none;${f(4.6)}">BRG ${String(brg).padStart(3,"0")}°</text><text x="0" y="76" text-anchor="middle" style="fill:${c};stroke:none;${f(4.6)}">${RSC.z}× · ${k.zooms.map(z=>z+"×").join(" ")}</text>`}
     dyn.innerHTML=s;return r};
-  // ---- the picker (opened from the workshop)
-  const css=`#sk{position:fixed;inset:0;z-index:70;background:radial-gradient(120% 90% at 30% 40%,#1b1c20 0,#0a0a0c 55%,#050505 100%);color:#f2f2ef;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.25fr);gap:18px;padding:max(16px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));overflow:hidden;user-select:none;-webkit-user-select:none}
-#sk .pv{display:flex;flex-direction:column;min-height:0}#sk .kick{font:400 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90}#sk h2{margin:6px 0 2px;font:italic 800 clamp(28px,4.6vw,56px)/.9 "Barlow Condensed",sans-serif}
-#sk .ln{font:600 14px/1.2 "Barlow Condensed",sans-serif;letter-spacing:.14em;color:#e0182d;text-transform:uppercase}#sk .tx{margin:6px 0 8px;font:400 14px/1.4 system-ui,sans-serif;color:#cfd0d2;max-width:26rem}
-#sk .lens{flex:1;min-height:0;aspect-ratio:1;max-height:100%;align-self:center;border-radius:50%;border:6px solid #050505;outline:1px solid #3a3b40;background:radial-gradient(circle at 44% 38%,#b9c6dc 0,#6b7c99 34%,#27314a 70%,#0c1020 100%);position:relative;overflow:hidden}
-#sk .lens:before{content:"";position:absolute;inset:0;background:linear-gradient(transparent 52%,rgba(8,10,20,.82) 52.4%),repeating-linear-gradient(90deg,transparent 0 6%,rgba(8,10,20,.8) 6% 13%,transparent 13% 19%,rgba(8,10,20,.7) 19% 31%);-webkit-mask-image:linear-gradient(transparent 30%,#000 52%);mask-image:linear-gradient(transparent 30%,#000 52%);opacity:.8}
-#sk .lens svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-#sk .rt{display:flex;flex-direction:column;min-height:0;gap:10px}#sk .bk{align-self:flex-end;font:600 15px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#f2f2ef;background:none;border:0;border-bottom:2px solid #e0182d;padding:8px 4px;cursor:pointer}
-#sk .grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:9px;align-content:start;padding:2px}
-#sk .card{background:#101013;border:0;border-top:3px solid #3a3b40;color:inherit;font:inherit;text-align:left;padding:8px 9px 9px;cursor:pointer;display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center}
-#sk .card.sel{border-top-color:#c8f31d;background:#17181c}#sk .card i{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 44% 38%,#b9c6dc,#5d6e8c 55%,#1c2438);display:block;overflow:hidden}#sk .card i svg{width:100%;height:100%;overflow:visible}
-#sk .card b{display:block;font:700 15px/1 "Barlow Condensed",sans-serif;letter-spacing:.05em}#sk .card small{display:block;margin-top:4px;font:400 10px/1.25 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90}#sk .card small em{font-style:normal;color:#c8f31d}
-#sk .cols{display:flex;gap:9px;align-items:center;flex-wrap:wrap}#sk .cols span{font:400 11px/1 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90;margin-right:4px}
-#sk .sw{width:30px;height:30px;border-radius:50%;border:2px solid #3a3b40;cursor:pointer;padding:0}#sk .sw.sel{border-color:#f2f2ef;box-shadow:0 0 0 2px #050505,0 0 0 4px #c8f31d}
-@media (orientation:portrait){#sk{grid-template-columns:1fr;grid-template-rows:minmax(0,.8fr) minmax(0,1fr)}}@media (max-height:440px){#sk .tx{display:none}#sk h2{font-size:28px}}`;
-  let el=null;
-  const paint=()=>{const k=cur(),q=s=>el.querySelector(s);q("h2").textContent=k.name;q(".ln").textContent=k.tier+" · "+k.zooms.map(z=>z+"×").join("  ");q(".tx").textContent=k.line;
-    q(".lens svg").innerHTML=RSCDRAW(k.id,RSC.col)+(k.range?`<rect x="7" y="-15" width="21.5" height="7.4" rx="1" style="fill:rgba(5,5,5,.72);stroke:${RSC_COL[RSC.col][1]};stroke-width:1.1;vector-effect:non-scaling-stroke"/><text x="8.8" y="-9.4" style="fill:#f2f2ef;font:600 4.9px 'JetBrains Mono',monospace">172 m</text>`:"")+(k.bear?`<text x="0" y="-70" text-anchor="middle" style="fill:${RSC_COL[RSC.col][1]};font:600 4.6px 'JetBrains Mono',monospace">BRG 042°</text>`:"");
-    q(".grid").innerHTML=RSC_LIST.map(s=>`<button type="button" class="card${s.id===RSC.id?" sel":""}" data-id="${s.id}"><i><svg viewBox="-100 -100 200 200">${RSCDRAW(s.id,RSC.col==="ink"?"ink":RSC.col)}</svg></i><span><b>${s.name}</b><small>${s.tier==="advanced"?"<em>advanced</em>":s.tier} · ${s.zooms.map(z=>z+"×").join(" ")}</small></span></button>`).join("");
-    q(".cols").innerHTML="<span>reticle colour</span>"+Object.keys(RSC_COL).map(c=>`<button type="button" class="sw${c===RSC.col?" sel":""}" data-c="${c}" title="${RSC_COL[c][0]}" aria-label="${RSC_COL[c][0]}" style="background:${RSC_COL[c][1]}"></button>`).join("")};
-  const close=()=>{el&&(el.remove(),el=null,removeEventListener("keydown",esc,!0))},esc=e=>{e.key==="Escape"&&(e.stopPropagation(),close())};
-  const open=()=>{if(el)return;el=document.createElement("div");el.id="sk";el.innerHTML=`<style>${css}</style><div class="pv"><div class="kick">the workshop · glass</div><h2></h2><div class="ln"></div><p class="tx"></p><div class="lens"><svg viewBox="-100 -100 200 200"></svg></div></div><div class="rt"><button class="bk" type="button">BACK TO THE BENCH</button><div class="grid"></div><div class="cols"></div></div>`;
-    document.body.appendChild(el);el.addEventListener("click",e=>{const c=e.target.closest(".card"),s=e.target.closest(".sw");c?(set(c.dataset.id),paint()):s?(set(null,s.dataset.c),paint()):e.target.closest(".bk")&&close()});addEventListener("keydown",esc,!0);paint()};
-  document.addEventListener("click",e=>{e.target&&e.target.closest&&e.target.closest('[data-open="scopes"]')&&(e.preventDefault(),open())},!0);
-  g.scopes={set,open,close,list:RSC_LIST,get cur(){return RSC}};
+  g.scopes={set,list:RSC_LIST,get cur(){return RSC}};
 }
 
 /* ---------- rifle parts: barrel, magazine, stock, ammunition. Each choice gives something and takes something
@@ -6184,28 +6183,7 @@ function RPARTS(g){
     if(g.state==="title"&&p.w&&p.w.rifle){p.w.rifle.mag=r.mag;p.w.rifle.reserve=r.reserve}try{g.hud.weapon(p)}catch(x){}};
   const set=(i,v)=>{sel[i]=v;sel=partsClean(sel);try{localStorage.setItem("sc.parts",JSON.stringify(sel))}catch(x){}apply()};
   apply();{const s0=g.start&&g.start.bind(g);s0&&(g.start=(...a)=>{const p=g.player;p&&!p.kitRifle&&(p.kitRifle=build());return s0(...a)})}
-  // ---- the panel
-  const css=`#pk{position:fixed;inset:0;z-index:70;background:radial-gradient(120% 90% at 30% 40%,#1b1c20 0,#0a0a0c 55%,#050505 100%);color:#f2f2ef;font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.3fr);gap:22px;padding:max(16px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));overflow:hidden;user-select:none;-webkit-user-select:none}
-#pk .kick{font:400 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#8c8d90}#pk h2{margin:6px 0 2px;font:italic 800 clamp(28px,4.6vw,56px)/.9 "Barlow Condensed",sans-serif}#pk .ln{font:600 14px/1.2 "Barlow Condensed",sans-serif;letter-spacing:.14em;color:#e0182d;text-transform:uppercase;margin-bottom:12px}
-#pk .st{display:grid;grid-template-columns:auto 1fr auto;gap:7px 12px;align-items:center;max-width:26rem}#pk .st b{font:600 13px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#cfd0d2}
-#pk .bar{height:7px;background:#1d1e22;position:relative}#pk .bar i{position:absolute;inset:0 auto 0 0;background:#f2f2ef}#pk .bar i.up{background:#c8f31d}#pk .bar i.dn{background:#e0182d}#pk .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;background:#8c8d90}
-#pk .st span{font:400 12px/1 "JetBrains Mono",ui-monospace,monospace;color:#f2f2ef;min-width:4.6em;text-align:right}#pk .st span.up{color:#c8f31d}#pk .st span.dn{color:#ff5c6a}
-#pk .hand{margin-top:16px;transform:rotate(-2deg);font:italic 17px/1.25 "Bradley Hand","Segoe Print","Ink Free",cursive;color:#d9d4c2;max-width:22rem}
-#pk .rt{display:flex;flex-direction:column;min-height:0;gap:8px}#pk .bk{align-self:flex-end;font:600 15px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#f2f2ef;background:none;border:0;border-bottom:2px solid #e0182d;padding:8px 4px;cursor:pointer}
-#pk .slots{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px}#pk .slot h3{margin:0 0 6px;font:700 14px/1 "Barlow Condensed",sans-serif;letter-spacing:.2em;color:#8c8d90;padding-left:10px;border-left:3px solid #e0182d}
-#pk .opts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}#pk .opt{background:#101013;border:0;border-top:3px solid #3a3b40;color:inherit;font:inherit;text-align:left;padding:8px 10px 9px;cursor:pointer}
-#pk .opt.sel{border-top-color:#c8f31d;background:#17181c}#pk .opt b{display:block;font:700 16px/1 "Barlow Condensed",sans-serif;letter-spacing:.05em}#pk .opt small{display:block;margin-top:5px;font:400 12px/1.3 system-ui,sans-serif;color:#a9aaae}
-#pk .rs{align-self:flex-start;font:600 13px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#8c8d90;background:none;border:0;text-decoration:underline;cursor:pointer;padding:6px 0}
-@media (orientation:portrait){#pk{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}#pk .hand{display:none}}@media (max-height:440px){#pk .hand{display:none}#pk h2{font-size:26px}#pk .opt small{font-size:11px}}`;
-  let el=null;const B=Vi.rifle,hits=d=>Math.ceil(100/d);
-  const paint=()=>{const r=rifleWith(B,sel),q=s=>el.querySelector(s),row=(name,val,base,max,txt,lowGood)=>{const cls=val===base?"":(val>base)!==!!lowGood?"up":"dn";return`<b>${name}</b><div class="bar"><i class="${cls}" style="width:${Math.max(4,Math.min(100,val/max*100))}%"></i><u style="left:${Math.min(100,base/max*100)}%"></u></div><span class="${cls}">${txt}</span>`};
-    q(".st").innerHTML=row("ROUNDS",r.mag,B.mag,8,r.mag)+row("SPARE",r.reserve,B.reserve,30,r.reserve)+row("BOLT",r.cycle,B.cycle,1.6,r.cycle.toFixed(2)+" s",!0)+row("RELOAD",r.reload,B.reload,4,r.reload.toFixed(1)+" s",!0)+row("LIMB HITS",hits(r.dmg[2]),hits(B.dmg[2]),4,hits(r.dmg[2])+" to kill",!0)+row("TO THE EYE",r.ads,.16,.24,r.ads.toFixed(2)+" s",!0);
-    q(".slots").innerHTML=PARTS.map((s,i)=>`<div class="slot"><h3>${s.name}</h3><div class="opts">${s.opts.map((o,k)=>`<button type="button" class="opt${sel[i]===k?" sel":""}" data-i="${i}" data-k="${k}"><b>${o.name}</b><small>${o.note}</small></button>`).join("")}</div></div>`).join("")};
-  const close=()=>{el&&(el.remove(),el=null,removeEventListener("keydown",esc,!0))},esc=e=>{e.key==="Escape"&&(e.stopPropagation(),close())};
-  const open=()=>{if(el)return;el=document.createElement("div");el.id="pk";el.innerHTML=`<style>${css}</style><div><div class="kick">the workshop · parts</div><h2>YOUR RIFLE</h2><div class="ln">every part gives and takes</div><div class="st"></div><div class="hand">green is better than standard, red is worse.<br>a head shot still kills. a body shot still takes two.</div><button class="rs" type="button">back to standard parts</button></div><div class="rt"><button class="bk" type="button">BACK TO THE BENCH</button><div class="slots"></div></div>`;
-    document.body.appendChild(el);el.addEventListener("click",e=>{const o=e.target.closest(".opt");o?(set(+o.dataset.i,+o.dataset.k),paint()):e.target.closest(".rs")?(sel=[0,0,0,0],set(0,0),paint()):e.target.closest(".bk")&&close()});addEventListener("keydown",esc,!0);paint()};
-  document.addEventListener("click",e=>{e.target&&e.target.closest&&e.target.closest('[data-open="parts"]')&&(e.preventDefault(),open())},!0);
-  g.parts={set,open,close,get sel(){return sel.slice()},get rifle(){return g.player&&g.player.kitRifle}};
+  g.parts={set,reset:()=>{sel=[0,0,0,0];set(0,0)},get sel(){return sel.slice()},get rifle(){return g.player&&g.player.kitRifle}};
 }
 
 
