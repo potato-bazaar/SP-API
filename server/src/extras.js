@@ -128,7 +128,7 @@ export class ServerExtras {
     }
   }
   /** the numbers a rifle shot from `a` uses */
-  rifleOf(a) { return a && a.awm ? AWM : WEAPONS.rifle; }
+  rifleOf(a) { return a && a.awm ? AWM : (a && a.rifle) || WEAPONS.rifle; }
   /** solo's pierce(): the AWM's shot ignores walls (the first sniper along the line within 420 m is hit). Only the shot's
    *  own raycasts are switched off: line-of-sight checks (bots) go to the BVH directly and still see walls */
   pierce(fn) {   // on the ring the arena carries its own raycast (ring.js): put that one back, do not fall through to the flat one

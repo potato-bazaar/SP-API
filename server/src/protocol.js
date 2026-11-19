@@ -8,8 +8,8 @@ const v3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite(
 
 export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('hello'), name: name.optional(), token: z.string().max(64).optional(), v: z.number().int().optional(), maps: z.array(z.enum(['city', 'loop'])).max(8).optional() }),   // maps: the maps this client can load (older clients: the city only)
-  z.object({ t: z.literal('create'), settings: SettingsPatch.optional() }),
-  z.object({ t: z.literal('join'), code, map: z.enum(['city', 'loop']).optional() }),   // map: the one this client has loaded right now
+  z.object({ t: z.literal('create'), settings: SettingsPatch.optional(), parts: z.array(z.number().int().min(0).max(9)).max(8).optional() }),   // parts: the rifle parts this sniper has fitted (client/src/parts.js)
+  z.object({ t: z.literal('join'), code, map: z.enum(['city', 'loop']).optional(), parts: z.array(z.number().int().min(0).max(9)).max(8).optional() }),   // map: the one this client has loaded right now
   z.object({ t: z.literal('leave') }),
   z.object({ t: z.literal('name'), name }),
   z.object({ t: z.literal('op'), k: z.number().int().min(0).max(7) }),   // which operator (body) this player wears; looks only

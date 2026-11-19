@@ -40,7 +40,7 @@ function RWORKSHOP(g){
     const hand=m=>{for(let p=m.parent;p&&p!==R;p=p.parent)if(p.name==="hands"||p.name==="graphite")return!0;return!1},all=[];R.traverse(m=>{m.isMesh&&!hand(m)&&all.push(m)});return copy(all,R,!1)};
   const open=()=>{
     if(RWK)return!0;const R0=g.gfx&&g.gfx.renderer,F0=g.fp;if(!R0||!F0||!F0.rifle||!F0.hemi||!F0.key)return!1;
-    const el=document.createElement("div");el.id="wk";el.innerHTML=`<style>${css}</style><canvas></canvas><div class="hd"><div class="kick">the workshop · rooftop ${SCLOOP?"ring 01":"block 04"}</div><h2></h2><div class="ln"></div><p class="tx"></p><button class="lo" type="button">what every sniper carries</button><button class="lo" type="button" data-open="scopes" style="margin-left:18px;color:#c8f31d">scopes and reticle colour</button></div>
+    const el=document.createElement("div");el.id="wk";el.innerHTML=`<style>${css}</style><canvas></canvas><div class="hd"><div class="kick">the workshop · rooftop ${SCLOOP?"ring 01":"block 04"}</div><h2></h2><div class="ln"></div><p class="tx"></p><button class="lo" type="button">what every sniper carries</button><button class="lo" type="button" data-open="scopes" style="margin-left:18px;color:#c8f31d">scopes and reticle colour</button><button class="lo" type="button" data-open="parts" style="margin-left:18px;color:#c8f31d">rifle parts</button></div>
 <div class="hint">drag to turn · scroll to look closer</div><button class="bk" type="button">BACK TO THE ROOF</button><div class="hand">looks only —<br>every rifle shoots the same</div><div class="ft"><div class="tags"></div><button class="go" type="button"></button></div>`;
     document.body.appendChild(el);const cv=el.querySelector("canvas"),q=s=>el.querySelector(s);
     let r;try{r=new R0.constructor({canvas:cv,antialias:!0,alpha:!0})}catch(x){el.remove();return!1}
@@ -62,7 +62,7 @@ function RWORKSHOP(g){
     const size=()=>{const w=el.clientWidth||innerWidth,h=el.clientHeight||innerHeight;r.setSize(w,h,!1);cam.aspect=w/h;cam.updateProjectionMatrix();st.fit=w/h<1.25?1.25/(w/h):1};
     const frame=()=>{st.raf=requestAnimationFrame(frame);st.drag==null&&(st.idle+=1/60,st.idle>2.5&&(st.spin+=.0035));turn.rotation.y=st.spin;turn.rotation.x=st.tilt;const d=2.95*st.dist*st.fit;cam.position.set(0,turn.position.y+.42+st.tilt*.6,d);cam.lookAt(.12,turn.position.y-.06,0);r.render(sc,cam)};
     const close=()=>{cancelAnimationFrame(st.raf);removeEventListener("resize",size);removeEventListener("keydown",key0,!0);try{r.dispose();r.forceContextLoss&&r.forceContextLoss()}catch(x){}el.remove();RWK=null};
-    const key0=e=>{e.key==="Escape"&&!document.getElementById("sk")&&(e.stopPropagation(),close())};st.close=close;
+    const key0=e=>{e.key==="Escape"&&!document.getElementById("sk")&&!document.getElementById("pk")&&(e.stopPropagation(),close())};st.close=close;
     cv.addEventListener("pointerdown",e=>{st.drag={x:e.clientX,y:e.clientY};st.idle=0;try{cv.setPointerCapture(e.pointerId)}catch(x){}});
     cv.addEventListener("pointermove",e=>{if(!st.drag)return;st.spin+=(e.clientX-st.drag.x)*.011;st.tilt=Math.max(-.5,Math.min(.75,st.tilt+(e.clientY-st.drag.y)*.006));st.drag={x:e.clientX,y:e.clientY};st.idle=0});
     const up=()=>{st.drag=null};cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
