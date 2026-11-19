@@ -46,10 +46,20 @@ export class Online {
     n.on('error', (m) => {
       const sw = /^MAPSWITCH:(city|loop)$/.exec(m.msg || '');
       if (sw && typeof window.RSWITCH === 'function') { window.RSWITCH(sw[1], ($('code') && $('code').value) || (this.room && this.room.code) || ''); return; }
+      // swept after a long drop: server no longer has us, clear the stale lobby so it doesn't look like we're still in
+      if (/not in a room/i.test(m.msg || '') && this.room) {
+        this.room = null; if (this.g.net) this.g.stopNet(); this.g.state = 'title'; this.g.hud.show('online');
+        this._stat('connection lost too long · rejoin with the room code', true); this.toast(m.msg); return;
+      }
       this.toast(m.msg); this._stat(m.msg, true);
     });
     n.on('notice', (m) => this.toast(m.text, 2600));
-    n.on('left', (m) => { this.room = null; if (this.g.net) { this.g.stopNet(); } this.g.state = 'title'; this.g.hud.show('online'); this._stat(m.why === 'kicked' ? 'the host removed you from the room' : 'you left the room', m.why === 'kicked'); });
+    n.on('left', (m) => {
+      if (m.why === 'switch') return;   // create/join into another room: the next room message is the real hand-off
+      this.room = null; if (this.g.net) { this.g.stopNet(); } this.g.state = 'title'; this.g.hud.show('online');
+      const msg = m.why === 'kicked' ? 'the host removed you from the room' : m.why === 'timeout' ? 'connection lost too long · you were removed from the room' : 'you left the room';
+      this._stat(msg, m.why === 'kicked' || m.why === 'timeout');
+    });
     n.on('room', (m) => { if (typeof window.RMAPSW === 'function' && window.RMAPSW(m)) return; this._room(m); });
     n.on('start', (m) => { this.g.startNet(n, m, this); this._setUrl(this.room ? this.room.code : null); });
     n.on('s', (m) => this.g.onNetSnap(m));
