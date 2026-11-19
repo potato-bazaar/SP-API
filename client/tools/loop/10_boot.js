@@ -6,7 +6,7 @@ function RDL(a,b){return RAR?RAR.dist(a,b):a.distanceTo(b)}
 function RINGBOOT(){
   flatArena(au.prototype);
   zt.sc_roll="vec3 scRoll(vec3 p){ return p; }";
-  let m=null;try{m=new URLSearchParams(location.search).get("map")||localStorage.getItem("sc.map")}catch(e){}
+  let m=null;try{m=new URLSearchParams(location.search).get("map")||localStorage.getItem("sc.world")}catch(e){}
   window.SCMAP=m==="loop"?"loop":"city";
   if(m!=="loop")return;
   SCLOOP=!0;sc.city="loop.txt";sc.arena="arena-loop.json";lg["loop.txt"]=557e4;lg["arena-loop.json"]=7e5;

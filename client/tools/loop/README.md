@@ -5,7 +5,7 @@ The second map is a city bent into a wheel (a ring station). You stand on the in
 CC BY 4.0 (credited on the title screen and the About page).
 
 Pick it on the menu (District Rotation), or open the game with `?map=loop`. The choice is kept in
-`localStorage["sc.map"]`. Switching maps reloads the page: the world is built once, at load.
+`localStorage["sc.world"]` (not `sc.map`: the minimap keeps its own placement under that name). Switching maps reloads the page: the world is built once, at load.
 
 ## The idea
 

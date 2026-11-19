@@ -5236,7 +5236,7 @@ function RDL(a,b){return RAR?RAR.dist(a,b):a.distanceTo(b)}
 function RINGBOOT(){
   flatArena(au.prototype);
   zt.sc_roll="vec3 scRoll(vec3 p){ return p; }";
-  let m=null;try{m=new URLSearchParams(location.search).get("map")||localStorage.getItem("sc.map")}catch(e){}
+  let m=null;try{m=new URLSearchParams(location.search).get("map")||localStorage.getItem("sc.world")}catch(e){}
   window.SCMAP=m==="loop"?"loop":"city";
   if(m!=="loop")return;
   SCLOOP=!0;sc.city="loop.txt";sc.arena="arena-loop.json";lg["loop.txt"]=557e4;lg["arena-loop.json"]=7e5;
@@ -5536,7 +5536,7 @@ function RMAP(g){
 function RLOOK(g,cam,x,y,z){if(SCLOOP){RQ.set(x,y,z);g.arena.see(RQ,RQ,cam.position.x);cam.lookAt(RQ)}else cam.lookAt(x,y,z)}   // look at a chart point from wherever the camera is
 var RWD=null;   // on the ring: the shortest way round between two x (used where net code blends positions)
 function RSWITCH(map,code){
-  try{localStorage.setItem("sc.map",map==="loop"?"loop":"city")}catch(e){}
+  try{localStorage.setItem("sc.world",map==="loop"?"loop":"city")}catch(e){}
   const h=code?"#room="+code:location.hash;location.replace(location.pathname+"?map="+(map==="loop"?"loop":"city")+h);
   if(code)setTimeout(()=>location.reload(),60);   // same page, new query: some browsers only change the hash
 }

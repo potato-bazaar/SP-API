@@ -2,7 +2,7 @@
 function RLOOK(g,cam,x,y,z){if(SCLOOP){RQ.set(x,y,z);g.arena.see(RQ,RQ,cam.position.x);cam.lookAt(RQ)}else cam.lookAt(x,y,z)}   // look at a chart point from wherever the camera is
 var RWD=null;   // on the ring: the shortest way round between two x (used where net code blends positions)
 function RSWITCH(map,code){
-  try{localStorage.setItem("sc.map",map==="loop"?"loop":"city")}catch(e){}
+  try{localStorage.setItem("sc.world",map==="loop"?"loop":"city")}catch(e){}
   const h=code?"#room="+code:location.hash;location.replace(location.pathname+"?map="+(map==="loop"?"loop":"city")+h);
   if(code)setTimeout(()=>location.reload(),60);   // same page, new query: some browsers only change the hash
 }
