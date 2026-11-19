@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
@@ -249,6 +249,14 @@ R('vec3 outc = mix(vec3(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);','vec3
 R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},')
 # ---- joining a room says which map this page has loaded; if the room is on the other one the server answers
 # MAPSWITCH:<map> and the page reloads onto it and rejoins (server/src/rooms.js; RSWITCH in 60_net.js)
+# ---- rain on the puddles (96_rain.js has the drops): rings spread from where drops land and bend what the wet roof
+# reflects; puddles are closer to mirrors than they were. One drop per cell per cycle, a new place each time.
+R('vec3 gradeC(float l) {',
+  'vec2 rpH(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }\nvec2 ripples(vec2 p, float t) { vec2 g = floor(p); vec2 acc = vec2(0.0);\n  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 cell = g + vec2(float(i), float(j)); vec2 h = rpH(cell); float cyc = t * (0.5 + 0.4 * h.x) + h.y; float ph = fract(cyc);\n    vec2 d = p - (cell + 0.15 + 0.7 * rpH(cell + floor(cyc) * 7.3)); float r = length(d); float w = (r - ph * 1.2) * 24.0; float fall = 1.0 - ph;\n    acc += d / max(r, 0.001) * sin(w) * exp(-w * w * 0.1) * fall * fall; }\n  return acc; }\nvec3 gradeC(float l) {')
+R('vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3), 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt)));',
+  'vec2 rg = ripples(wp.xz * 2.6, uTime) * 0.2 * (1.0 - smoothstep(18.0, 42.0, pz)); vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3) + rg.x * 16.0, 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt) + rg.y * 16.0));')
+R('float fres = 0.16 + 0.84 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);','float fres = 0.24 + 0.76 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);')
+R('col = col * (1.0 - 0.3 * wet) + refl * fres * wet * 1.6;','col = col * (1.0 - 0.5 * wet) + refl * fres * wet * 2.3 + vec3(dot(rg, rg)) * 0.9 * wet;')
 R('this.net.send({t:"join",code:t}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),')
 R('t.on("error",e=>{this.toast(e.msg),this._stat(e.msg,!0)})','t.on("error",e=>{let sw=/^MAPSWITCH:(city|loop)$/.exec(e.msg||"");if(sw&&window.RSWITCH){window.RSWITCH(sw[1],$t("code")&&$t("code").value||this.room&&this.room.code||"");return}this.toast(e.msg),this._stat(e.msg,!0)})')
 # lit windows burn warm: the buildings' own and the skyline's. The last pass keeps that warmth (as it keeps red and cyan).
