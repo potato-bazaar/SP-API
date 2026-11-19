@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
@@ -241,7 +241,7 @@ R('const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage
 R('store:()=>pan(`<h2>STORE</h2><p>Nothing here costs real money.</p>','store:()=>{pan(`<h2>STORE</h2><p>Nothing here costs real money.</p>${RGSTORE()}')
 R('A store that sells looks for XP comes with player accounts.</p>`),','A store that sells looks for XP comes with player accounts.</p>`);RGWIRE(PANELS.store)},')
 # ---- the module
-ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ')
+ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ').replace('export const ','const ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
 MARK='/* ---------- Google Analytics events'
 assert s.count(MARK)==1

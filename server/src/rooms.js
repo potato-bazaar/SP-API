@@ -155,6 +155,7 @@ class Room {
     else if (msg.t === 'rpg') M.rpg(s.id, msg);
     else if (msg.t === 'reload') M.reload(s.id, msg.w);
     else if (msg.t === 'fall') M.fall(s.id, msg.v);
+    else if (msg.t === 'door') M.door(s.id, msg.i);
     else if (msg.t === 'sil') M.silencer(s.id);
     else if (msg.t === 'nhurt') M.nestHurt(s.id, msg.c, msg.v);
     else if (msg.t === 'nkill') M.nestKill(s.id);

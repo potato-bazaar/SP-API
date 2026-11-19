@@ -36,6 +36,7 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('pum'), p: z.tuple([z.number().finite(), z.number().finite()]) }),   // missile strike: launch at (x, z)
   z.object({ t: z.literal('pray') }),                                                  // the prayer (once a match; the server pays it)
   z.object({ t: z.literal('rpg'), o: v3, d: v3 }),                                     // an RPG-7 rocket from o along d (2 a match; the server flies it)
+  z.object({ t: z.literal('door'), i: z.number().int().min(0).max(63) }),            // stepped into door i: the server picks where you come out
   z.object({ t: z.literal('sil') }),                                                   // silencer picked up: bots no longer hear your shots
   z.object({ t: z.literal('nhurt'), c: z.enum(['alien', 'egg']), v: z.number().finite().min(1).max(999) }), // Blind One / egg damage to self
   z.object({ t: z.literal('nkill') }),                                                 // Blind One down: +150 points

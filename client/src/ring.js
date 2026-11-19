@@ -223,6 +223,36 @@ export function ringWalls(ar, V3) {
   return ar._walls.map((w, id) => ({ id, roof: w.roof, kind: 'wall', tall: w.tall, hp: w.hp0, min: new V3(...w.min), max: new V3(...w.max) }));
 }
 
+// Doors: step through one and it throws you somewhere else inside the halo, out of your enemies' sight; about one time
+// in twelve it puts you on the angel's crown instead. Placed the same way on the server and in every client: in the
+// open middle of big roofs (and, on LOOP CITY, a few streets), never by a ladder, cable, pad, spawn or wall, spread
+// as far from each other as the map allows. On LOOP CITY the walls are placed first (they take cells).
+export const DOOR = { r: 0.85, dy: 1.6, cool: 4, crown: 1 / 12, crownY: 75.2, crownR: 1.7 };
+export function doorSpots(ar, V3) {
+  if (ar._doors) return ar._doors;
+  if (ar.ring) ringWalls(ar, V3);
+  const cell = ar.cell, keep = [];
+  for (const l of ar.links) for (const p of [l.p0, l.p1]) keep.push([p.x, p.y, p.z]);
+  for (const r of ar.roofs) if (r.spawnPt) keep.push(r.spawnPt);
+  const cand = [];
+  for (const r of ar.roofs) {
+    const street = r.kind === 'ground'; if (street ? !ar.ring || r.cells.length < 600 : r.cells.length < 70) continue;
+    const nx = r.nx, nz = r.nz, m = r.m, E = street ? 5 : ar.ring ? 4 : 2, inside = (i, j) => { for (let a = -E; a <= E; a++) for (let b = -E; b <= E; b++) { const x = i + a, z = j + b; if (x < 0 || z < 0 || x >= nx || z >= nz || !m[z * nx + x]) return false; } return true; };
+    let best = null, bd = 1e9;
+    for (const k of r.cells) { const i = k % nx, j = (k / nx) | 0; if (!inside(i, j)) continue; const x = r.ox + (i + 0.5) * cell, z = r.oz + (j + 0.5) * cell;
+      let ok = true; for (const q of keep) if (Math.abs(q[1] - r.roofY) < 4 && Math.hypot(ar.wrapD(q[0] - x), q[2] - z) < (ar.ring ? 4.5 : 3)) { ok = false; break; } if (!ok) continue;
+      const d = Math.hypot(ar.wrapD(x - r.x), z - r.z); if (d < bd) { bd = d; best = [x, r.roofY, z]; } }
+    if (best) cand.push({ p: best, roof: r.i, street, size: r.cells.length, yaw: r.hx > r.hz ? 0 : Math.PI / 2 });
+  }
+  const want = ar.ring ? 10 : 6, streets = ar.ring ? 3 : 0, out = [];
+  const far = (c) => { let d = 1e9; for (const o of out) d = Math.min(d, Math.hypot(ar.wrapD(o.p[0] - c.p[0]), o.p[2] - c.p[2]) + Math.abs(o.p[1] - c.p[1])); return d; };
+  for (const pass of [false, true]) {   // roofs first, then the streets
+    const pool = cand.filter(c => c.street === pass); const n = pass ? streets : want - streets;
+    for (let k = 0; k < n && pool.length; k++) { let pick = null, pd = -1; for (const c of pool) { const d = out.length ? far(c) : c.size; if (d > pd) { pd = d; pick = c; } } out.push(pick); pool.splice(pool.indexOf(pick), 1); }
+  }
+  return (ar._doors = out.map((c, i) => ({ i, roof: c.roof, street: c.street, yaw: c.yaw, p: new V3(...c.p) })));
+}
+
 // The same helpers on a flat map, so shared code can ask without caring which map it is on.
 export function flatArena(proto) {
   proto.wrapX = (x) => x; proto.wrapD = (d) => d; proto.norm = (p) => p;

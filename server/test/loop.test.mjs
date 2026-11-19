@@ -110,6 +110,22 @@ test('breakable walls on the ring: the same list everywhere, they stop a round a
   const r = ar.roofs[w.roof]; assert.ok(w.min.y > r.roofY - 0.1 && w.min.y < r.roofY, 'it stands on its roof');
 });
 
+test('doors: the same doors everywhere; one throws you somewhere safe in the halo, now and then onto the angel\'s crown', () => {
+  for (const map of ['city', 'loop']) {
+    const w = loadWorld(map), m = new Match(w, { ...DEFAULTS, map }, [{ id: 'h0', name: 'A', team: 0 }, { id: 'b0', name: 'bot', team: 0, bot: true }], null), ar = m.arena;
+    assert.ok(m.doors.length >= (map === 'loop' ? 10 : 6), map + ' doors: ' + m.doors.length);
+    const m2 = new Match(w, { ...DEFAULTS, map }, [{ id: 'b0', name: 'bot', team: 0, bot: true }], null); assert.deepEqual(m2.doors.map(d => d.p.toArray()), m.doors.map(d => d.p.toArray()));
+    for (const d of m.doors) for (const e of m.doors) if (d !== e) assert.ok(ar.dist(d.p, e.p) > 25, 'spread out');
+    const a = m.byId.get('h0'), d = m.doors[0]; m.weaponsFree = true;
+    a.pos.copy(d.p); a.valid.copy(d.p); m.events.length = 0; const r0 = Math.random; Math.random = () => 0.5; try { m.door('h0', 0); } finally { Math.random = r0; }
+    const tp = m.events.find(e => e.t === 'tp'); assert.ok(tp && !tp.crown && ar.dist(a.pos, d.p) > 5, 'thrown somewhere else'); assert.ok(zoneD(m.zone, a.pos.x, a.pos.z) < m.zone.r, 'inside the halo');
+    m.door('h0', 0); assert.equal(m.events.filter(e => e.t === 'tp').length, 1, 'not from far away, and not again at once');
+    m.time += 5; a.pos.copy(m.doors[1].p); a.valid.copy(a.pos); Math.random = () => 0.01; try { m.door('h0', 1); } finally { Math.random = r0; }
+    const tp2 = m.events.filter(e => e.t === 'tp')[1]; assert.ok(tp2 && tp2.crown === 1 && Math.abs(a.pos.y - (m.crown.max.y + 0.05)) < 0.01, 'the crown');
+    const down = ar.raycast(new V3(a.pos.x, a.pos.y + 0.3, a.pos.z), new V3(0, -1, 0), 0.46); assert.ok(down && down.dyn === m.crown, 'which has a floor');
+  }
+});
+
 // ---------------------------------------------------------------- over real sockets
 const PORT = 19000 + Math.floor(Math.random() * 900); let proc;
 before(async () => { proc = spawn(process.execPath, ['src/server.js'], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'inherit'] }); await new Promise((res) => proc.stdout.on('data', d => { if (/server on/.test(String(d))) res(); })); });
@@ -147,10 +163,15 @@ test('a room on the loop: only clients that have the map get in, the host can ch
   assert.ok(await host.wait(m => m.t === 's' && m.e && m.e.some(e => e.t === 'correct' && e.id === host.me.id)), 'a teleport is still corrected');
   // a shot up past the axle comes down on the far side of the wheel
   await host.wait(m => m.t === 's' && m.e && m.e.some(e => e.t === 'free'), 9000);
-  const cur = (await host.wait(m => m.t === 's')).s.a.find(a => a[0] === host.me.id); const o = [cur[1], cur[2] + 1.6, cur[3]];
-  host.send({ t: 'fire', o, d: [0.0995, 0.995, 0], w: 'rifle', ct: Date.now() });
-  const shot = await guest.wait(m => m.t === 's' && m.e && m.e.some(e => e.t === 'shot' && e.by === host.me.id)); const e = shot.e.find(e => e.t === 'shot').e;
-  const far = mk().arena.dist(new V3(...o), new V3(...e)); assert.ok(far > 150 && e[1] < 25, 'the round crosses the wheel and lands on the far side: ' + JSON.stringify(e) + ' ' + far.toFixed(0));
+  const cur = (await host.wait(m => m.t === 's')).s.a.find(a => a[0] === host.me.id); const o = [cur[1], cur[2] + 1.45, cur[3]]; // (below eye: the walk may end with the head under an awning's edge)
+  // (a spawn can have an awning overhead: try a few headings off the vertical until one is open sky)
+  let e = null, far = 0;
+  for (const d of [[0.0995, 0.995, 0], [-0.0995, 0.995, 0], [0, 0.995, 0.0995], [0, 0.995, -0.0995]]) {
+    host.send({ t: 'fire', o, d, w: 'rifle', ct: Date.now() });
+    const shot = await guest.wait(m => m.t === 's' && m.e && m.e.some(e => e.t === 'shot' && e.by === host.me.id)); e = shot.e.find(e => e.t === 'shot').e;
+    far = mk().arena.dist(new V3(...o), new V3(...e)); if (far > 150) break; await sleep(1400);
+  }
+  assert.ok(far > 150 && e[1] < 25, 'the round crosses the wheel and lands on the far side: ' + JSON.stringify(e) + ' ' + far.toFixed(0));
   host.ws.close(); guest.ws.close(); old.ws.close();
 });
 

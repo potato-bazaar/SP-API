@@ -7,7 +7,7 @@ import { WEAPONS, fireShot } from '../../client/src/combat.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world.js';
 import { MODES } from './rules.js';
-import { zoneD, ringWalls } from '../../client/src/ring.js';
+import { zoneD, ringWalls, doorSpots, DOOR } from '../../client/src/ring.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
 import { ServerExtras } from './extras.js';
 import { ServerPowerups } from './powerups.js';
@@ -69,6 +69,9 @@ export class Match {
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     // LOOP CITY's breakable walls: the arena's dyn boxes stop shots and sight lines; broken ones are listed in the snapshot
     this.cover = ring ? ringWalls(this.arena, V3) : []; this.arena.dyn = this.cover.slice(); this.coverBroken = [];
+    // the doors, and the floor of the angel's crown (a box the arena's rays and bodies know about; nothing breaks it)
+    this.doors = doorSpots(this.arena, V3); const cy = DOOR.crownY, cr = DOOR.crownR;
+    this.crown = { kind: 'crown', hp: Infinity, min: new V3(this.zone.cx - cr, cy - 0.25, this.zone.cz - cr), max: new V3(this.zone.cx + cr, cy, this.zone.cz + cr) }; this.arena.dyn.push(this.crown);
     this.gearSim = new ServerGear(this);             // gas, smoke, decoys, the hammer, the angel's strikes and shadow roof
     this.smokeCut = (p, q) => this.gearSim.smokeCut(p, q);   // client/src/ai.js: bots do not see through smoke
     this.power = new ServerPowerups(this);           // points, the attack drone, the missile strike
@@ -340,6 +343,16 @@ export class Match {
   }
 
   // compact state of every actor: [id, x,y,z, yaw, aimYaw, aimPitch, crouchK, speed, mode, flags, hp]
+  /** a player steps into door i: out somewhere safe inside the halo, now and then onto the angel's crown */
+  door(id, i) {
+    const a = this.byId.get(id), d = this.doors[i]; if (!a || !a.human || !a.alive || !d || this.state !== 'live' || (a.doorReady || 0) > this.time) return;
+    if (this.arena.dist(a.pos, d.p) > DOOR.r + 2.2 || Math.abs(a.pos.y - d.p.y) > DOOR.dy + 1) return;   // a little slack for lag
+    const c = this.crown, top = new V3((c.min.x + c.max.x) / 2, c.max.y + 0.05, (c.min.z + c.max.z) / 2);
+    const taken = this.actors.some(o => o.alive && o !== a && this.arena.dist(o.pos, top) < 3);
+    let p, roof = -1, crown = 0; if (!taken && Math.random() < DOOR.crown) { p = top; crown = 1; } else { const s = this._respawnPoint(a); p = s.p; roof = s.roof; }
+    a.pos.copy(p); a.valid.copy(p); a.vel.set(0, 0, 0); a.budget = 0; a.strikes = 0; a.roofI = roof; a.doorReady = this.time + DOOR.cool; a.link = -1; a.mode = 'walk';
+    this.events.push({ t: 'tp', id: a.netId, p: [r2(p.x), r2(p.y), r2(p.z)], from: [r2(d.p.x), r2(d.p.y), r2(d.p.z)], crown });
+  }
   /** a wall takes n hits' worth (rifle 2, pistol 1; 4 breaks it); at 0 it falls and stops nothing */
   coverHit(box, n) {
     if (!box || box.hp <= 0) return; box.hp = Math.max(0, box.hp - n);

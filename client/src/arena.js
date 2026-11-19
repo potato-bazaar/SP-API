@@ -69,7 +69,7 @@ export class Arena {
     if (!best) return null;
     return { distance: bt, point: new THREE.Vector3(o.x + d.x * bt, o.y + d.y * bt, o.z + d.z * bt), face: { normal: new THREE.Vector3(ax === 0 ? sg : 0, ax === 1 ? sg : 0, ax === 2 ? sg : 0) }, dyn: best };
   }
-  raycast(o, d, maxD = 400) { _ray.origin.copy(o); _ray.direction.copy(d); const h = this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, maxD); return h || null; }
+  raycast(o, d, maxD = 400) { _ray.origin.copy(o); _ray.direction.copy(d); const h = this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, maxD); if (this.dyn && this.dyn.length) { const s = this._rayDyn(o, d, h ? h.distance : maxD); if (s) return s; } return h || null; }
   los(a, b) { _v.copy(b).sub(a); const len = _v.length(); if (len < 0.01) return true; _ray.origin.copy(a); _ray.direction.copy(_v).multiplyScalar(1 / len); return !this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, len - 0.05); }
   groundY(x, z, yTop, maxD = 6) { _ray.origin.set(x, yTop, z); _ray.direction.set(0, -1, 0); const h = this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, maxD); return h ? h.point.y : null; }
 
