@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
