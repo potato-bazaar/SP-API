@@ -85,7 +85,10 @@ export class Match {
   // ------------------------------------------------------------------ spawning
   _spawnAll() {
     const ar = this.arena; const used = new Set();
-    const order = ar.spawns.map((_, i) => i).sort(() => Math.random() - 0.5); let fi = 0;
+    let order = ar.spawns.map((_, i) => i).sort(() => Math.random() - 0.5); let fi = 0;
+    // LOOP CITY is a 640 m ring. A small free-for-all (up to 5 snipers) starts on the spawns nearest where the halo closes
+    // (twice as many spawns as snipers to choose from, so it is still a surprise who is where); 6 or more use the whole ring
+    if (ar.ring && !this.teams && this.actors.length <= 5) { const z = this.zone, near = ar.spawns.map((r, i) => [zoneD(z, r.spawnPt[0], r.spawnPt[2], 0), i]).sort((a, b) => a[0] - b[0]).slice(0, Math.max(4, this.actors.length * 2)).map(e => e[1]); order = near.sort(() => Math.random() - 0.5); }
     const counters = [0, 0];
     for (const a of this.actors) {
       let si;

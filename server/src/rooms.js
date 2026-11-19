@@ -44,7 +44,7 @@ class Room {
   teamCounts() { const c = [0, 0]; for (const m of this.members.values()) c[m.team]++; return c; }
   add(session) {
     if (this.members.has(session.id)) { // reconnect: same token, same slot, same sniper
-      const m = this.members.get(session.id); m.conn = session; session.room = this; this.broadcastRoom();
+      const m = this.members.get(session.id); m.conn = session; m.maps = session.maps || ['city']; session.room = this; this.broadcastRoom();
       if (this.match && this.state !== 'lobby') { const a = this.match.byId.get(session.id); if (a && a.human) a.lastSeq = -1;   // the client counts its moves from 0 again
         session.send(this.startMsg(true, session.id)); }
       return m; }
@@ -52,7 +52,7 @@ class Room {
     if (this.settings.map !== 'city' && !(session.maps || []).includes(this.settings.map)) throw new UserError('That room plays on LOOP CITY. Reload the page to get the new map, then join again.');
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
     if (this.state !== 'lobby') throw new UserError('That match has already started. Ask the host to bring the room back to the lobby.');
-    const c = this.teamCounts(); const m = { id: session.id, name: session.name, op: session.op | 0, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0 };
+    const c = this.teamCounts(); const m = { id: session.id, name: session.name, op: session.op | 0, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0, maps: session.maps || ['city'] };
     this.members.set(session.id, m); session.room = this; this.settings = normalise(this.settings, this.members.size); this.broadcastRoom(); return m;
   }
   // a socket closed: keep the slot for a while (reconnect with the same token)
@@ -85,7 +85,10 @@ class Room {
   setName(s, name) { const m = this.members.get(s.id); m.name = name; this.broadcastRoom(); }
   setSettings(s, patch) {
     this._hostOnly(s); this._lobbyOnly();
-    if (patch && patch.map && patch.map !== this.settings.map) throw new UserError('The map is chosen when the room is made.');   // everyone here has this one loaded
+    // the map can change in the lobby when everyone's page has it: each page reloads into it and comes back into the room
+    if (patch && patch.map && patch.map !== this.settings.map) { const old = [...this.members.values()].filter(m => !(m.maps || ['city']).includes(patch.map)).map(m => m.name);
+      if (old.length) throw new UserError(`${old.join(', ')} must reload the page to get ${patch.map === 'loop' ? 'LOOP CITY' : 'that map'} first.`);
+      for (const m of this.members.values()) m.ready = false; }
     const next = SettingsSchema.parse({ ...this.settings, ...patch });
     if (slotsFor(next) < this.members.size) throw new UserError(`${this.members.size} people are in the room; that mode has ${slotsFor(next)} places.`);
     const modeChanged = next.mode !== this.settings.mode; this.settings = normalise(next, this.members.size);

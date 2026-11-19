@@ -106,13 +106,19 @@ function client(name, maps) {
 }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-test('a room on the loop: only clients that have the map get in, the map is fixed, movement round the seam and along a hub line is believed', async () => {
+test('a room on the loop: only clients that have the map get in, the host can change it in the lobby, movement round the seam and along a hub line is believed', async () => {
   assert.equal(SettingsSchema.parse({}).map, 'city');
   const host = await client('Greg', ['city', 'loop']), old = await client('Old'), guest = await client('Raj', ['city', 'loop']);
   host.send({ t: 'create', settings: { map: 'loop', bots: 2 } }); const r1 = await host.wait(m => m.t === 'room'); assert.equal(r1.settings.map, 'loop');
   old.send({ t: 'join', code: r1.code }); assert.match((await old.wait(m => m.t === 'error')).msg, /LOOP CITY/);
   guest.send({ t: 'join', code: r1.code, map: 'city' }); const r2 = await guest.wait(m => m.t === 'room' && m.members.length === 2); assert.equal(r2.settings.map, 'loop');
-  host.send({ t: 'settings', patch: { map: 'city' } }); assert.match((await host.wait(m => m.t === 'error')).msg, /map/);
+  // the host can change the map in the lobby when every page in the room has it (the pages reload into it and come back)
+  guest.send({ t: 'ready', v: true }); await host.wait(m => m.t === 'room' && m.members.find(x => x.id === guest.me.id).ready);
+  host.send({ t: 'settings', patch: { map: 'city' } }); const r3 = await guest.wait(m => m.t === 'room' && m.settings.map === 'city'); assert.equal(r3.members.find(x => x.id === guest.me.id).ready, false, 'a new map clears ready');
+  old.send({ t: 'join', code: r1.code }); await host.wait(m => m.t === 'room' && m.members.length === 3);
+  host.send({ t: 'settings', patch: { map: 'loop' } }); assert.match((await host.wait(m => m.t === 'error')).msg, /Old must reload/);
+  old.send({ t: 'leave' }); await host.wait(m => m.t === 'room' && m.members.length === 2);
+  host.send({ t: 'settings', patch: { map: 'loop' } }); await guest.wait(m => m.t === 'room' && m.settings.map === 'loop');
   guest.send({ t: 'ready', v: true }); await host.wait(m => m.t === 'room' && m.members.find(x => x.id === guest.me.id).ready);
   host.send({ t: 'start' }); const s1 = await host.wait(m => m.t === 'start'); assert.equal(s1.settings.map, 'loop'); assert.ok(Array.isArray(s1.zc) && s1.zc.length === 2, 'the start says where the halo closes');
   const mine = s1.events.find(e => e.t === 'spawn' && e.id === host.me.id); assert.ok(mine); const C = A.C, H = C / 2;
@@ -128,7 +134,7 @@ test('a room on the loop: only clients that have the map get in, the map is fixe
   const cur = (await host.wait(m => m.t === 's')).s.a.find(a => a[0] === host.me.id); const o = [cur[1], cur[2] + 1.6, cur[3]];
   host.send({ t: 'fire', o, d: [0.0995, 0.995, 0], w: 'rifle', ct: Date.now() });
   const shot = await guest.wait(m => m.t === 's' && m.e && m.e.some(e => e.t === 'shot' && e.by === host.me.id)); const e = shot.e.find(e => e.t === 'shot').e;
-  const dx = Math.abs(((e[0] - o[0] + H) % C + C) % C - H); assert.ok(dx > H - 40 && e[1] < 25, 'the round lands on the far side of the wheel: ' + JSON.stringify(e));
+  const far = mk().arena.dist(new V3(...o), new V3(...e)); assert.ok(far > 150 && e[1] < 25, 'the round crosses the wheel and lands on the far side: ' + JSON.stringify(e) + ' ' + far.toFixed(0));
   host.ws.close(); guest.ws.close(); old.ws.close();
 });
 
