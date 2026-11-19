@@ -71,6 +71,6 @@ jobs:
               `**Do not run, build or merge this branch.** Pushed by \`${context.actor}\` (commit ${context.sha.slice(0, 7)}).`,
               '', process.env.FOUND, '',
               `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              'See the Potato Bazaar malware incident plan for the cleanup steps.'
+              'See the malware incident plan for the cleanup steps.'
             ].join('\n');
             await github.rest.issues.create({ ...context.repo, title, body, labels: ['security'] });
