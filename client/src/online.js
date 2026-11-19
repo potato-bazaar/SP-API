@@ -12,7 +12,7 @@ export class Online {
     const btn = $('online-btn'); if (!this.url) return;   // no room server for this copy of the game (e.g. the single-player page)
     btn.hidden = false; btn.disabled = false; btn.addEventListener('click', () => this.open());
     $('ob-back').addEventListener('click', () => { this.g.hud.show('title'); });
-    $('mk').addEventListener('click', () => { if (!this._name()) return; this._connect(); this.net.send({ t: 'create', settings: this._lastSettings() }); this._stat('making a room…'); });
+    $('mk').addEventListener('click', () => { if (!this._name()) return; this._connect(); this.net.send({ t: 'create', settings: { ...(this._lastSettings() || {}), map: window.SCMAP || 'city' } }); this._stat('making a room…'); });
     $('jn').addEventListener('click', () => this._join());
     $('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') this._join(); });
     $('code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
@@ -30,7 +30,7 @@ export class Online {
   }
   open() { this.g.audio.start(); this.g.hud.show('online'); setTimeout(() => (($('nm').value ? $('code') : $('nm'))).focus(), 30); }
   _name() { const n = $('nm').value.trim().replace(/[^\p{L}\p{N} _.\-]/gu, '').slice(0, 16); if (!n) { this._stat('type a name first', true); $('nm').focus(); return null; } $('nm').value = n; if (this.net) this.net.setName(n); else this._pendingName = n; try { localStorage.setItem('sc.name', n); } catch (e) { /* ignore */ } return n; }
-  _join() { if (!this._name()) return; const c = $('code').value.trim().toUpperCase(); if (c.length < 5) { this._stat('room codes have 5 letters', true); return; } this._connect(); this.net.send({ t: 'join', code: c }); this._stat('joining ' + c + '…'); }
+  _join() { if (!this._name()) return; const c = $('code').value.trim().toUpperCase(); if (c.length < 5) { this._stat('room codes have 5 letters', true); return; } this._connect(); this.net.send({ t: 'join', code: c, map: window.SCMAP || 'city' }); this._stat('joining ' + c + '…'); }
   _lastSettings() { try { return JSON.parse(localStorage.getItem('sc.rules') || 'null') || undefined; } catch (e) { return undefined; } }
   _stat(t, bad) { const e = $('netstat'); e.textContent = t; e.classList.toggle('bad', !!bad); }
   toast(t, ms = 3200) { const e = $('toast'); e.textContent = t; e.hidden = false; clearTimeout(this.toastT); this.toastT = setTimeout(() => { e.hidden = true; }, ms); }
@@ -43,10 +43,14 @@ export class Online {
     if (this.net) return; const n = this.net = new Net(this.url); if (this._pendingName) n.name = this._pendingName;
     n.on('status', (m) => { if (m.state === 'reconnecting') this.toast('connection lost · reconnecting…', 2500); if (m.state === 'failed') this._stat('could not reach the room server', true); });
     n.on('welcome', () => { if (this._pendingName) n.setName(this._pendingName); });
-    n.on('error', (m) => { this.toast(m.msg); this._stat(m.msg, true); });
+    n.on('error', (m) => {
+      const sw = /^MAPSWITCH:(city|loop)$/.exec(m.msg || '');
+      if (sw && typeof window.RSWITCH === 'function') { window.RSWITCH(sw[1], ($('code') && $('code').value) || (this.room && this.room.code) || ''); return; }
+      this.toast(m.msg); this._stat(m.msg, true);
+    });
     n.on('notice', (m) => this.toast(m.text, 2600));
     n.on('left', (m) => { this.room = null; if (this.g.net) { this.g.stopNet(); } this.g.state = 'title'; this.g.hud.show('online'); this._stat(m.why === 'kicked' ? 'the host removed you from the room' : 'you left the room', m.why === 'kicked'); });
-    n.on('room', (m) => this._room(m));
+    n.on('room', (m) => { if (typeof window.RMAPSW === 'function' && window.RMAPSW(m)) return; this._room(m); });
     n.on('start', (m) => { this.g.startNet(n, m, this); this._setUrl(this.room ? this.room.code : null); });
     n.on('s', (m) => this.g.onNetSnap(m));
     n.on('chat', (m) => this.toast(`${m.from}: ${m.text}`, 4000));

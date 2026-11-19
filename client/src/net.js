@@ -36,7 +36,7 @@ export class Net {
   connect() {
     if (this.ws || this.closed) return; let ws; try { ws = new WebSocket(this.url); } catch (e) { this.emit('status', { t: 'status', state: 'failed', why: String(e.message || e) }); return; }
     this.ws = ws; this.emit('status', { t: 'status', state: 'connecting' });
-    ws.onopen = () => { this.open = true; this.retry = 0; this._send({ t: 'hello', name: this.name || undefined, token: this.token || undefined, v: PROTOCOL }); for (const m of this.queue.splice(0)) this._send(m); this.emit('status', { t: 'status', state: 'open' }); this._pinger(); };
+    ws.onopen = () => { this.open = true; this.retry = 0; this._send({ t: 'hello', name: this.name || undefined, token: this.token || undefined, v: PROTOCOL, maps: ['city', 'loop'] }); for (const m of this.queue.splice(0)) this._send(m); this.emit('status', { t: 'status', state: 'open' }); this._pinger(); };
     ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } this._recv(m); };
     ws.onclose = () => { this.open = false; this.ws = null; clearInterval(this.pingT); if (this.closed) return; this.emit('status', { t: 'status', state: 'reconnecting' }); const d = Math.min(8000, 400 * 2 ** this.retry++); setTimeout(() => this.connect(), d); };
     ws.onerror = () => {};

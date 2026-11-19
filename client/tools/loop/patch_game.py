@@ -247,6 +247,10 @@ R('void main() {\n  vec2 uv = vUv;\n  // zone glitch',
   'uniform vec3 uG0, uG1, uG2, uGW; uniform float uGA;\nvec3 gradeC(float l) { l = clamp(l, 0.0, 1.25); vec3 c = mix(uG0, uG1, smoothstep(0.0, 0.42, l)); c = mix(c, uG2, smoothstep(0.36, 0.80, l)); c = mix(c, uGW, smoothstep(0.78, 1.02, l)); return mix(vec3(l), c * (0.35 + 0.65 * smoothstep(0.0, 0.06, l)), uGA); }\nvoid main() {\n  vec2 uv = vUv;\n  // zone glitch')
 R('vec3 outc = mix(vec3(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);','vec3 outc = mix(gradeC(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);')
 R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},')
+# ---- joining a room says which map this page has loaded; if the room is on the other one the server answers
+# MAPSWITCH:<map> and the page reloads onto it and rejoins (server/src/rooms.js; RSWITCH in 60_net.js)
+R('this.net.send({t:"join",code:t}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),')
+R('t.on("error",e=>{this.toast(e.msg),this._stat(e.msg,!0)})','t.on("error",e=>{let sw=/^MAPSWITCH:(city|loop)$/.exec(e.msg||"");if(sw&&window.RSWITCH){window.RSWITCH(sw[1],$t("code")&&$t("code").value||this.room&&this.room.code||"");return}this.toast(e.msg),this._stat(e.msg,!0)})')
 # lit windows burn warm: the buildings' own and the skyline's. The last pass keeps that warmth (as it keeps red and cyan).
 R('em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.78)) * on * tw','em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.95, 0.70, 0.30)) * on * tw')
 R('vec3(0.42 + 0.5 * skHash(cell + 3.1))) * lit','vec3(1.0, 0.76, 0.36) * (0.42 + 0.5 * skHash(cell + 3.1))) * lit')
