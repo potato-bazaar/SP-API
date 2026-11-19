@@ -190,7 +190,7 @@ export class ServerExtras {
   /** the burst (solo _boom): everyone else by their chest, then the shooter by their feet, uncredited */
   _rpgBoom(r, p) {
     const m = this.m, by = r.by, c = new V3();
-    m.events.push({ t: 'rpgx', id: r.id, by: by.netId, p: [r2(p.x), r2(p.y), r2(p.z)] });
+    m.events.push({ t: 'rpgx', id: r.id, by: by.netId, p: [r2(p.x), r2(p.y), r2(p.z)] }); if (m.coverBlast) m.coverBlast(p, 3.5);
     for (const v of m.actors) {
       if (v === by || !v.alive) continue; const d = m.arena.dist(v.chest(c), p); if (d > X.rpgR) continue;
       const amt = d < X.rpgKill ? 999 : Math.round(X.rpgDmg * (1 - (d - X.rpgKill) / (X.rpgR - X.rpgKill)));

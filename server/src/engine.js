@@ -7,7 +7,7 @@ import { WEAPONS, fireShot } from '../../client/src/combat.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world.js';
 import { MODES } from './rules.js';
-import { zoneD } from '../../client/src/ring.js';
+import { zoneD, ringWalls } from '../../client/src/ring.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
 import { ServerExtras } from './extras.js';
 import { ServerPowerups } from './powerups.js';
@@ -67,6 +67,8 @@ export class Match {
     if (ring) { Object.assign(this.zone, { C: ring.C, k: Z.ring.k, r1: Z.ring.r1 }); this.arena.setZone(zc[0], zc[1]); }
     this.angel = { eye: new V3(this.zone.cx, 71.5, this.zone.cz), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
+    // LOOP CITY's breakable walls: the arena's dyn boxes stop shots and sight lines; broken ones are listed in the snapshot
+    this.cover = ring ? ringWalls(this.arena, V3) : []; this.arena.dyn = this.cover.slice(); this.coverBroken = [];
     this.gearSim = new ServerGear(this);             // gas, smoke, decoys, the hammer, the angel's strikes and shadow roof
     this.smokeCut = (p, q) => this.gearSim.smokeCut(p, q);   // client/src/ai.js: bots do not see through smoke
     this.power = new ServerPowerups(this);           // points, the attack drone, the missile strike
@@ -338,6 +340,14 @@ export class Match {
   }
 
   // compact state of every actor: [id, x,y,z, yaw, aimYaw, aimPitch, crouchK, speed, mode, flags, hp]
+  /** a wall takes n hits' worth (rifle 2, pistol 1; 4 breaks it); at 0 it falls and stops nothing */
+  coverHit(box, n) {
+    if (!box || box.hp <= 0) return; box.hp = Math.max(0, box.hp - n);
+    if (box.hp <= 0) { const i = this.arena.dyn.indexOf(box); if (i >= 0) this.arena.dyn.splice(i, 1); this.coverBroken.push(box.id); }
+    this.events.push({ t: 'cover', id: box.id, hp: box.hp });
+  }
+  /** a blast at p brings down every wall within r of it */
+  coverBlast(p, r) { for (const b of this.cover) { if (b.hp <= 0) continue; const c = new V3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2); if (this.arena.dist(c, p) < r + 1.8) this.coverHit(b, 99); } }
   snapshot() {
     const a = []; const M = { walk: 0, ground: 0, link: 1, mantle: 2, air: 3, zip: 4, ladder: 5 };
     for (const o of this.actors) {
@@ -349,8 +359,8 @@ export class Match {
       const held = o.human ? (o.mw ? o.mw + 1 : o.wpn === 'pistol' ? 1 : 0) : ((o.swingUntil || 0) > this.time ? o.swingK + 1 : 0);
       a.push([o.netId, r2(o.pos.x), r2(o.pos.y), r2(o.pos.z), r3(o.yaw), r3(aimY), r3(aimP), r2(o.crouchK), r2(o.speed || 0), mode, flags | (held << 8), Math.max(0, Math.ceil(o.hp)), link, r3(lu), ld, r2(o.lean || 0)]);
     }
-    // z[5]: the angel's shadow roof (the client's _netZone reads it)
-    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
+    // z[5]: the angel's shadow roof (the client's _netZone reads it); z[7]: the walls that are down (LOOP CITY)
+    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof, ...(this.coverBroken.length ? [null, this.coverBroken] : [])], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
   }
   drain() { const e = this.events; this.events = []; return e; }
 }

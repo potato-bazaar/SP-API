@@ -173,6 +173,56 @@ export function ringKit(T) {
   return { parsePack, tessellate, hull, join, buildWorld, ringify };
 }
 
+// Breakable walls on LOOP CITY's rooftops. The model's roofs are bare slabs; these stand along their edges as a builder
+// would put them: low parapet runs a sniper crouches behind, now and then a taller section to stand behind, never in front
+// of a ladder, cable or pad or beside a spawn. Two rifle hits (four from a pistol) break one; a rocket or missile breaks
+// every wall near it. The same list, in the same order, on the server and in every client: ids are the index.
+// The cells under a wall stop being walkable, so bots path round them. Computed once per arena (later calls copy it).
+export function ringWalls(ar, V3) {
+  if (!ar._walls) {
+    const W = []; const cell = ar.cell, hash = (a, b) => { let h = (a * 73856093) ^ (b * 19349663); h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    const blocked = [];   // points walls keep clear of: link ends, spawn points
+    for (const l of ar.links) for (const p of [l.p0, l.p1]) blocked.push([p.x, p.z, p.y]);
+    for (const r of ar.roofs) if (r.spawnPt) blocked.push([r.spawnPt[0], r.spawnPt[2], r.spawnPt[1]]);
+    const clear = (x, z, y) => { for (const b of blocked) if (Math.abs(b[2] - y) < 3.5 && Math.hypot(ar.wrapD(b[0] - x), b[1] - z) < 3.4) return false; return true; };
+    for (const r of ar.roofs) {
+      if (r.kind !== 'roof' || r.cells.length < 40 || r.hx < 2.4 || r.hz < 2.4) continue;
+      const nx = r.nx, nz = r.nz, m = r.m, at = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && m[j * nx + i] === 1;
+      let n = 0;
+      // the four sides: the edge cells of each row (or column) that face open air that way
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const along = di ? nz : nx, runs = []; let cur = null;
+        for (let t = 0; t < along; t++) {
+          let hit = null;   // the outermost walkable cell of this line on that side
+          if (di) { for (let i = di > 0 ? nx - 1 : 0; i >= 0 && i < nx; i -= di) if (at(i, t)) { hit = [i, t]; break; } }
+          else { for (let j = dj > 0 ? nz - 1 : 0; j >= 0 && j < nz; j -= dj) if (at(t, j)) { hit = [t, j]; break; } }
+          const ok = hit && !at(hit[0] + di, hit[1] + dj) && (!cur || Math.abs((di ? hit[0] : hit[1]) - cur.d) === 0);
+          if (ok && cur) cur.cells.push(hit); else { if (cur && cur.cells.length) runs.push(cur); cur = hit ? { d: di ? hit[0] : hit[1], cells: [hit] } : null; }
+        }
+        if (cur && cur.cells.length) runs.push(cur);
+        for (const run of runs) {
+          if (run.cells.length < 8) continue;
+          // sections of 5..8 cells (2.5..4 m) with gaps of 4..6 cells, starting at a place of this roof's own choosing
+          let t = Math.floor(hash(r.i, di * 3 + dj + 7) * 4);
+          while (t + 5 <= run.cells.length && n < 4) {
+            const len = Math.min(run.cells.length - t, 5 + Math.floor(hash(r.i * 7 + t, di + 2 * dj + 11) * 4)), seg = run.cells.slice(t, t + len); t += len + 4 + Math.floor(hash(t, r.i) * 3);
+            if (len < 5) break;
+            const tall = hash(r.i * 13 + t, 5) < 0.3, h = tall ? 2.15 : 1.22, th = 0.32;
+            const a = seg[0], b = seg[seg.length - 1];
+            let x0 = r.ox + Math.min(a[0], b[0]) * cell, x1 = r.ox + (Math.max(a[0], b[0]) + 1) * cell, z0 = r.oz + Math.min(a[1], b[1]) * cell, z1 = r.oz + (Math.max(a[1], b[1]) + 1) * cell;
+            if (di > 0) x0 = x1 - th; if (di < 0) x1 = x0 + th; if (dj > 0) z0 = z1 - th; if (dj < 0) z1 = z0 + th;   // hard against the edge, one wall thick
+            const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2; if (!clear(cx, cz, r.roofY) || !clear(x0, z0, r.roofY) || !clear(x1, z1, r.roofY)) continue;
+            W.push({ roof: r.i, kind: 'wall', tall, hp0: 4, min: [x0, r.roofY - 0.04, z0], max: [x1, r.roofY + h, z1], cells: seg.map(([i, j]) => j * nx + i) }); n++;
+          }
+        }
+      }
+    }
+    for (const w of W) { const r = ar.roofs[w.roof]; for (const k of w.cells) r.m[k] = 0; }
+    ar._walls = W;
+  }
+  return ar._walls.map((w, id) => ({ id, roof: w.roof, kind: 'wall', tall: w.tall, hp: w.hp0, min: new V3(...w.min), max: new V3(...w.max) }));
+}
+
 // The same helpers on a flat map, so shared code can ask without caring which map it is on.
 export function flatArena(proto) {
   proto.wrapX = (x) => x; proto.wrapD = (d) => d; proto.norm = (p) => p;

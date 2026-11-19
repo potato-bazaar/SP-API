@@ -94,6 +94,22 @@ test('teams on the ring: one half of the wheel each, and a halo that closes on t
   assert.ok(seen.size >= 2, 'everyone for themselves: the halo moves about');
 });
 
+test('breakable walls on the ring: the same list everywhere, they stop a round and sight, two rifle rounds bring one down', () => {
+  const m = new Match(W, { ...DEFAULTS, map: 'loop' }, [{ id: 'h0', name: 'A', team: 0 }, { id: 'b0', name: 'bot', team: 0, bot: true }], null), ar = m.arena;
+  assert.ok(m.cover.length > 60, 'walls: ' + m.cover.length); const m2 = new Match(W, { ...DEFAULTS, map: 'loop' }, [{ id: 'b0', name: 'bot', team: 0, bot: true }], null);
+  assert.deepEqual(m2.cover.map(w => w.min.toArray()), m.cover.map(w => w.min.toArray()), 'every match (and every client) builds the same walls');
+  const w = m.cover.find(x => x.tall && Math.max(x.max.x - x.min.x, x.max.z - x.min.z) > 3), c = new V3((w.min.x + w.max.x) / 2, w.min.y + 1.2, (w.min.z + w.max.z) / 2), along = w.max.x - w.min.x > w.max.z - w.min.z;
+  // stand on the roof side of the wall, 4 m off, and look through it
+  const r0 = ar.roofs[w.roof], inner = along ? new V3(0, 0, Math.sign(r0.z - c.z) || 1) : new V3(Math.sign(r0.x - c.x) || 1, 0, 0);
+  const o = c.clone().addScaledVector(inner, 4).setY(c.y + 0.2), d = c.clone().sub(o).normalize(), far = c.clone().addScaledVector(d, 0.45);   // just behind it, where someone would hide
+  assert.equal(ar.los(o, far), false, 'a wall blocks sight'); const h = ar.raycast(o, d, 50); assert.ok(h && h.dyn === w, 'and stops a round');
+  m.events.length = 0; m.coverHit(w, 2); assert.equal(w.hp, 2); m.coverHit(w, 2); assert.equal(w.hp, 0);
+  assert.ok(m.events.filter(e => e.t === 'cover' && e.id === w.id).length === 2 && m.snapshot().z[7].includes(w.id), 'broken: told, and listed for anyone who joins later');
+  assert.equal(ar.los(o, far), true, 'gone: it no longer stops anything');
+  const w2 = m.cover.find(x => x.hp > 0); m.coverBlast(new V3((w2.min.x + w2.max.x) / 2, w2.min.y + 1, (w2.min.z + w2.max.z) / 2), 3.5); assert.equal(w2.hp, 0, 'a blast brings one down');
+  const r = ar.roofs[w.roof]; assert.ok(w.min.y > r.roofY - 0.1 && w.min.y < r.roofY, 'it stands on its roof');
+});
+
 // ---------------------------------------------------------------- over real sockets
 const PORT = 19000 + Math.floor(Math.random() * 900); let proc;
 before(async () => { proc = spawn(process.execPath, ['src/server.js'], { env: { ...process.env, PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'inherit'] }); await new Promise((res) => proc.stdout.on('data', d => { if (/server on/.test(String(d))) res(); })); });

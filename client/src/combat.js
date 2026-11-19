@@ -54,6 +54,7 @@ export function fireShot(game, shooter, origin, dir, muzzle, wpn) {
     shooter.hits++; if (ah.zone === 0) shooter.heads++;
     res.hit = v; res.zone = ah.zone; game.damage(v, dmg, shooter, { zone: ah.zone, dir: dirH, point: _p, wpn });
   } else if (wh) {
+    if (wh.dyn && game.coverHit) game.coverHit(wh.dyn, wpn.key === 'pistol' ? 1 : 2, shooter);   // a breakable wall (server: engine.js)
     _n.copy(wh.face.normal); if (_n.dot(dirH) > 0) _n.negate(); fx.particles.impact(_p, _n); fx.decals.add(_p, _n, 0.07 + Math.random() * 0.05, 1, 0.01, 0.85);
     if (shooter !== me || t < 60) audio.impact(arena.dist(_p, game.listenerPos), game.panOf(_p));
   }

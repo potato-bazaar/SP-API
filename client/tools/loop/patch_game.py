@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
@@ -100,7 +100,10 @@ R('c=new De().copy(i).addScaledVector(o,a?a.distance:300);t.fake.lastShot=e.time
 R('h=g.arena.raycast(new V3(s.x,140,s.z),new V3(0,-1,0),200)','h=g.arena.raycast(new V3(s.x,g.arena.ring?g.arena.ring.R-6:140,s.z),new V3(0,-1,0),200)')
 R('cam.position.set(s.x,s.home.y+118,s.z);cam.rotation.set(-Math.PI/2,0,0,"YXZ");','cam.position.set(s.x,g.arena.ring?Math.min(s.home.y+118,g.arena.ring.R-14):s.home.y+118,s.z);cam.rotation.set(-Math.PI/2,0,0,"YXZ");')
 # ---- crates and panels: the loop has ten times the regions; one set on every third rooftop keeps the draw calls where they were
-R('function QM(r){let t=[],e=0;for(let i of r.roofs){if(!i.cells||i.cells.length<16)continue;','function QM(r){let t=[],e=0;for(let i of r.roofs){if(!i.cells||i.cells.length<16||r.ring&&(i.kind!=="roof"||i.i%3))continue;')
+# ---- on the loop the cover is LOOP CITY's breakable walls (ringWalls, the server's list); crates and panels stay on the city map
+R('function QM(r){let t=[],e=0;','function QM(r){if(r.ring)return ringWalls(r,De);let t=[],e=0;')
+# LOOP CITY's walls are drawn by RWALLS (85_walls.js): the box-per-item code skips them
+R('for(let n of this.gear.cover){let s=new Qt(new an(','for(let n of this.gear.cover){if(n.kind==="wall")continue;let s=new Qt(new an(')
 # ---- the air drop read-out measures the short way round the ring
 R('let dx=C.pt.x-p.pos.x,dz=C.pt.z-p.pos.z,d=Math.round(Math.hypot(dx,dz)),a=Math.atan2(dx,-dz),DIR=','let dx=g.arena.wrapD(C.pt.x-p.pos.x),dz=C.pt.z-p.pos.z,d=Math.round(Math.hypot(dx,dz)),a=Math.atan2(dx,-dz),DIR=')
 # =====================================================================================================================

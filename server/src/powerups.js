@@ -116,7 +116,7 @@ export class ServerPowerups {
     if (s.left <= 0) s.until = Math.min(s.until, m.time + P.missileFly + 0.5);
   }
   _blast(ms) {
-    const m = this.m, a = ms.by, c = new V3(); m.events.push({ t: 'boom', p: v3r(ms.to) });
+    const m = this.m, a = ms.by, c = new V3(); m.events.push({ t: 'boom', p: v3r(ms.to) }); if (m.coverBlast) m.coverBlast(ms.to, 5);
     for (const o of m.actors) {
       if (!o.alive) continue; const d = m.arena.dist(o.chest(c), ms.to);
       if (o === a) { if (d < P.selfR) m.damage(o, Math.round(P.selfDmg * (1 - d / P.selfR)), null, { cause: 'missile' }); continue; }

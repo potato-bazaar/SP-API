@@ -55,6 +55,20 @@ export class Arena {
     for (;;) { let u = -1, bd = 1e9; for (let i = 0; i < n; i++) if (!done[i] && dist[i] < bd) { bd = dist[i]; u = i; } if (u < 0) return null; if (u !== a && ok(this.roofs[u])) { const path = []; for (let c = u; c !== a; c = prev[c].from) path.push(prev[c].e); return path.reverse(); } done[u] = 1;
       for (const e of this.roofs[u].links) { if (blocked && blocked(e)) continue; const c = dist[u] + e.link.time + 3; if (c < dist[e.to]) { dist[e.to] = c; prev[e.to] = { from: u, e }; } } }
   }
+  // boxes that can be shot and broken (LOOP CITY's walls): the first one a ray meets, as {distance, point, face, dyn}
+  _rayDyn(o, d, maxD) {
+    let best = null, bt = maxD, ax = 0, sg = 1;
+    for (const b of this.dyn) {
+      let t0 = 0, t1 = bt, a = -1, s = 1, ok = true;
+      for (let k = 0; k < 3; k++) { const p = k === 0 ? o.x : k === 1 ? o.y : o.z, v = k === 0 ? d.x : k === 1 ? d.y : d.z, lo = k === 0 ? b.min.x : k === 1 ? b.min.y : b.min.z, hi = k === 0 ? b.max.x : k === 1 ? b.max.y : b.max.z;
+        if (Math.abs(v) < 1e-9) { if (p < lo || p > hi) { ok = false; break; } continue; }
+        let u0 = (lo - p) / v, u1 = (hi - p) / v, f = -1; if (u0 > u1) { const q = u0; u0 = u1; u1 = q; f = 1; }
+        if (u0 > t0) { t0 = u0; a = k; s = f; } if (u1 < t1) t1 = u1; if (t0 > t1) { ok = false; break; } }
+      if (ok && a >= 0 && t0 > 1e-4 && t0 < bt) { bt = t0; best = b; ax = a; sg = s; }
+    }
+    if (!best) return null;
+    return { distance: bt, point: new THREE.Vector3(o.x + d.x * bt, o.y + d.y * bt, o.z + d.z * bt), face: { normal: new THREE.Vector3(ax === 0 ? sg : 0, ax === 1 ? sg : 0, ax === 2 ? sg : 0) }, dyn: best };
+  }
   raycast(o, d, maxD = 400) { _ray.origin.copy(o); _ray.direction.copy(d); const h = this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, maxD); return h || null; }
   los(a, b) { _v.copy(b).sub(a); const len = _v.length(); if (len < 0.01) return true; _ray.origin.copy(a); _ray.direction.copy(_v).multiplyScalar(1 / len); return !this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, len - 0.05); }
   groundY(x, z, yTop, maxD = 6) { _ray.origin.set(x, yTop, z); _ray.direction.set(0, -1, 0); const h = this.bvh.raycastFirst(_ray, THREE.DoubleSide, 0, maxD); return h ? h.point.y : null; }
