@@ -18,40 +18,45 @@ export function rayCapsule(ox, oy, oz, dx, dy, dz, ax, ay, az, bx, by, bz, r) {
   return -1;
 }
 const _shapes = [];
+const _ro = new THREE.Vector3(), _rd = new THREE.Vector3();
 // nearest actor hit along a ray (excluding `skip`). returns {actor, t, zone} or null
-export function rayActors(actors, o, d, maxT, skip) {
-  let best = null;
+export function rayActors(actors, o, d, maxT, skip, ar) {
+  let best = null; const o0 = o, d0 = d, ring = ar && ar.ring;
   for (const a of actors) {
-    if (a === skip || !a.alive) continue; const dx = a.pos.x - o.x, dy = a.pos.y + 1 - o.y, dz = a.pos.z - o.z; const along = dx * d.x + dy * d.y + dz * d.z; if (along < -2 || along > maxT + 2) continue; const perp2 = dx * dx + dy * dy + dz * dz - along * along; if (perp2 > 9) continue;
+    if (a === skip || !a.alive) continue; if (ring) { ar.rayTo(a.pos.x, o0, d0, _ro, _rd); o = _ro; d = _rd; }   // on a ring each body is tested in its own frame
+    const dx = a.pos.x - o.x, dy = a.pos.y + 1 - o.y, dz = a.pos.z - o.z; const along = dx * d.x + dy * d.y + dz * d.z; if (along < -2 || along > maxT + 2) continue; const perp2 = dx * dx + dy * dy + dz * dz - along * along; if (perp2 > 9) continue;
     a.hitShapes(_shapes); for (let i = 0; i < _shapes.length; i += 8) { const t = rayCapsule(o.x, o.y, o.z, d.x, d.y, d.z, _shapes[i], _shapes[i + 1], _shapes[i + 2], _shapes[i + 3], _shapes[i + 4], _shapes[i + 5], _shapes[i + 6]); if (t > 0 && t < maxT && (!best || t < best.t || (Math.abs(t - best.t) < 0.25 && _shapes[i + 7] < best.zone))) best = { actor: a, t: Math.min(t, best ? best.t : t), zone: _shapes[i + 7] }; }
   }
   return best;
 }
-const _p = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Vector3(), _d2 = new THREE.Vector3();
+const _p = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Vector3(), _d2 = new THREE.Vector3(), _dh = new THREE.Vector3();
 // fire one round. origin/dir: the true ray. muzzle: where the thread visibly starts.
 export function fireShot(game, shooter, origin, dir, muzzle, wpn) {
   const { arena, fx, audio } = game; const wh = arena.raycast(origin, dir, 420); const tW = wh ? wh.distance : 420;
-  const ah = rayActors(game.actors, origin, dir, tW, shooter); const t = ah ? ah.t : tW; _p.copy(origin).addScaledVector(dir, t);
+  const ah = rayActors(game.actors, origin, dir, tW, shooter, arena); const t = ah ? ah.t : tW; _p.copy(origin).addScaledVector(dir, t);
+  // the ray is straight in the shooter's frame; what is kept is the chart position of the end and the direction as it arrives there
+  const dirH = arena.dirAt(_dh, origin, dir, arena.unsee(_p, _p, origin.x));
   fx.threads.shot(muzzle, _p); shooter.shots++; shooter.lastShot = game.time; shooter.lastShotPos.copy(origin);
-  const me = game.headless ? null : game.player; const dShooter = shooter === me ? 0 : origin.distanceTo(game.listenerPos); const pan = shooter === me ? 0 : game.panOf(origin);
+  const me = game.headless ? null : game.player; const dShooter = shooter === me ? 0 : arena.dist(origin, game.listenerPos); const pan = shooter === me ? 0 : game.panOf(origin);
   audio.shot(dShooter, pan, wpn.key === 'pistol');
   if (shooter !== me) { fx.particles.flash(muzzle, 1.6);
     // near miss: closest approach of the segment to the listener's head
-    if (me && me.alive) { _q.copy(game.listenerPos).sub(origin); const al = Math.max(0, Math.min(t, _q.dot(dir))); _d2.copy(origin).addScaledVector(dir, al); const miss = _d2.distanceTo(game.listenerPos); if (miss < 2.4 && al > 4 && (!ah || ah.actor !== me)) { audio.whiz(game.panOf(_d2)); game.hud.threat(origin, 0.6); me.suppress = Math.min(1, (me.suppress || 0) + 0.5); } } }
+    if (me && me.alive) { arena.rel(_q, origin, game.listenerPos); const al = Math.max(0, Math.min(t, _q.dot(dir))); _d2.copy(dir).multiplyScalar(al); const miss = _d2.distanceTo(_q); if (miss < 2.4 && al > 4 && (!ah || ah.actor !== me)) { audio.whiz(game.panOf(arena.unsee(_d2, _d2.add(origin), origin.x))); game.hud.threat(origin, 0.6); me.suppress = Math.min(1, (me.suppress || 0) + 0.5); } } }
   // rounds passing close to a bot's head make it flinch too
-  for (const b of game.bots) { if (!b.alive || b === shooter || (ah && ah.actor === b)) continue; const e = b.eye(_q); _d2.copy(e).sub(origin); const al = _d2.dot(dir); if (al < 3 || al > t + 1) continue; if (_d2.lengthSq() - al * al < 2.2) b.nearMiss(shooter); }
+  for (const b of game.bots) { if (!b.alive || b === shooter || (ah && ah.actor === b)) continue; const e = b.eye(_q); arena.rel(_d2, origin, e); const al = _d2.dot(dir); if (al < 3 || al > t + 1) continue; if (_d2.lengthSq() - al * al < 2.2) b.nearMiss(shooter); }
   let res = { hit: null, zone: -1, point: _p.clone(), dist: t };
   if (ah) {
     const v = ah.actor; let dmg = wpn.dmg[ah.zone]; if (wpn.falloff) { const f = Math.min(1, Math.max(0, (t - wpn.falloff[0]) / (wpn.falloff[1] - wpn.falloff[0]))); dmg *= 1 - 0.55 * f; }
-    fx.particles.blood(_p, dir, ah.zone === 0 ? 1.7 : 1);
+    fx.particles.blood(_p, dirH, ah.zone === 0 ? 1.7 : 1);
     // stain whatever is behind the target
-    const bh = arena.raycast(_p, dir, 4.5); if (bh) { _n.copy(bh.face.normal); if (_n.dot(dir) > 0) _n.negate(); fx.decals.add(bh.point, _n, 0.35 + Math.random() * 0.5 + (ah.zone === 0 ? 0.35 : 0), 0, 0.25); }
+    const bh = arena.raycast(_p, dirH, 4.5); if (bh) { _n.copy(bh.face.normal); if (_n.dot(dirH) > 0) _n.negate(); fx.decals.add(bh.point, _n, 0.35 + Math.random() * 0.5 + (ah.zone === 0 ? 0.35 : 0), 0, 0.25); }
     const gh = arena.raycast(_q.copy(_p), _d2.set(0, -1, 0), 3); if (gh) fx.decals.add(gh.point, _n.set(0, 1, 0), 0.22 + Math.random() * 0.3, 0, 0.6);
     shooter.hits++; if (ah.zone === 0) shooter.heads++;
-    res.hit = v; res.zone = ah.zone; game.damage(v, dmg, shooter, { zone: ah.zone, dir, point: _p, wpn });
+    res.hit = v; res.zone = ah.zone; game.damage(v, dmg, shooter, { zone: ah.zone, dir: dirH, point: _p, wpn });
   } else if (wh) {
-    _n.copy(wh.face.normal); if (_n.dot(dir) > 0) _n.negate(); fx.particles.impact(_p, _n); fx.decals.add(_p, _n, 0.07 + Math.random() * 0.05, 1, 0.01, 0.85);
-    if (shooter !== me || t < 60) audio.impact(_p.distanceTo(game.listenerPos), game.panOf(_p));
+    if (wh.dyn && game.coverHit) game.coverHit(wh.dyn, wpn.key === 'pistol' ? 1 : 2, shooter);   // a breakable wall (server: engine.js)
+    _n.copy(wh.face.normal); if (_n.dot(dirH) > 0) _n.negate(); fx.particles.impact(_p, _n); fx.decals.add(_p, _n, 0.07 + Math.random() * 0.05, 1, 0.01, 0.85);
+    if (shooter !== me || t < 60) audio.impact(arena.dist(_p, game.listenerPos), game.panOf(_p));
   }
   game.onShot(shooter, origin, res);
   return res;

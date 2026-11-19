@@ -31,12 +31,17 @@ const RPG_STEPS = Math.round(X.rpgLife / RPG_STEP);   // 180: the step after the
  *  looked for here (they move): ServerExtras._rockets checks each step against the living as it is reached */
 export function rocketPath(arena, o, v) {
   const p = new V3(...o), vel = new V3(...v), dir = new V3(), pts = [[p.x, p.y, p.z]], dt = RPG_STEP;
+  // LOOP CITY: the rocket flies straight in the frame it was launched in (so it can cross the wheel to the roofs overhead);
+  // q is where it is in that frame, p the same place on the chart, dc its heading as the chart sees it there. Flat map: q = p, dc = dir.
+  const ring = arena.ring, fx = p.x, q = p.clone(), fo = p.clone(), dc = new V3();
   for (let k = 1; ; k++) {
     vel.y -= X.rpgG * dt; const st = vel.length() * dt; dir.copy(vel).normalize();
-    const hit = arena.raycast(p.clone(), dir, st + X.rpgLook);
-    if (hit && hit.point) p.copy(hit.point); else p.addScaledVector(dir, st);
+    if (ring) arena.dirAt(dc, fo, dir, p); else dc.copy(dir);
+    const hit = arena.raycast(p.clone(), dc, st + X.rpgLook);
+    if (hit && hit.point) p.copy(hit.point); else if (ring) { q.addScaledVector(dir, st); arena.unsee(p, q, fx); } else p.addScaledVector(dir, st);
+    if (ring) arena.norm(p);
     pts.push([p.x, p.y, p.z]);
-    if (hit || k > RPG_STEPS) return { pts, wall: !!hit };
+    if (hit || k > RPG_STEPS || (ring && (p.y < -30 || Math.abs(p.z) > 400))) return { pts, wall: !!hit };   // on the ring a rocket that leaves past a rim is gone
   }
 }
 // the AWM (the client's Vi.awm): the rifle's handling, 3 bullets and no reserve, a slower bolt, and every hit kills.
@@ -83,7 +88,7 @@ export class ServerExtras {
     // the first player to stay by it for 1.5 s takes it. Players only: the AI snipers don't go for it (solo has no rival for it)
     let best = null;
     for (const a of m.humans) {
-      const near = a.alive && Math.hypot(a.pos.x - D.p.x, a.pos.z - D.p.z) < X.pickR && Math.abs(a.pos.y - D.p.y) < X.pickDy;
+      const near = a.alive && Math.hypot(m.arena.wrapD(a.pos.x - D.p.x), a.pos.z - D.p.z) < X.pickR && Math.abs(a.pos.y - D.p.y) < X.pickDy;
       a.dropHold = near ? (a.dropHold || 0) + dt : 0;
       if (a.dropHold >= X.pickHold && (!best || a.dropHold > best.dropHold)) best = a;
     }
@@ -92,7 +97,7 @@ export class ServerExtras {
   /** which roof: a spawn roof (as solo) with no living player within 14 m of it; the crate sits 1.2 m off the spawn point */
   _pick() {
     const m = this.m, sp = m.arena.spawns, alive = m.humans.filter((a) => a.alive);
-    const ok = sp.filter((s) => alive.every((a) => Math.hypot(s.spawnPt[0] - a.pos.x, s.spawnPt[2] - a.pos.z) > X.dropAway));
+    const ok = sp.filter((s) => alive.every((a) => Math.hypot(m.arena.wrapD(s.spawnPt[0] - a.pos.x), s.spawnPt[2] - a.pos.z) > X.dropAway));
     const L = ok.length ? ok : sp, s = L[Math.floor(Math.random() * L.length)];
     return { x: r2(s.spawnPt[0] + 1.2), y: r2(s.spawnPt[1]), z: r2(s.spawnPt[2] + 1.2) };   // rounded: the clients get the same numbers
   }
@@ -126,7 +131,10 @@ export class ServerExtras {
   rifleOf(a) { return a && a.awm ? AWM : WEAPONS.rifle; }
   /** solo's pierce(): the AWM's shot ignores walls (the first sniper along the line within 420 m is hit). Only the shot's
    *  own raycasts are switched off: line-of-sight checks (bots) go to the BVH directly and still see walls */
-  pierce(fn) { const A = this.m.arena; A.raycast = () => null; try { return fn(); } finally { delete A.raycast; } }
+  pierce(fn) {   // on the ring the arena carries its own raycast (ring.js): put that one back, do not fall through to the flat one
+    const A = this.m.arena, own = Object.prototype.hasOwnProperty.call(A, 'raycast'), rc = A.raycast; A.raycast = () => null;
+    try { return fn(); } finally { if (own) A.raycast = rc; else delete A.raycast; }
+  }
 
   // ---------------------------------------------------------------- the RPG-7
   /** rockets `a` has left this match */
@@ -147,9 +155,9 @@ export class ServerExtras {
     dir.normalize();
     const eye = a.eye(new V3()); let org = new V3(...o);
     // a start far from the body is not believed (the camera may be 2.2 m off the eye, as for a shot, plus the 1.1 m ahead)
-    if (org.distanceTo(eye) > 2.2 + X.rpgAhead) { org = eye.clone().addScaledVector(dir, X.rpgAhead); org.y -= X.rpgLow; }
+    if (m.arena.dist(org, eye) > 2.2 + X.rpgAhead) { org = eye.clone().addScaledVector(dir, X.rpgAhead); org.y -= X.rpgLow; }
     // nor one on the far side of a wall from the eye: then it starts against that wall (and goes off there)
-    const gap = org.clone().sub(eye), gl = gap.length();
+    const gap = m.arena.rel(new V3(), eye, org), gl = gap.length();
     if (gl > 1e-3) { const h = m.arena.raycast(eye.clone(), gap.clone().multiplyScalar(1 / gl), gl); if (h && h.point) org.copy(h.point).addScaledVector(gap, -0.05 / gl); }
     s.left--; s.ready = m.time + X.rpgCool; this.rpgs.set(a.netId, s);
     if (a.protectUntil > m.time) a.protectUntil = 0;   // firing ends spawn protection
@@ -169,11 +177,11 @@ export class ServerExtras {
       while (!at && r.k < r.pts.length - 1 && m.time + 1e-6 >= r.at + (r.k + 1) * RPG_STEP) {
         r.k++; a.set(...r.pts[r.k - 1]); b.set(...r.pts[r.k]);
         if (r.k === r.pts.length - 1) { at = b.clone(); break; }
-        sg.copy(b).sub(a); const sl2 = sg.lengthSq();
+        m.arena.rel(sg, a, b); const sl2 = sg.lengthSq();
         for (const v of m.actors) {
           if (v === r.by || !v.alive) continue; v.chest(c);
-          const k = sl2 > 1e-6 ? clamp(c.clone().sub(a).dot(sg) / sl2, 0, 1) : 1; q.copy(a).addScaledVector(sg, k);
-          if (q.distanceTo(c) < X.rpgFuse) { at = q.clone(); break; }
+          m.arena.rel(c, a, c); const k = sl2 > 1e-6 ? clamp(c.dot(sg) / sl2, 0, 1) : 1; q.copy(sg).multiplyScalar(k);
+          if (q.distanceTo(c) < X.rpgFuse) { at = m.arena.unsee(new V3(), q.add(a), a.x); break; }
         }
       }
       if (at) { this.rockets.splice(i, 1); this._rpgBoom(r, at); }
@@ -182,13 +190,13 @@ export class ServerExtras {
   /** the burst (solo _boom): everyone else by their chest, then the shooter by their feet, uncredited */
   _rpgBoom(r, p) {
     const m = this.m, by = r.by, c = new V3();
-    m.events.push({ t: 'rpgx', id: r.id, by: by.netId, p: [r2(p.x), r2(p.y), r2(p.z)] });
+    m.events.push({ t: 'rpgx', id: r.id, by: by.netId, p: [r2(p.x), r2(p.y), r2(p.z)] }); if (m.coverBlast) m.coverBlast(p, 3.5);
     for (const v of m.actors) {
-      if (v === by || !v.alive) continue; const d = v.chest(c).distanceTo(p); if (d > X.rpgR) continue;
+      if (v === by || !v.alive) continue; const d = m.arena.dist(v.chest(c), p); if (d > X.rpgR) continue;
       const amt = d < X.rpgKill ? 999 : Math.round(X.rpgDmg * (1 - (d - X.rpgKill) / (X.rpgR - X.rpgKill)));
       if (amt > 0) m.damage(v, amt, by, { cause: 'rpg' });
     }
-    if (by.alive) { const d = by.pos.distanceTo(p); if (d < X.rpgSelfR) { const amt = Math.round(X.rpgSelf * (1 - d / X.rpgSelfR)); if (amt > 0) m.damage(by, amt, null, { cause: 'rpg' }); } }
+    if (by.alive) { const d = m.arena.dist(by.pos, p); if (d < X.rpgSelfR) { const amt = Math.round(X.rpgSelf * (1 - d / X.rpgSelfR)); if (amt > 0) m.damage(by, amt, null, { cause: 'rpg' }); } }
   }
 
   /** what a reconnecting player missed: the crate's state, whether they hold the AWM, their rockets left and the rockets

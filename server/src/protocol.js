@@ -7,9 +7,9 @@ const code = z.string().trim().toUpperCase().regex(/^[A-Z0-9]{5,8}$/);
 const v3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()]);
 
 export const ClientMsg = z.discriminatedUnion('t', [
-  z.object({ t: z.literal('hello'), name: name.optional(), token: z.string().max(64).optional(), v: z.number().int().optional() }),
+  z.object({ t: z.literal('hello'), name: name.optional(), token: z.string().max(64).optional(), v: z.number().int().optional(), maps: z.array(z.enum(['city', 'loop'])).max(8).optional() }),   // maps: the maps this client can load (older clients: the city only)
   z.object({ t: z.literal('create'), settings: SettingsPatch.optional() }),
-  z.object({ t: z.literal('join'), code }),
+  z.object({ t: z.literal('join'), code, map: z.enum(['city', 'loop']).optional() }),   // map: the one this client has loaded right now
   z.object({ t: z.literal('leave') }),
   z.object({ t: z.literal('name'), name }),
   z.object({ t: z.literal('op'), k: z.number().int().min(0).max(7) }),   // which operator (body) this player wears; looks only
@@ -26,7 +26,7 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('ping'), c: z.number().finite(), r: z.number().min(0).max(5).optional() }),
   // in match
   // ln: lean offset, fd: playing dead (both shown to others; the engine clamps ln)
-  z.object({ t: z.literal('in'), seq: z.number().int().nonnegative(), p: v3, yaw: z.number().finite(), pitch: z.number().finite(), c: z.number().min(0).max(1), mode: z.enum(['walk', 'link', 'mantle']), link: z.number().int().min(-1).max(255).optional(), w: z.enum(['rifle', 'pistol']), ads: z.number().min(0).max(1), ln: z.number().finite().optional(), fd: z.number().optional(), mw: z.number().int().min(0).max(2).optional() }),   // mw: mid-swing with 1 hammer, 2 knife (shown to others)
+  z.object({ t: z.literal('in'), seq: z.number().int().nonnegative(), p: v3, yaw: z.number().finite(), pitch: z.number().finite(), c: z.number().min(0).max(1), mode: z.enum(['walk', 'link', 'mantle']), link: z.number().int().min(-1).max(4095).optional(), w: z.enum(['rifle', 'pistol']), ads: z.number().min(0).max(1), ln: z.number().finite().optional(), fd: z.number().optional(), mw: z.number().int().min(0).max(2).optional() }),   // mw: mid-swing with 1 hammer, 2 knife (shown to others)
   z.object({ t: z.literal('fire'), o: v3, d: v3, w: z.enum(['rifle', 'pistol']), ct: z.number().finite() }),
   z.object({ t: z.literal('reload'), w: z.enum(['rifle', 'pistol']) }),
   z.object({ t: z.literal('fall'), v: z.number().finite() }),
@@ -36,6 +36,7 @@ export const ClientMsg = z.discriminatedUnion('t', [
   z.object({ t: z.literal('pum'), p: z.tuple([z.number().finite(), z.number().finite()]) }),   // missile strike: launch at (x, z)
   z.object({ t: z.literal('pray') }),                                                  // the prayer (once a match; the server pays it)
   z.object({ t: z.literal('rpg'), o: v3, d: v3 }),                                     // an RPG-7 rocket from o along d (2 a match; the server flies it)
+  z.object({ t: z.literal('door'), i: z.number().int().min(0).max(63) }),            // stepped into door i: the server picks where you come out
   z.object({ t: z.literal('sil') }),                                                   // silencer picked up: bots no longer hear your shots
   z.object({ t: z.literal('nhurt'), c: z.enum(['alien', 'egg']), v: z.number().finite().min(1).max(999) }), // Blind One / egg damage to self
   z.object({ t: z.literal('nkill') }),                                                 // Blind One down: +150 points
