@@ -8,6 +8,9 @@ import { loadWorld } from '../src/world.js';
 import { Match } from '../src/engine.js';
 import { DEFAULTS, SettingsSchema } from '../src/rules.js';
 import { zoneD } from '../../client/src/ring.js';
+import { trajectory, throwVelocity } from '../src/gear.js';
+import { rocketPath, X } from '../src/extras.js';
+import { TICK } from '../src/engine.js';
 
 const V3 = THREE.Vector3; const W = loadWorld('loop'); const A = W.arena;
 const mk = () => new Match(W, { ...DEFAULTS, map: 'loop' }, [{ id: 'b0', name: 'bot', team: 0, bot: true }, { id: 'b1', name: 'bot', team: 0, bot: true }], null);
@@ -45,6 +48,50 @@ test('the halo on the ring: a stretched circle that is the whole ring at the sta
   assert.ok(zoneD(z, z.cx + 30, z.cz + 5, 8.5) > 8.5 && Math.abs(zoneD(z, z.cx + 3, z.cz + 4, 8.5) - 5) < 1e-9, 'the last halo is a circle');
   assert.ok(zoneD(z, z.cx + 150, z.cz, 50) < 50 && zoneD(z, z.cx + 150, z.cz, 29.5) > 29.5, 'in between it is long along the ring');
   assert.ok(Math.abs(zoneD(z, z.cx + ar.ring.C + 3, z.cz, 8.5) - 3) < 1e-6, 'and it wraps');
+});
+
+test('close work ignores the seam; a can, a rocket and the AWM go where the ring says', () => {
+  const m = new Match(W, { ...DEFAULTS, map: 'loop' }, [{ id: 'h0', name: 'A', team: 0 }, { id: 'h1', name: 'B', team: 0 }], null), ar = m.arena, C = ar.ring.C, H = C / 2, R = ar.ring.R;
+  const [a, b] = m.humans; m.weaponsFree = true;
+  // two people a step apart on the street, one each side of the line where chart x jumps from +H to -H
+  const gy = ar.groundY(H - 0.5, 20, 3, 8); assert.ok(gy != null && Math.abs(gy) < 0.5, 'street at the seam: ' + gy);
+  assert.ok(Math.abs(ar.groundY(H + 3, 20, 3, 8) - gy) < 0.3 && Math.abs(ar.groundY(-H - 3, 20, 3, 8) - gy) < 0.3, 'the ground answers for any x');
+  a.pos.set(H - 0.5, gy, 20); b.pos.set(-H + 0.5, gy, 20); a.valid.copy(a.pos); b.valid.copy(b.pos);
+  const swing = ar.rel(new V3(), a.eye(new V3()), b.chest(new V3())).normalize(), hit = m.gearSim.meleeTarget(a, swing, 'hammer');
+  assert.ok(hit && hit.to === b, 'the hammer reaches across');
+  // gas lying on one side of the line hurts the person standing on the other
+  m.gearSim.clouds.push({ pos: new V3(H - 0.6, gy, 20), by: null, until: m.time + 9, acc: new Map() }); for (let i = 0; i < 50; i++) m.step(TICK);
+  assert.ok(b.hp < 100 && a.hp < 100, `gas across the seam: ${a.hp} ${b.hp}`);
+  // a can thrown over the line comes down on the street beyond it (and is filed at its place on the chart)
+  const tr = trajectory(ar, new V3(H - 4, gy + 1.5, 20), throwVelocity(new V3(1, 0.25, 0).normalize()));
+  assert.ok(tr.end.x >= -H && tr.end.x < -H + 45 && tr.end.y > -0.5 && tr.end.y < 4, 'the can lands past the seam: ' + tr.end.toArray().map(v => v.toFixed(1)));
+  // smoke only counts when it sits on the real sight line: two roofs facing each other across the hub look through the middle of the wheel
+  const rf = ar.roofs.find(r => r.kind === 'roof' && r.roofY > 12), c = ar.cellPos(rf, rf.cells[(rf.cells.length / 2) | 0]), o = new V3(c.x, c.y + 1.6, c.z);
+  const tilt = new V3(0.1, 1, 0).normalize(), up = ar.raycast(o, tilt, 420), far = ar.unsee(new V3(), o.clone().addScaledVector(tilt, up.distance - 2), o.x);
+  m.gearSim.smokes.push({ pos: new V3(ar.wrapX(o.x + C / 4), 0, o.z), until: m.time + 99 }); assert.equal(m.gearSim.smokeCut(o, far), false, 'smoke on the street a quarter-ring away is not in the way');
+  const mid = ar.unsee(new V3(), o.clone().addScaledVector(tilt, up.distance / 2), o.x); m.gearSim.smokes[0].pos.set(mid.x, mid.y - 1.2, mid.z); assert.equal(m.gearSim.smokeCut(o, far), true, 'smoke at the hub is');
+  // the AWM's through-walls shot must hand the ring's raycast back (it used to fall through to the flat one for the rest of the match)
+  const rc = ar.raycast; assert.equal(m.extras.pierce(() => ar.raycast(o, tilt, 420)), null); assert.equal(ar.raycast, rc);
+  const again = ar.raycast(o, tilt, 420); assert.ok(again && Math.abs(again.distance - up.distance) < 1e-6);
+  // a rocket fired at the roofs overhead flies straight through the wheel and bursts there
+  const path = rocketPath(ar, [o.x, o.y, o.z], [tilt.x * X.rpgSpeed, tilt.y * X.rpgSpeed, tilt.z * X.rpgSpeed]), last = new V3(...path.pts[path.pts.length - 1]);
+  assert.ok(path.wall && Math.abs(ar.wrapD(last.x - o.x)) > H - 45 && last.y < 30, 'the rocket lands on the far side: ' + last.toArray().map(v => v.toFixed(1)));
+  // each step is as long as the rocket is fast (it slows a little as it climbs against its own down), never a jump
+  let lo = 9, hi = 0; for (let k = 1; k < path.pts.length - 1; k++) { const st = ar.dist(new V3(...path.pts[k - 1]), new V3(...path.pts[k])); lo = Math.min(lo, st); hi = Math.max(hi, st); } assert.ok(lo > 1.5 && hi < X.rpgSpeed * TICK + 0.01, `in even steps: ${lo.toFixed(2)}..${hi.toFixed(2)}`);
+  assert.ok(ar.dist(o, last) > 150 && path.pts.length * TICK < 4.5, 'in under five seconds');
+});
+
+test('teams on the ring: one half of the wheel each, and a halo that closes on the park between them', () => {
+  for (const mode of ['4v4', '2v2']) {
+    const n = mode === '4v4' ? 8 : 4, roster = []; for (let i = 0; i < n; i++) roster.push({ id: 'b' + i, name: 'bot' + i, team: i % 2, bot: true });
+    const m = new Match(W, { ...DEFAULTS, map: 'loop', mode }, roster, null), z = m.zone, tc = A.zone.teamCenters[0];
+    assert.ok(z.cx === tc[0] && z.cz === tc[1], 'the park');
+    const d = [[], []]; for (const b of m.bots) { assert.ok(b.team === 0 ? b.pos.x < 0 : b.pos.x > 0, `team ${b.team} at x ${b.pos.x}`); d[b.team].push(Math.abs(m.arena.wrapD(b.pos.x - z.cx))); }
+    const mean = (l) => l.reduce((s, x) => s + x, 0) / l.length; assert.ok(Math.abs(mean(d[0]) - mean(d[1])) < 30, `both as far from it: ${mean(d[0]).toFixed(0)} ${mean(d[1]).toFixed(0)}`);
+    assert.ok(Math.min(...d[0], ...d[1]) > 90, 'and nobody starts on top of it');
+  }
+  const seen = new Set(); for (let i = 0; i < 40; i++) { const m = new Match(W, { ...DEFAULTS, map: 'loop', mode: 'ffa' }, [{ id: 'b0', name: 'bot', team: 0, bot: true }], null); seen.add(m.zone.cx); assert.ok(Math.abs(Math.abs(m.zone.cx) - m.arena.ring.C / 2) > 100, 'never at the seam'); }
+  assert.ok(seen.size >= 2, 'everyone for themselves: the halo moves about');
 });
 
 // ---------------------------------------------------------------- over real sockets

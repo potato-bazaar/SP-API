@@ -7,9 +7,9 @@ async function nL(r,t,e){
   const grp=new ce,texs=new Map,red=Wt.uRedCol.value;
   const load=(f,srgb=!0,rep=!0)=>{if(!texs.has(f))texs.set(f,new Promise(res=>{const im=new Image;im.onload=()=>{const x=new Xe(im);x.colorSpace=srgb?Ne:"";x.wrapS=1e3;x.wrapT=rep?1e3:1001;x.anisotropy=e.aniso;x.flipY=!1;x.needsUpdate=!0;res(x)};im.onerror=()=>res(null);im.src=f}));return texs.get(f)};
   const geoOf=(pos,nrm,uv,idx)=>{const g=new se;g.setAttribute("position",new Ft(pos,3));nrm&&g.setAttribute("normal",new Ft(nrm,3));uv&&g.setAttribute("uv",new Ft(uv,2));g.setIndex(new Ft(idx,1));return g};
-  let tris=0;
+  let tris=0;const LIFT={RoadsGround:2.3,Basketball:1.5,CityProps:1.5,Temp1PineTreeTrunk:1.4};   // the asphalt is nearly black in the artist's texture: lift it so the street reads
   for(const g of W.groups){
-    const tex=g.tex?await load(g.tex):null,m=new Ye({color:new Tt(g.lum,g.lum,g.lum),map:tex,side:g.double?2:0,alphaTest:g.alpha?.42:0});
+    const k=g.lum*(LIFT[g.name]||1.2),tex=g.tex?await load(g.tex):null,m=new Ye({color:new Tt(k,k,k),map:tex,side:g.double?2:0,alphaTest:g.alpha?.42:0});
     if(g.glow>0){m.emissive=g.red?red.clone().multiplyScalar(2.4*g.glow):new Tt(1,1,1).multiplyScalar(1.2*g.glow);m.emissiveMap=tex;if(!tex)m.color.setScalar(.05)}
     if(g.alpha)m.color.setScalar(.5);
     Gi(m);const mesh=new Qt(geoOf(g.pos,g.nrm,g.uv,g.idx),m);mesh.matrixAutoUpdate=!1;mesh.name="loop:"+g.name;grp.add(mesh);tris+=g.idx.length/3;
@@ -41,10 +41,10 @@ void main(){
   gl_FragColor = vec4(col, 1.0);
 }`}));
   sky.renderOrder=-50;sky.name="loop:sky";grp.add(sky);
-  const hemi=new wr(10132898,2434345,1.25);grp.add(hemi);
+  const hemi=new wr(10132898,3355446,1.45);grp.add(hemi);
   const moon=new fs(16777215,2.1);moon.position.set(22,120,34);moon.target.position.set(0,0,0);grp.add(moon,moon.target);
   const shade=await load("loop_shade.jpg",!1,!1);if(shade){shade.minFilter=1008;shade.magFilter=1006}
   r.scene.add(grp);
   return{group:grp,solid:null,deco:null,skyline:{count:0,getMatrixAt(){}},sky:sky,mat:null,tex:{userData:{repaint(){}}},bvh:W.chartBvh,colGeo:null,moon:moon,hemi:hemi,tris:tris,ring:W,shade:shade,zmax:ZM};
 }
-function RINGA(ar,city){if(city&&city.ring){RK.ringify(ar,city.ring);ar.zmax=city.zmax}return ar}
+function RINGA(ar,city){if(city&&city.ring){RK.ringify(ar,city.ring);ar.zmax=city.zmax;RAR=ar}return ar}

@@ -354,7 +354,9 @@ def build_arena(geo, dist):
     # ---------------------------------------------------------------- the halo, the rails, the light map
     # zone: a circle of radius r stretched along the ring by k * (r - r1) each way; the full ring at r0, a plain circle from r1 down
     centers = []
-    for xw in (-H / 2, H / 2, 0.0, -H + 6):
+    # where the halo may close: the middle of either district or the park between them. Not the park at the seam: the last fight
+    # should not straddle the line where chart x jumps from +H to -H (everything there is checked the short way round, but why tempt it)
+    for xw in (-H / 2, H / 2, 0.0):
         best = None
         for k in np.where(isg & alive)[0]:
             r = roofs[k]; d = math.hypot((r['x'] - xw + H) % C - H, r['z'])
@@ -362,7 +364,8 @@ def build_arena(geo, dist):
         centers.append([best[1]['x'], best[1]['z']])
     # r0 is generous so the stretched circle's round ends clear the far corners of the strip: at the start nothing is outside
     r0, r1 = 120.0, 17.0; kz = round((H - 84.0) / (84.0 - r1) + 0.01, 3)
-    zone = {'center': centers[0], 'centers': centers, 'r0': r0, 'ring': {'k': kz, 'r1': r1},
+    # teams start in opposite halves of the wheel, so their halo closes on the park between the halves (teamCenters)
+    zone = {'center': centers[0], 'centers': centers, 'teamCenters': [centers[2]], 'r0': r0, 'ring': {'k': kz, 'r1': r1},
             'phases': [{'t': 0, 'r': 120, 'dps': 0}, {'t': 60, 'r': 67, 'shrink': 26, 'dps': 6}, {'t': 120, 'r': 50, 'shrink': 26, 'dps': 9}, {'t': 180, 'r': 29.5, 'shrink': 26, 'dps': 13}, {'t': 240, 'r': 17, 'shrink': 16, 'dps': 18}, {'t': 270, 'r': 8.5, 'shrink': 16, 'dps': 25}], 'duration': 300}
     n = 160; s = C / n; fence = []
     for q in range(n):
@@ -383,7 +386,10 @@ def build_arena(geo, dist):
         for kk in ('_i0', '_j0', '_m', '_n'): r.pop(kk)
     isg = np.array([r['kind'] == 'ground' for r in roofs]); nreg = len(roofs)
     sp_x = sorted((r['spawn'], r['x']) for r in roofs if r['spawn'] >= 0)
-    team = {'A': [s_ for s_, x in sp_x if x < 0], 'B': [s_ for s_, x in sp_x if x >= 0]}
+    # team A takes the half x < 0, team B the half x >= 0, each from the middle of its district outwards: any team size starts as a
+    # group, the two groups face each other across the hub, and both are as far from the park between them
+    team = {'A': [s_ for s_, x in sorted((t for t in sp_x if t[1] < 0), key=lambda t: abs(t[1] + H / 2))],
+            'B': [s_ for s_, x in sorted((t for t in sp_x if t[1] >= 0), key=lambda t: abs(t[1] - H / 2))]}
     arena = {'version': 2, 'map': 'loop', 'cell': CELL, 'parapet': 0, 'gravity': G, 'R': round(R, 5), 'C': round(C, 5), 'zmax': zmax, 'slabs': 160,
              'zone': zone, 'roofs': roofs, 'links': links, 'shapes': [], 'deco': [], 'fence': fence, 'skyline': [], 'teamSpawns': team, 'lamps': [[r2(a), r2(b), r2(c)] for a, b, c in lamps],
              'credit': 'Space Loop City by Neberkenezer (CC-BY-4.0)'}

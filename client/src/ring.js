@@ -133,17 +133,21 @@ export function ringKit(T) {
       ar.dyn = all; return best;
     };
     ar.raycast = function (o, d, maxD = 400) {
-      if (maxD <= LOCAL) { ray.origin.copy(o); ray.direction.copy(d); const h = this.chartBvh.raycastFirst(ray, DoubleSide, 0, maxD); if (this.dyn && this.dyn.length && this._rayDyn) { const s = this._rayDyn(o, d, h ? h.distance : maxD); if (s) return s; } return h || null; }
+      if (maxD <= LOCAL) {   // o may lie past the seam (a can in flight, a rocket): look it up at its place on the chart, answer in the caller's own numbers
+        const ox = wrapX(o.x), sh = o.x - ox; ray.origin.set(ox, o.y, o.z); ray.direction.copy(d); let h = this.chartBvh.raycastFirst(ray, DoubleSide, 0, maxD);
+        if (this.dyn && this.dyn.length && this._rayDyn) { const s = this._rayDyn(va.copy(ray.origin), d, h ? h.distance : maxD); if (s) h = s; }
+        if (h && sh) h.point.x += sh; return h || null; }
       rayTo(0, o, d, ray.origin, ray.direction); const g = this.ringBvh.raycastFirst(ray, DoubleSide, 0, maxD); let h = null;
       if (g) { const G = g.point, th = Math.atan2(G.x, R - G.y), s = Math.sin(th), c = Math.cos(th), n = g.face.normal; h = { distance: g.distance, point: new Vector3(R * th, R - Math.hypot(G.x, R - G.y), G.z), face: { normal: new Vector3(n.x * c + n.y * s, -n.x * s + n.y * c, n.z) } }; }
       const s = dynHit(o, d, h ? h.distance : maxD); return s || h;
     };
     ar.los = function (a, b) {
       const dx = wrapD(b.x - a.x), dy = b.y - a.y, dz = b.z - a.z;
-      if (Math.abs(dx) < LOCAL && Math.abs(dy) < LOCAL && Math.abs(dz) < LOCAL) { const len = Math.hypot(dx, dy, dz); if (len < 0.01) return true; ray.origin.copy(a); ray.direction.set(dx / len, dy / len, dz / len); if (this.chartBvh.raycastFirst(ray, DoubleSide, 0, len - 0.05)) return false; return !(this.dyn && this.dyn.length && this._rayDyn && this._rayDyn(a, ray.direction, len - 0.05)); }
+      if (Math.abs(dx) < LOCAL && Math.abs(dy) < LOCAL && Math.abs(dz) < LOCAL) { const len = Math.hypot(dx, dy, dz); if (len < 0.01) return true; ray.origin.set(wrapX(a.x), a.y, a.z); ray.direction.set(dx / len, dy / len, dz / len); if (this.chartBvh.raycastFirst(ray, DoubleSide, 0, len - 0.05)) return false; return !(this.dyn && this.dyn.length && this._rayDyn && this._rayDyn(va.copy(ray.origin), ray.direction, len - 0.05)); }
       ar.rel(vc, a, b); const len = vc.length(); if (len < 0.01) return true; vc.multiplyScalar(1 / len); rayTo(0, a, vc, ray.origin, ray.direction);
       if (this.ringBvh.raycastFirst(ray, DoubleSide, 0, len - 0.05)) return false; return !dynHit(a, vc, len - 0.05);
     };
+    ar.groundY = function (x, z, yTop, maxD) { return proto.groundY.call(this, wrapX(x), z, yTop, maxD); };
     // which region is this: the rectangles of a ground sector and of the roofs standing in it overlap, so the nav mask has a say
     ar.roofAt = function (x, z, y = null) { x = wrapX(x); let best = -1, bd = 1e9; for (const r of this.roofs) { if (x < r.x0 - 0.35 || x > r.x1 + 0.35 || z < r.z0 - 0.35 || z > r.z1 + 0.35) continue; let d = y == null ? 0 : Math.abs(y - r.roofY); const k = this.cellAt(r, x, z); if (!(k >= 0 && r.m[k])) d += 1.2; if (d < bd) { bd = d; best = r.i; } } return bd < 4.7 || y == null ? best : -1; };
     // links: "walk" joins two ground sectors (and may cross the seam); a hub line is a straight cable through the middle of the wheel

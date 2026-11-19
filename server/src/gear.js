@@ -20,6 +20,7 @@ export const freshKit = (human, S) => { const on = (k) => (S && S[k] === false ?
 const r3 = (v) => Math.round(v * 1000) / 1000, r2 = (v) => Math.round(v * 100) / 100;
 const v3r = (v) => [r3(v.x), r3(v.y), r3(v.z)];
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const _sa = new V3(), _sb = new V3(), _sc = new V3();
 // which roof someone stands on: players report it with every move (roofI); bots keep their own (roof)
 export const roofOf = (a) => (a.human ? a.roofI : a.roof);
 
@@ -39,7 +40,7 @@ export function trajectory(arena, origin, vel) {
     }
     s.addScaledVector(step, h); c += a; if (s.y < (arena.ring ? -2 : 6)) break;   // below the street (city) / below the hull (ring)
   }
-  return { end: s, t: c };
+  return { end: arena.norm(s), t: c };   // on the ring a can may fly past the seam: it lands at its place on the chart
 }
 /** the decoy's stand-in "shooter": what bots hear and turn towards (the client's XM) */
 function fakeShooter(pos, by) {
@@ -59,7 +60,7 @@ export class ServerGear {
     const m = this.m; if (!a.alive || m.state !== 'live' || !m.weaponsFree) return this._resync(a);
     if (!a.kit || !(a.kit[kind] > 0) || (a.throwReady || 0) > m.time) return this._resync(a);
     const dir = new V3(...d); if (dir.lengthSq() < 0.5) return this._resync(a); dir.normalize();
-    const origin = new V3(...o); if (origin.distanceTo(a.eye()) > 2.2) origin.copy(a.eye());   // a hand far from the body is not believed
+    const origin = new V3(...o); if (m.arena.dist(origin, a.eye()) > 2.2) origin.copy(a.eye());   // a hand far from the body is not believed
     a.kit[kind]--; a.throwReady = m.time + 0.5;
     // send rounded numbers and fly the same rounded numbers here, so the client's copy of the path matches ours exactly
     const ov = v3r(origin), vv = v3r(throwVelocity(dir)); const tr = trajectory(m.arena, new V3(...ov), new V3(...vv));
@@ -74,7 +75,7 @@ export class ServerGear {
     const m = this.m, eye = a.eye(new V3()), ch = new V3(); let best = null, range = kind === 'knife' ? G.knifeRange : G.meleeRange;
     for (const p of m.actors) {
       if (p === a || !p.alive) continue; p.chest(ch);
-      const dx = ch.x - eye.x, dy = ch.y - eye.y, dz = ch.z - eye.z, dist = Math.hypot(dx, dy, dz); if (dist > range) continue;
+      const dx = m.arena.wrapD(ch.x - eye.x), dy = ch.y - eye.y, dz = ch.z - eye.z, dist = Math.hypot(dx, dy, dz); if (dist > range) continue;
       const cos = (dx * dir.x + dy * dir.y * 0.4 + dz * dir.z) / (dist || 1);
       if (dist > 0.9 && Math.acos(clamp(cos, -1, 1)) > G.meleeArc) continue;
       if (m.arena.los(eye, ch)) { range = dist; best = p; }
@@ -82,7 +83,7 @@ export class ServerGear {
     if (!best) return null;
     // from behind (the target faces away) or on someone playing dead: the heavy hit
     const yaw = best.aimYaw != null ? best.aimYaw : best.yaw; const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
-    const hx = a.pos.x - best.pos.x, hz = a.pos.z - best.pos.z, hd = Math.hypot(hx, hz) || 1;
+    const hx = m.arena.wrapD(a.pos.x - best.pos.x), hz = a.pos.z - best.pos.z, hd = Math.hypot(hx, hz) || 1;
     return { to: best, back: (fx * hx + fz * hz) / hd < -0.25 || (best.feignK || 0) > 0.5 };
   }
   meleeHit(a, hit, dir, kind) {
@@ -116,7 +117,7 @@ export class ServerGear {
     const people = m.actors.filter((h) => h.alive && !this.onShadow(h)), roofs = ar.roofs.filter((r) => r.i !== this.shadowRoof && r.cells && r.cells.length > 4);
     for (let k = 0; k < n; k++) {
       let p = null;
-      if (people.length && Math.random() < 0.42) { const f = people[(Math.random() * people.length) | 0], ang = Math.random() * 6.283, d = Math.random() * 2.6; p = new V3(f.pos.x + Math.cos(ang) * d, f.pos.y, f.pos.z + Math.sin(ang) * d); }
+      if (people.length && Math.random() < 0.42) { const f = people[(Math.random() * people.length) | 0], ang = Math.random() * 6.283, d = Math.random() * 2.6; p = ar.norm(new V3(f.pos.x + Math.cos(ang) * d, f.pos.y, f.pos.z + Math.sin(ang) * d)); }
       else if (roofs.length) { const r = roofs[(Math.random() * roofs.length) | 0]; p = ar.cellPos(r, r.cells[(Math.random() * r.cells.length) | 0], new V3()); }
       if (!p) continue;
       const warnAt = m.time + 0.5 + Math.random() * (level >= 2 ? 4.6 : 3.4);
@@ -139,7 +140,7 @@ export class ServerGear {
     for (let i = this.clouds.length - 1; i >= 0; i--) {
       const c = this.clouds[i]; if (now > c.until) { this.clouds.splice(i, 1); continue; }
       for (const a of m.actors) {
-        if (!a.alive) continue; const dx = a.pos.x - c.pos.x, dz = a.pos.z - c.pos.z, dy = a.pos.y - c.pos.y;
+        if (!a.alive) continue; const dx = m.arena.wrapD(a.pos.x - c.pos.x), dz = a.pos.z - c.pos.z, dy = a.pos.y - c.pos.y;
         if (!(dx * dx + dz * dz < G.gasR * G.gasR && dy > -1.6 && dy < G.gasH)) continue;
         a.gasT = now; const acc = (c.acc.get(a) || 0) + G.gasDps * dt;
         if (acc >= 4) { c.acc.set(a, 0); m.damage(a, acc, c.by === a || !c.by ? null : c.by, { cause: 'gas' }); } else c.acc.set(a, acc);
@@ -156,9 +157,10 @@ export class ServerGear {
   }
   /** does a smoke cloud sit on the sight line a -> b? (bots can't see through it; the client's smokeCut) */
   smokeCut(a, b) {
+    if (!this.smokes.length) return false; const ar = this.m.arena, d = ar.rel(_sa, a, b), L = d.lengthSq() || 1;
     for (const c of this.smokes) {
-      const cx = c.pos.x, cy = c.pos.y + 1.2, cz = c.pos.z, dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L = dx * dx + dy * dy + dz * dz || 1;
-      const k = clamp(((cx - a.x) * dx + (cy - a.y) * dy + (cz - a.z) * dz) / L, 0, 1), px = a.x + dx * k - cx, py = a.y + dy * k - cy, pz = a.z + dz * k - cz;
+      const q = ar.rel(_sb, a, _sc.set(c.pos.x, c.pos.y + 1.2, c.pos.z));
+      const k = clamp(q.dot(d) / L, 0, 1), px = d.x * k - q.x, py = d.y * k - q.y, pz = d.z * k - q.z;
       if (px * px + py * py * 0.6 + pz * pz < G.smokeR * G.smokeR) return true;
     }
     return false;
@@ -179,10 +181,10 @@ export class ServerGear {
       const s = this.strikes[i];
       if (!s.warned && now >= s.warnAt) {
         s.warned = true; m.events.push({ t: 'amark', p: [r2(s.pos.x), r2(s.pos.y), r2(s.pos.z)], at: r3(s.at) });
-        for (const b of m.bots) if (b.alive && !b.link && Math.hypot(b.pos.x - s.pos.x, b.pos.z - s.pos.z) < 2.6 && Math.abs(b.pos.y - s.pos.y) < 2.5) { try { b.crouch = false; b._relocate(null); } catch { /* keep going */ } }
+        for (const b of m.bots) if (b.alive && !b.link && Math.hypot(m.arena.wrapD(b.pos.x - s.pos.x), b.pos.z - s.pos.z) < 2.6 && Math.abs(b.pos.y - s.pos.y) < 2.5) { try { b.crouch = false; b._relocate(null); } catch { /* keep going */ } }
       }
       if (now < s.at) continue; this.strikes.splice(i, 1);
-      const hit = m.actors.filter((a) => a.alive && !this.onShadow(a) && Math.hypot(a.pos.x - s.pos.x, a.pos.z - s.pos.z) <= G.strikeR && Math.abs(a.pos.y - s.pos.y) <= 2.4 && m.arena.los(s.eye, a.chest(new V3())));
+      const hit = m.actors.filter((a) => a.alive && !this.onShadow(a) && Math.hypot(m.arena.wrapD(a.pos.x - s.pos.x), a.pos.z - s.pos.z) <= G.strikeR && Math.abs(a.pos.y - s.pos.y) <= 2.4 && m.arena.los(s.eye, a.chest(new V3())));
       m.events.push({ t: 'ahit', p: [r2(s.pos.x), r2(s.pos.y), r2(s.pos.z)] });
       for (const a of hit) m.damage(a, G.strikeDmg, null, { cause: 'angel' });
     }
@@ -193,30 +195,30 @@ export class ServerGear {
     if (b.gasT != null && now - b.gasT < 0.3 && (b._gasRun || 0) < now && !b.link) { b._gasRun = now + 1.6; try { b.crouch = false; b._relocate(null); } catch { /* keep going */ } }
     b._thinkG = (b._thinkG || Math.random()) - dt; if (b._thinkG > 0) return; b._thinkG = 0.35;
     const t = b.target; if (!t || !t.alive || b.link) return;
-    const dist = t.pos.distanceTo(b.pos);
+    const dist = m.arena.dist(t.pos, b.pos);
     // a player sprinting close by is heard: look that way
     for (const h of m.actors) {
       if (h === b || !h.alive || !h.human || (m.teams && h.team === b.team) || (h.speed || 0) < 5.6 || (h.crouchK || 0) > 0.5) continue;
-      if (h.pos.distanceTo(b.pos) < 8 && b.state === 'scan') { b.lookAt.copy(h.pos).setY(h.pos.y + 1.2); const mm = b.mem && b.mem.get(h); if (mm) mm.aw = Math.min(1.4, mm.aw + 0.2); }
+      if (m.arena.dist(h.pos, b.pos) < 8 && b.state === 'scan') { b.lookAt.copy(h.pos).setY(h.pos.y + 1.2); const mm = b.mem && b.mem.get(h); if (mm) mm.aw = Math.min(1.4, mm.aw + 0.2); }
     }
     if (dist < 1.6 && (b._meleeAt || 0) < now && m.weaponsFree && (b.mag === 0 || b.reloadT > 0 || Math.random() < 0.35)) {
-      b._meleeAt = now + 1.6; const dir = t.chest(new V3()).sub(b.eye(new V3())).normalize();
+      b._meleeAt = now + 1.6; const dir = m.arena.rel(new V3(), b.eye(new V3()), t.chest(new V3())).normalize();
       const kind = (m.S && m.S.hammer === false) || this.hammerLeft(b) <= 0 ? 'knife' : 'hammer';   // meleeAllowed refuses whichever the room switched off
       if (this.meleeAllowed(b, kind)) this.meleeHit(b, this.meleeTarget(b, dir, kind), dir, kind); return;
     }
     if (!b.kit || !(b.kit.gas > 0) || !m.weaponsFree || dist < 9 || dist > 34) return;
     const mem = b.mem && b.mem.get(t); if (!mem || now - mem.seen > 2.5) return;
-    if (!b._camp || b._camp.a !== t || b._camp.p.distanceTo(t.pos) > 2.2) { b._camp = { a: t, p: t.pos.clone(), t: now }; return; }
+    if (!b._camp || b._camp.a !== t || m.arena.dist(b._camp.p, t.pos) > 2.2) { b._camp = { a: t, p: t.pos.clone(), t: now }; return; }
     if (now - b._camp.t < 9 + b.id * 1.3) return;
     const eye = b.eye(new V3()), dir = this._lob(eye, t.pos); if (dir) { this.throw(b, 'gas', [eye.x, eye.y, eye.z], [dir.x, dir.y, dir.z]); b._camp = null; }
   }
   /** the throw angle (of 17 tried) whose landing is nearest the target */
   _lob(from, to) {
-    const flat = new V3(to.x - from.x, 0, to.z - from.z), n = flat.length(); if (n < 1) return null; flat.multiplyScalar(1 / n);
+    const ar = this.m.arena, flat = new V3(ar.wrapD(to.x - from.x), 0, to.z - from.z), n = flat.length(); if (n < 1) return null; flat.multiplyScalar(1 / n);
     let best = null, bd = 3; const a = new V3();
     for (let c = 0; c < 17; c++) {
       const el = -1.15 + c * 0.125; a.set(flat.x * Math.cos(el), Math.sin(el), flat.z * Math.cos(el));
-      const tr = trajectory(this.m.arena, from, throwVelocity(a, new V3())); const d = Math.hypot(tr.end.x - to.x, tr.end.z - to.z) + Math.abs(tr.end.y - to.y) * 0.5;
+      const tr = trajectory(ar, from, throwVelocity(a, new V3())); const d = Math.hypot(ar.wrapD(tr.end.x - to.x), tr.end.z - to.z) + Math.abs(tr.end.y - to.y) * 0.5;
       if (d < bd) { bd = d; best = a.clone(); }
     }
     return best;

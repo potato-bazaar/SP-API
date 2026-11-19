@@ -61,7 +61,8 @@ export class Match {
     // halo schedule scaled to the room's time limit
     const Z = world.arena.zone; const k = settings.timeLimit / Z.duration; this.Z = { center: Z.center, duration: settings.timeLimit, phases: Z.phases.map(p => ({ ...p, t: p.t * k, shrink: (p.shrink || 0) * Math.min(1.6, k) })) };
     // on the ring the halo closes somewhere different each match (the angel hangs over that spot); C, k, r1 give it its stretched shape (zoneD)
-    const zc = ring && Z.centers && Z.centers.length ? Z.centers[(Math.random() * Z.centers.length) | 0] : Z.center;
+    const zl = ring ? (MODES[settings.mode].teams && Z.teamCenters && Z.teamCenters.length ? Z.teamCenters : Z.centers) : null;   // teams: neutral ground between the two halves
+    const zc = zl && zl.length ? zl[(Math.random() * zl.length) | 0] : Z.center;
     this.zone = { cx: zc[0], cz: zc[1], r: Z.r0, nextR: Z.r0, phase: 0, shrinking: false, toNext: 60, phaseAge: 0, dps: 0, total: Z.phases.length };
     if (ring) { Object.assign(this.zone, { C: ring.C, k: Z.ring.k, r1: Z.ring.r1 }); this.arena.setZone(zc[0], zc[1]); }
     this.angel = { eye: new V3(this.zone.cx, 71.5, this.zone.cz), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
@@ -112,7 +113,7 @@ export class Match {
       const k = r.cells[(Math.random() * r.cells.length) | 0]; const c = ar.cellPos(r, k, new V3()); if (zoneD(z, c.x, c.z, sr) > sr) continue;
       let s = Math.random() * 4; let dmin = 1e9;
       for (const f of foes) { const d = ar.dist(f.pos, c); dmin = Math.min(dmin, d); if (d < 60 && ar.los(f.eye(_e), _q.set(c.x, c.y + 1.4, c.z))) s -= 40; }
-      s += Math.min(dmin, 50) * 0.8; if (this.teams) for (const m of this.actors) if (m.alive && m !== a && m.team === a.team) s += Math.max(0, 25 - m.pos.distanceTo(c)) * 0.3;
+      s += Math.min(dmin, 50) * 0.8; if (this.teams) for (const m of this.actors) if (m.alive && m !== a && m.team === a.team) s += Math.max(0, 25 - ar.dist(m.pos, c)) * 0.3;
       if (s > bs) { bs = s; best = { c, r }; }
     }
     if (!best) { let r = ar.spawns[(Math.random() * ar.spawns.length) | 0]; if (ar.ring) for (const s of ar.spawns) if (zoneD(z, s.spawnPt[0], s.spawnPt[2], 0) < zoneD(z, r.spawnPt[0], r.spawnPt[2], 0)) r = s;   // nothing free inside: the nearest spawn to the halo
@@ -258,7 +259,7 @@ export class Match {
     if (st.mag <= 0) return this.events.push({ t: 'deny', id: a.netId, why: 'empty', ammo: this._ammo(a) });
     if (this.time < st.ready - 0.12) return this.events.push({ t: 'deny', id: a.netId, why: 'cycle', ammo: this._ammo(a) });
     const origin = new V3(...m.o), dir = new V3(...m.d); if (dir.lengthSq() < 0.5) return; dir.normalize();
-    if (origin.distanceTo(a.eye()) > 2.2) origin.copy(a.eye());                                   // a camera far from the body is not believed
+    if (this.arena.dist(origin, a.eye()) > 2.2) origin.copy(a.eye());                              // a camera far from the body is not believed
     st.mag--; st.ready = this.time + W.cycle;
     this.power.shotAt(a, origin, dir, W);   // an enemy drone in the way takes the round's damage
     // rewind everyone else to where the shooter saw them, fire through the shared routine, then put them back

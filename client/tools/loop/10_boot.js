@@ -1,6 +1,8 @@
 /* ---------- RING: LOOP CITY, a city bent into a wheel. The idea is written up in client/src/ring.js (pasted above, same code the server runs). ---------- */
-var SCLOOP=!1,RK=null,RQ=new I,RYO=new I,RYD=new I;
+var SCLOOP=!1,RK=null,RAR=null,RQ=new I,RYO=new I,RYD=new I;
 function ZD(Z,x,z,r){return zoneD(Z,x,z,r)}
+// how far apart two places are: on the ring the straight line through the wheel (so nothing counts the seam), on the city map the plain distance
+function RDL(a,b){return RAR?RAR.dist(a,b):a.distanceTo(b)}
 function RINGBOOT(){
   flatArena(au.prototype);
   zt.sc_roll="vec3 scRoll(vec3 p){ return p; }";

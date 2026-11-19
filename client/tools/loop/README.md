@@ -28,7 +28,15 @@ The artist's model is a flat city run through a bend. We un-bend it and play on 
   ring.js): the whole ring at the start, a plain circle at the end. It closes at one of `zone.centers`, chosen
   per match (the server sends it in `start` as `zc`); the angel hangs over that spot.
 - **The seam** (x = +-C/2) is in the middle of a park. Positions are normalised into [-C/2, C/2) each tick,
-  chart collision is repeated 16 m past the seam, differences use `wrapD`.
+  chart collision is repeated 16 m past the seam, and short rays, sight lines and `groundY` take any x. The
+  rule for everything else: a difference between two places is taken the short way round (`wrapD`), or
+  better, asked of the arena (`rel`, `dist`). The halo never closes on the park at the seam (`zone.centers`
+  leaves it out), so the last fight is always well away from it.
+- **Which line?** Two different things are both called "the line from a to b". On the chart it is the line
+  between two sets of numbers; in the wheel it is the straight line a round flies. They agree for a few
+  metres and are tens of metres apart across a district. Anything that flies or is aimed (a shot, a rocket,
+  a tracer, "what is under the crosshair") uses the wheel's line. Anything that walks (bots, the blind one,
+  the dog) uses the chart, because the chart is the floor.
 
 ## Files
 
@@ -39,7 +47,7 @@ The artist's model is a flat city run through a bend. We un-bend it and play on 
 | client changes to the bundle | `client/tools/loop/*.js` + `patch_game.py` |
 | server | `server/src/world.js` (`loadWorld('loop')`), `engine.js`, `rules.js` (`map`), `rooms.js` |
 | data in `client/dist` | `loop.txt` (geometry pack), `loop_t*.jpg`, `loop_leaf.png`, `loop_shade.jpg`, `arena-loop.json` |
-| tests | `server/test/loop.test.mjs`, `server/test/loop.smoke.mjs` |
+| tests | `server/test/loop.test.mjs` (geometry, the seam, rockets, teams, sockets), `server/test/loop.smoke.mjs` (whole matches) |
 
 `python3 -I client/tools/pack_loop.py <space_loop_city.glb> client/dist` rebuilds the data (about 2 minutes).
 It unrolls the model, writes the pack and greyscale textures, bakes a top-down light map, and works out the
@@ -60,9 +68,45 @@ says which maps it has in `hello.maps`; older clients cannot join a loop room an
 guest who opens an invite for a room on the other map is switched to it and rejoins by the room code in the
 address. Movement is checked across the seam and along hub lines (`hubLineOff`).
 
+Teams start in opposite halves of the wheel (`teamSpawns`: each from the middle of its district outwards),
+so each side sees the other overhead, and their halo closes on the park between the halves
+(`zone.teamCenters`). Free-for-all picks any of `zone.centers`.
+
+What a client draws of other people's play follows the same rules as solo: `netFire` (your own round),
+the `shot` event (everyone else's: tracer, blood, the mark on the wall, the crack of a near miss), decoy
+shots, rockets (`rocketPath` on the server and `_rpgAdv` on the client take the same steps: checked to
+agree to the last digit), the drone and the missile (which falls from the hub: the ring has no sky for the
+plane). The upper limit on looking up is 88.5 degrees on the ring (86 on the city map), because the other
+team is nearly straight overhead.
+
+## Things the ring got wrong before they were looked at
+
+Worth knowing if you add a feature. Each of these worked on the city map and failed on the ring:
+
+- probing "what is the highest thing here" from 160 m up: that is past the hub, the ray returns the axle
+  (the blind one climbed into the sky). Probe from `ring.R - 6`.
+- testing a round against something small (an egg, the blind one, a dog, a drone) with the segment between
+  two chart points. Use `arena.rel` for both ends.
+- replacing `arena.raycast` and then `delete`-ing the replacement (the AWM's through-walls shot): on the ring
+  the arena carries its own `raycast`, so put the old one back instead.
+- clamping a view or a target to the city's +-80 m (the missile strike).
+- any `a.distanceTo(b)` or `Math.hypot(a.x - b.x, ...)` between two places: wrong by a whole ring across
+  the seam. `RDL(a, b)` in the bundle, `arena.dist` / `arena.wrapD` on the server.
+
 ## Not done yet
 
-- RPG rockets fly along the chart (they follow the curve of the ring rather than a straight line).
-- The missile-strike view and the drone work, but were only checked for not breaking.
 - No canopies or other overhead cover were added: the angel sees nearly everyone who is not on its shadow roof.
 - Trees are thinned to 60 % (and to 30 % on phones); nothing else is scaled for weak devices.
+- Crates and panels exist on the players' screens only, as on the city map: the server does not stop a shot with them.
+- The bullets of the solo rifle fall toward the floor of the frame they were fired in, not toward the floor
+  under them (nobody will notice under 300 m).
+- On the city map a near miss by another player has never made its sound online (the handler overwrites the
+  shot's origin before using it). The ring's branch is right; the city's was left as it is.
+- Never run on a real phone or a real graphics card. In headless Chrome (software drawing, so only the comparison
+  counts) the loop draws about 345 calls a frame, the same as the city, with half the triangles.
+
+## Cost on the server
+
+Measured with `node` on the test machine: the loop world loads in about 0.3 s and adds about 58 MB; a match of
+eight bots costs 0.13 ms a tick (the city: 0.16 ms). The server loads the loop a moment after it starts
+(`loopWarm` in `server/src/server.js`), so the first loop room does not stall a match that is already running.
