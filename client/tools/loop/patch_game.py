@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
@@ -236,7 +236,7 @@ R('this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,6)),','this.fx.threads.ad
 R('this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,6)),','this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,SCLOOP?.4:6)),')
 # ---- the menu on the loop shows the wheel (RLOBBY in 70_lobby.js)
 R('const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;',
-  'const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;if(SCLOOP){RLOBBY(g,cam,t,T,s,light);return}')
+  'const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;if(RSAFE(g,cam,t,T,s,light))return;if(SCLOOP){RLOBBY(g,cam,t,T,s,light);return}')
 # ---- the store sells GRAPHITE (free), and the arsenal lists it
 R('store:()=>pan(`<h2>STORE</h2><p>Nothing here costs real money.</p>','store:()=>{pan(`<h2>STORE</h2><p>Nothing here costs real money.</p>${RGSTORE()}')
 R('A store that sells looks for XP comes with player accounts.</p>`),','A store that sells looks for XP comes with player accounts.</p>`);RGWIRE(PANELS.store)},')
