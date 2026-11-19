@@ -4,7 +4,7 @@
  "id": "/",
  "start_url": "./",
  "scope": "./",
- "description": "Eight snipers on the rooftops of one Hong Kong block. Free, in your browser.",
+ "description": "Eight snipers on Hong Kong rooftops or the Loop City ring. Free, in your browser.",
  "display": "fullscreen",
  "display_override": ["fullscreen", "standalone"],
  "orientation": "landscape",

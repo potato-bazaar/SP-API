@@ -46,5 +46,6 @@ function RGSTORE(){return`<div style="display:flex;gap:16px;align-items:center;b
 <p style="margin:0 0 10px">Carbon weave and black gunmetal, cut with red. Replaces the look of your rifle; it shoots the same.</p>
 <div style="display:flex;gap:10px;align-items:center"><b style="color:var(--lime,#c8f31d);letter-spacing:.14em">FREE</b>
 <button type="button" id="rg-eq" style="padding:8px 16px;font:800 13px/1 inherit;letter-spacing:.14em;border:0;cursor:pointer;background:${RGS.on?"rgba(242,242,239,.15)":"var(--lime,#c8f31d)"};color:${RGS.on?"#fff":"#050505"}">${RGS.on?"UNEQUIP":"EQUIP"}</button>
-${RGS.on?'<span style="color:var(--lime,#c8f31d);letter-spacing:.14em;font-size:12px">EQUIPPED</span>':""}</div></div></div>`}
+${RGS.on?'<span style="color:var(--lime,#c8f31d);letter-spacing:.14em;font-size:12px">EQUIPPED</span>':""}
+<button type="button" id="rg-ws" style="padding:8px 0;font:600 13px/1 inherit;letter-spacing:.12em;border:0;border-bottom:2px solid #e0182d;cursor:pointer;background:none;color:#fff">SEE IT IN THE WORKSHOP</button></div></div></div>`}
 function RGWIRE(open){const b=document.getElementById("rg-eq");b&&b.addEventListener("click",()=>{RGS.set&&RGS.set(!RGS.on);open&&open()})}
