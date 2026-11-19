@@ -42,7 +42,8 @@ class Room {
   slots() { return slotsFor(this.settings); }
   teamsOn() { return MODES[this.settings.mode].teams; }
   teamCounts() { const c = [0, 0]; for (const m of this.members.values()) c[m.team]++; return c; }
-  add(session) {
+  /** @param {string} [wantMap] the map this client has loaded right now (join.map); if it is the other map, they must reload into ours first */
+  add(session, wantMap) {
     if (this.members.has(session.id)) { // reconnect: same token, same slot, same sniper
       const m = this.members.get(session.id); m.conn = session; m.maps = session.maps || ['city']; session.room = this; this.broadcastRoom();
       if (this.match && this.state !== 'lobby') { const a = this.match.byId.get(session.id); if (a && a.human) a.lastSeq = -1;   // the client counts its moves from 0 again
@@ -50,6 +51,8 @@ class Room {
       return m; }
     if (this.banned.has(session.id)) throw new UserError('The host removed you from this room.');
     if (this.settings.map !== 'city' && !(session.maps || []).includes(this.settings.map)) throw new UserError('That room plays on LOOP CITY. Reload the page to get the new map, then join again.');
+    // wrong page loaded: tell the client which map to open (it reloads and rejoins by the room code)
+    if (wantMap && wantMap !== this.settings.map) throw new UserError(`MAPSWITCH:${this.settings.map}`);
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
     if (this.state !== 'lobby') throw new UserError('That match has already started. Ask the host to bring the room back to the lobby.');
     const c = this.teamCounts(); const m = { id: session.id, name: session.name, op: session.op | 0, team: this.teamsOn() ? (c[0] <= c[1] ? 0 : 1) : 0, ready: false, conn: session, leftAt: 0, maps: session.maps || ['city'] };

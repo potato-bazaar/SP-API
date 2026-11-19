@@ -143,7 +143,8 @@ test('a room on the loop: only clients that have the map get in, the host can ch
   const host = await client('Greg', ['city', 'loop']), old = await client('Old'), guest = await client('Raj', ['city', 'loop']);
   host.send({ t: 'create', settings: { map: 'loop', bots: 2 } }); const r1 = await host.wait(m => m.t === 'room'); assert.equal(r1.settings.map, 'loop');
   old.send({ t: 'join', code: r1.code }); assert.match((await old.wait(m => m.t === 'error')).msg, /LOOP CITY/);
-  guest.send({ t: 'join', code: r1.code, map: 'city' }); const r2 = await guest.wait(m => m.t === 'room' && m.members.length === 2); assert.equal(r2.settings.map, 'loop');
+  guest.send({ t: 'join', code: r1.code, map: 'city' }); assert.match((await guest.wait(m => m.t === 'error')).msg, /^MAPSWITCH:loop$/);
+  guest.send({ t: 'join', code: r1.code, map: 'loop' }); const r2 = await guest.wait(m => m.t === 'room' && m.members.length === 2); assert.equal(r2.settings.map, 'loop');
   // the host can change the map in the lobby when every page in the room has it (the pages reload into it and come back)
   guest.send({ t: 'ready', v: true }); await host.wait(m => m.t === 'room' && m.members.find(x => x.id === guest.me.id).ready);
   host.send({ t: 'settings', patch: { map: 'city' } }); const r3 = await guest.wait(m => m.t === 'room' && m.settings.map === 'city'); assert.equal(r3.members.find(x => x.id === guest.me.id).ready, false, 'a new map clears ready');
