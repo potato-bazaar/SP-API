@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
 # ---- no roof lamps on the loop
@@ -240,6 +240,18 @@ R('const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage
 # ---- the store sells GRAPHITE (free), and the arsenal lists it
 R('store:()=>pan(`<h2>STORE</h2><p>Nothing here costs real money.</p>','store:()=>{pan(`<h2>STORE</h2><p>Nothing here costs real money.</p>${RGSTORE()}')
 R('A store that sells looks for XP comes with player accounts.</p>`),','A store that sells looks for XP comes with player accounts.</p>`);RGWIRE(PANELS.store)},')
+# ---- the colour grade (95_grade.js): grey is no longer plain grey. Luminance runs along a ramp of four colours
+# (shadow, middle, light, the brightest lights), so a map can be a blue storm night or a green rain haze. Red, gas green and
+# zipline cyan stay what they were.
+R('void main() {\n  vec2 uv = vUv;\n  // zone glitch',
+  'uniform vec3 uG0, uG1, uG2, uGW; uniform float uGA;\nvec3 gradeC(float l) { l = clamp(l, 0.0, 1.25); vec3 c = mix(uG0, uG1, smoothstep(0.0, 0.42, l)); c = mix(c, uG2, smoothstep(0.36, 0.80, l)); c = mix(c, uGW, smoothstep(0.78, 1.02, l)); return mix(vec3(l), c * (0.35 + 0.65 * smoothstep(0.0, 0.06, l)), uGA); }\nvoid main() {\n  vec2 uv = vUv;\n  // zone glitch')
+R('vec3 outc = mix(vec3(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);','vec3 outc = mix(gradeC(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);')
+R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},')
+# lit windows burn warm: the buildings' own and the skyline's. The last pass keeps that warmth (as it keeps red and cyan).
+R('em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.78)) * on * tw','em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.95, 0.70, 0.30)) * on * tw')
+R('vec3(0.42 + 0.5 * skHash(cell + 3.1))) * lit','vec3(1.0, 0.76, 0.36) * (0.42 + 0.5 * skHash(cell + 3.1))) * lit')
+R('float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);',
+  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ').replace('export const ','const ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
