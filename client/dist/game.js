@@ -4618,7 +4618,7 @@ function OPS(g){
   const ensure=()=>{(!stage||stage.some((s,i)=>!s&&g.protos[i]))&&(stage&&stage.forEach(s=>s&&S.remove(s.rig.root)),build())};
   const dark=()=>{stage&&stage.forEach(s=>s&&(s.rig.root.visible=!1));light&&(light.intensity=0)};
   {let u0=g.update.bind(g);g.update=t=>{g.state!=="title"&&stage&&!dark.d?(dark(),dark.d=1):g.state==="title"&&(dark.d=0);u0(t)}}
-  const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;
+  const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;if(SCLOOP){RLOBBY(g,cam,t,T,s,light);return}
     let a=g.angel&&g.angel.eye,dx=(a?a.x:0)-s.at.x,dz=(a?a.z:0)-s.at.z,L=Math.hypot(dx,dz)||1;dx/=L;dz/=L;let rx=-dz,rz=dx,sw=Math.sin(T*.17)*.35;
     s.rig.update(t,{aim:!0,crouch:!0,pitch:.1+Math.sin(T*.5)*.03,twist:Math.sin(T*.33)*.22,speed:0,moveDir:fwd,mode:"ground"});
     s.rig.root.position.copy(s.at);s.rig.root.rotation.y=Math.atan2(dx,dz);s.rig.root.updateMatrixWorld(!0);
@@ -5562,6 +5562,25 @@ function RMENU(g){
     b.innerHTML=`<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/></svg><div><b>${loop?"LOOP":"CITY"}</b><span>MAP · CHANGE</span></div>`+(loop?"":`<i style="position:absolute;top:-7px;right:-6px;background:var(--lime,#c8f31d);color:#050505;font:800 10px/1 sans-serif;font-style:normal;letter-spacing:.08em;padding:3px 5px">NEW</i>`);
     chips.appendChild(b)}catch(e){}
 }
+
+// The menu on LOOP CITY shows the wheel. Your operator walks down the long street that runs all the way round the ring
+// (z = 19.8: nothing stands in it for the whole 640 m) and the camera follows a few steps behind. Ahead, the street
+// curves up and comes back overhead; the camera slowly tilts between the road and the far side of the wheel.
+var RLB=null;
+function RLOBBY(g,cam,t,T,s,light){
+  const ar=g.arena;
+  if(!RLB){RLB={x0:-210+Math.random()*120,z:19.8};const u0=g.update.bind(g);g.update=t=>{RCB&&(RCB.mesh.visible=g.state!=="title");return u0(t)}}   // no cables across the picture on the menu
+  const wide=innerWidth>innerHeight,x=ar.wrapX(RLB.x0+1.55*T),gy=ar.groundY(x,RLB.z,3,8),y=gy==null?.11:gy;
+  s.rig.update(t,{aim:!1,crouch:!1,pitch:.05,twist:Math.sin(T*.4)*.08,speed:2.1,moveDir:new I(0,0,1),mode:"ground"});
+  s.rig.root.position.set(x,y,RLB.z);s.rig.root.rotation.y=Math.PI/2;s.rig.root.updateMatrixWorld(!0);
+  const k=.5-.5*Math.cos(T*TAUL/34),pitch=.05+.38*k;   // every 34 s: down the road, up to the far side, and back
+  const fov=wide?62:76;cam.fov!==fov&&(cam.fov=fov,cam.updateProjectionMatrix());
+  const back=5.6+k*.6,side=wide?-1.5:-.4,hgt=1.45+k*.7+Math.sin(T*.9)*.03;   // the operator walks right of the middle, between the menu's columns
+  cam.position.set(ar.wrapX(x-back),y+hgt,RLB.z+side);
+  RLOOK(g,cam,ar.wrapX(x+40),y+hgt+40*Math.tan(pitch),RLB.z+side*.4);
+  light&&light.position.set(x-1.6,y+2.6,RLB.z-1.2);
+}
+var TAUL=Math.PI*2;
 
 
 /* ---------- Google Analytics events (the tag itself is in each page's head). What players do, never who they

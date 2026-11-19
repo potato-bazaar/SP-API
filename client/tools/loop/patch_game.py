@@ -231,6 +231,9 @@ R('n.rotation.set(this.pitch+this.kick+this.swayY+Math.sin(this.hurtT*40)*this.h
 R('wristPos(t,e){return this.wrists[t%this.wrists.length].getWorldPosition(e)}','wristPos(t,e){let w=this.wrists[t%this.wrists.length].getWorldPosition(e);return SCLOOP?this.g.arena.unsee(w,w,this.root.position.x):w}')
 R('this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,6)),','this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,SCLOOP?.4:6)),')
 R('this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,6)),','this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,SCLOOP?.4:6)),')
+# ---- the menu on the loop shows the wheel (RLOBBY in 70_lobby.js)
+R('const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;',
+  'const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;if(SCLOOP){RLOBBY(g,cam,t,T,s,light);return}')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
