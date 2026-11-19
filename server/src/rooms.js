@@ -6,9 +6,9 @@ import { loadWorld } from './world.js';
 
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I: codes are read out loud
 const CODE_LEN = 5;
-const RECONNECT_GRACE = 45_000;                         // a dropped player keeps their slot (and their sniper) this long
+const RECONNECT_GRACE = 120_000;                        // a dropped player keeps their slot (and their sniper) this long — mobile tabs and brief drops need more than a few seconds
 const EMPTY_TTL = 60_000;
-const HOST_GRACE = 10_000;
+const HOST_GRACE = 45_000;                              // don't pass the crown on a short blip (WS drops often recover in under half a minute)
 const id = () => crypto.randomBytes(6).toString('base64url');
 // a socket session can take pre-encoded JSON (raw); anything else (tests, tools) gets the object
 const deliver = (conn, msg, str) => (conn.raw ? conn.raw(str) : conn.send(msg));

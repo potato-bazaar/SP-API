@@ -136,6 +136,9 @@ wss.on('connection', (ws, req) => {
   });
   ws._pongAt = Date.now(); rttPing(ws);
   ws.on('message', (data, isBinary) => {
+    // any inbound frame means the socket is alive: some proxies / mobile browsers delay or drop WS ping/pong
+    // while still delivering game traffic, and terminating those looked like a random kick from the room
+    ws._pongAt = Date.now();
     if (isBinary || --s.budget < 0) return;
     let raw; try { raw = JSON.parse(data.toString()); } catch { return; }
     const p = ClientMsg.safeParse(raw); if (!p.success) { if (raw && (raw.t === 'settings' || raw.t === 'create')) s.send({ t: 'error', msg: 'Those settings are not allowed.' }); else if (raw && (raw.t === 'name' || raw.t === 'hello')) s.send({ t: 'error', msg: 'Names are 1-16 letters, numbers, spaces, _ . -' }); else if (raw && raw.t === 'join') s.send({ t: 'error', msg: 'Room codes are 5 letters and numbers.' }); else if (raw && raw.t !== 'in') s.send({ t: 'error', msg: 'bad message' }); return; }
@@ -165,8 +168,8 @@ function handle(s, m) {
   if (m.t === 'rtc') { if (s.room) s.room.rtc(s, m); return; }
   if (m.t === 'op') { s.op = m.k; if (s.room) s.room.setOp(s, m.k); return; }
   if (m.t === 'name') { s.name = m.name; if (s.room) s.room.setName(s, m.name); return; }
-  if (m.t === 'create') { if (s.room) s.room.remove(s.id); const r = lobby.create(s, m.settings); return; }
-  if (m.t === 'join') { const r = lobby.find(m.code); if (!r) throw new UserError('No room with that code. Check the letters and try again.'); if (s.room && s.room !== r) s.room.remove(s.id); r.add(s, m.map); return; }
+  if (m.t === 'create') { if (s.room) s.room.remove(s.id, 'switch'); const r = lobby.create(s, m.settings); return; }
+  if (m.t === 'join') { const r = lobby.find(m.code); if (!r) throw new UserError('No room with that code. Check the letters and try again.'); if (s.room && s.room !== r) s.room.remove(s.id, 'switch'); r.add(s, m.map); return; }
   const r = s.room; if (!r) throw new UserError('You are not in a room.');
   switch (m.t) {
     case 'leave': r.remove(s.id); break;
@@ -184,14 +187,14 @@ function handle(s, m) {
 
 // Round-trip times for lag compensation, measured here: every 2 s each socket gets a WebSocket ping carrying a
 // sequence number. Browsers answer pings by themselves (no game code involved), so this times the network, not a
-// figure the client chose. A socket that hasn't answered anything for 20 s is dead and gets dropped.
+// figure the client chose. A socket with no pong AND no inbound game traffic for 60 s is dead and gets dropped.
 function rttPing(ws) {
   ws._pingSeq = ((ws._pingSeq || 0) + 1) >>> 0; ws._pingSent = performance.now();
   const b = Buffer.alloc(4); b.writeUInt32LE(ws._pingSeq); try { ws.ping(b); } catch { /* socket closing */ }
 }
 setInterval(() => {
   const now = Date.now();
-  for (const ws of wss.clients) { if (now - (ws._pongAt || now) > 20_000) { ws.terminate(); continue; } rttPing(ws); }
+  for (const ws of wss.clients) { if (now - (ws._pongAt || now) > 60_000) { ws.terminate(); continue; } rttPing(ws); }
 }, 2_000);
 setInterval(() => lobby.sweep(), 5_000);
 // forget tokens that are idle and hold nothing: otherwise every new visitor adds one for the life of the process
