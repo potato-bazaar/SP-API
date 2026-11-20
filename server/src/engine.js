@@ -7,7 +7,7 @@ import { WEAPONS, fireShot, rayActors } from '../../client/src/combat.js';
 import { rifleWith } from '../../client/src/parts.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world.js';
-import { glassInstall } from '../../client/src/glass.js';
+import { glassInstall, glassView } from '../../client/src/glass.js';
 import { MODES } from './rules.js';
 import { zoneD, ringWalls, doorSpots, DOOR } from '../../client/src/ring.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
@@ -54,10 +54,13 @@ class Human {
 export class Match {
   /** @param {{arena:any,bvh:any}} world @param {any} settings @param {{id:string,name:string,team:number,bot?:boolean}[]} roster */
   constructor(world, settings, roster, emit) {
-    this.headless = true; this.S = settings; this.emit = emit; this.arena = new Arena(world.arena, world.bvh);
+    this.headless = true; this.S = settings; this.emit = emit;
+    // GLASS CITY: every match on the map shares one collision tree (world.js); each sees it through its own view of what is broken
+    const view = world.glassSolid ? glassView(world.bvh, world.glassSolid) : null;
+    this.arena = new Arena(world.arena, view || world.bvh);
     const ring = world.ring ? world.RK.ringify(this.arena, world.ring).ring : null;   // LOOP CITY: the arena learns the ring (client/src/ring.js)
     if (world.glassSolid) {                                                          // GLASS CITY: panes bounce and break (client/src/glass.js)
-      glassInstall(this.arena, world.glassSolid, V3);
+      glassInstall(this.arena, world.glassSolid, V3, view);                           // (view: a pane this match breaks is gone for this match only; nothing is written into the shared mesh)
       const A = this.arena, rc = A.raycast.bind(A);                                   // panes have no winding: face whatever met the ray (same wrap as 22_glass.js)
       A.raycast = (o, d, m) => { const h = rc(o, d, m); if (h && h.face && h.face.normal.dot(d) > 0) h.face.normal.negate(); return h; };
     }
@@ -75,11 +78,12 @@ export class Match {
     this.angel = { eye: new V3(this.zone.cx, 71.5, this.zone.cz), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     // LOOP CITY's breakable walls: the arena's dyn boxes stop shots and sight lines; broken ones are listed in the snapshot
-    this.cover = ring ? ringWalls(this.arena, V3) : []; this.arena.dyn = this.cover.slice(); this.coverBroken = []; this.paneBroken = [];
+    this.cover = ring ? ringWalls(this.arena, V3) : []; this.arena.dyn = this.cover.slice(); this.coverBroken = []; this.paneBroken = []; this._fell = null;
     if (this.arena.glass) {   // GLASS CITY: tell every client when a pane cracks or shatters (same id order as the pack)
       const G = this.arena.glass;
-      G.onHit = (id, hp) => { this.events.push({ t: 'pane', id, hp }); };
-      G.onBreak = (id) => { this.paneBroken.push(id); this.events.push({ t: 'pane', id, hp: 0 }); };
+      const P = (at) => at ? [r2(at.x), r2(at.y), r2(at.z)] : undefined;   // p: where the round met the pane (the crack is drawn there); by: whose round broke it
+      G.onHit = (id, hp, at) => { this.events.push({ t: 'pane', id, hp, p: P(at) }); };
+      G.onBreak = (id, by, at) => { this.paneBroken.push(id); this.events.push({ t: 'pane', id, hp: 0, p: P(at), by: by ? by.netId : undefined }); this._fell = by || true; };   // whoever stood on it: _glassFall
     }
     // the doors, and the floor of the angel's crown (a box the arena's rays and bodies know about; nothing breaks it)
     this.doors = doorSpots(this.arena, V3); const cy = DOOR.crownY, cr = DOOR.crownR;
@@ -167,6 +171,7 @@ export class Match {
     // a fitted silencer: AI snipers do not hear the shot (solo nest); the shot event still draws for everyone
     if (!shooter.silenced) for (const b of this.bots) if (b.alive && b !== shooter) b.hear(shooter, origin);
     const e = { t: 'shot', by: shooter.netId, o: [r2(origin.x), r2(origin.y), r2(origin.z)], e: [r2(res.point.x), r2(res.point.y), r2(res.point.z)], hit: res.hit ? res.hit.netId : null, z: res.zone, w: this._shotW || 'rifle' };
+    if (res.via && res.via.length) e.v = res.via.map(q => [r2(q[0]), r2(q[1]), r2(q[2])]);   // GLASS CITY: where the round bounced on its way (clients draw it leg by leg)
     if (shooter.silenced) e.q = 1;
     this.events.push(e);
     if (shooter.human && shooter.protectUntil > this.time) shooter.protectUntil = 0;
@@ -209,10 +214,13 @@ export class Match {
     const p = m.p; if (!Array.isArray(p) || p.length !== 3 || !p.every(Number.isFinite)) return;
     const now = this.time; const dt = clamp(now - (a.lastIn || now - 0.05), 0.01, 0.5); a.lastIn = now;
     const ar = this.arena, ring = ar.ring; const nx = ring ? ar.wrapX(p[0]) : p[0], ny = p[1], nz = p[2]; const dh = Math.hypot(ar.wrapD(nx - a.valid.x), nz - a.valid.z), dv = ny - a.valid.y;
-    // movement allowance: sprint 7.3 m/s (+ air control), launch pads up to ~26 m/s, ziplines 13 m/s; a burst budget absorbs jitter
+    // movement allowance: sprint 7.3 m/s (+ air control), launch pads up to ~26 m/s, ziplines 13 m/s; a burst budget absorbs jitter.
+    // A map where running builds speed (arena JSON `parkour`: GLASS CITY) allows what it gives: 10.6 m/s on foot, and cables that
+    // cover their length at 17 m/s. (A cable is a hop up, the ride, a drop: the ride itself is its length in 76% of its time, 22.4 m/s.
+    // A page reports once a frame, 30 times a second at most: where the allowance is under the true speed, a slow phone is pulled back.)
     const riding = m.mode === 'link' && Number.isInteger(m.link) && this.arena.links[m.link];
     // a hub line is flown at 21 m/s, but near the middle of the wheel a metre of cable is many metres of chart: the cable itself is the check
-    const hub = riding && riding.hub; const cap = riding ? (hub ? 600 : riding.kind === 'pad' ? 30 : 16) : 9.5; a.budget = Math.min(hub ? 60 : 6, a.budget + dt * cap);
+    const hub = riding && riding.hub, pk = ar.data.parkour; const cap = riding ? (hub ? 600 : riding.kind === 'pad' ? 30 : pk ? 24 : 16) : pk ? 13 : 9.5; a.budget = Math.min(hub ? 60 : 6, a.budget + dt * cap);
     const B = ring ? ar.zmax + 1 : 180;   // the play area: a square on the city map, the strip between the rims on the ring
     let ok = dh <= a.budget + 0.05 && dv < (riding ? 14 : 3.2) && (ring || (nx > -180 && nx < 180)) && nz > -B && nz < B && ny < 120;
     if (riding && ok) { const l = riding;
@@ -291,12 +299,17 @@ export class Match {
       : fireShot(this, a, origin, dir, origin.clone().addScaledVector(dir, 0.8), W);
     if (W.pierce) this.extras.pierce(shoot); else shoot();   // the AWM's round goes through walls (solo's pierce)
     for (const [o, p, c, ln, fd, yw] of saved) { o.pos.copy(p); o.crouchK = c; if (o.human) { o.lean = ln; o.feignK = fd; o.yaw = yw; } }
+    this._glassFall();   // a pane this round broke (everyone is back where they are now)
     const pend = this.deferred; this.deferred = null; this._shotW = null;
-    for (const d of pend) { this.damage(...d); if (d[0] && d[3].zone != null) this.events.push({ t: 'hit', id: a.netId, to: d[0].netId, z: d[3].zone, kill: !d[0].alive }); }
+    for (const d of pend) { this.damage(...d); if (d[0] && d[0] !== a && d[3].zone != null) this.events.push({ t: 'hit', id: a.netId, to: d[0].netId, z: d[3].zone, kill: !d[0].alive }); }   // (d[0] === a: their own round came back off the glass; no hit mark for that)
     if (W.key === 'rifle' && st.mag === 0 && st.reserve > 0) { a.reloadUntil = this.time + W.reload; a.reloadW = 'rifle'; }
     this.events.push({ t: 'ammo', id: a.netId, ammo: this._ammo(a) });
   }
   _ammo(a) { return { rifle: [a.ammo.rifle.mag, a.ammo.rifle.reserve], pistol: [a.ammo.pistol.mag, a.ammo.pistol.reserve] }; }
+  // GLASS CITY: a bot whose pane has just been broken drops to what is below (or to the street: out). Not while others are rewound for a shot.
+  _glassFall() { if (!this._fell) return; const by = this._fell === true ? null : this._fell; this._fell = null; this.arena.glass.settle(this, by); }
+  // every pane that is not whole (cracked ones too), for someone coming back into the match: [{t:'panes', s:[id, rounds left, ...]}]
+  glassState() { const G = this.arena.glass; if (!G) return []; const s = G.state(); return s.length ? [{ t: 'panes', s }] : []; }
   _poseAt(o, t) { const h = this.hist.get(o.netId); if (!h || !h.length) return null; for (let i = h.length - 1; i > 0; i--) { if (h[i - 1][0] <= t) { const A = h[i - 1], B = h[i]; const k = clamp((t - A[0]) / Math.max(1e-6, B[0] - A[0]), 0, 1); const N = k < 0.5 ? A : B; return [t, Math.abs(B[1] - A[1]) > 200 ? N[1] : lerp(A[1], B[1], k), lerp(A[2], B[2], k), lerp(A[3], B[3], k), lerp(A[4], B[4], k), lerp(A[5] || 0, B[5] || 0, k), N[6] || 0, N[7] || 0]; } } return h[0]; }
 
   // ------------------------------------------------------------------ the tick
@@ -311,6 +324,7 @@ export class Match {
       if (a.pos.y < this.dropY) this.damage(a, 999, null, { cause: 'drop' });
     }
     for (const b of this.bots) { b.update(dt); this.arena.norm(b.pos); if (b.alive && b.pos.y < this.dropY) this.damage(b, 999, null, { cause: 'drop' }); }
+    this._glassFall();   // panes the bots' own rounds broke
     this.gearSim.update(dt);   // cans in flight, gas clouds, decoys, angel strikes, bots' gear
     this.extras.update(dt);
     this.power.update(dt);
@@ -375,7 +389,8 @@ export class Match {
   }
   /** a blast at p brings down every wall within r of it */
   coverBlast(p, r) { for (const b of this.cover) { if (b.hp <= 0) continue; const c = new V3((b.min.x + b.max.x) / 2, (b.min.y + b.max.y) / 2, (b.min.z + b.max.z) / 2); if (this.arena.dist(c, p) < r + 1.8) this.coverHit(b, 99); } }
-  snapshot() {
+  /** lean: without the list of broken panes (the room's tick sends that only now and then; every pane is told of as it breaks) */
+  snapshot(lean = false) {
     const a = []; const M = { walk: 0, ground: 0, link: 1, mantle: 2, air: 3, zip: 4, ladder: 5 };
     for (const o of this.actors) {
       let mode = 0, aimY, aimP, link = -1, lu = 0, ld = 0;
@@ -388,7 +403,7 @@ export class Match {
     }
     // z[5]: the angel's shadow roof (the client's _netZone reads it); z[7]: the walls that are down (LOOP CITY)
     // panes: GLASS CITY panes that are gone (same ids as the pack), so a late joiner sees the breaks
-    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof, ...(this.coverBroken.length ? [null, this.coverBroken] : [])], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null, panes: this.paneBroken.length ? this.paneBroken : undefined };
+    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof, ...(this.coverBroken.length ? [null, this.coverBroken] : [])], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null, panes: !lean && this.paneBroken.length ? this.paneBroken : undefined };
   }
   drain() { const e = this.events; this.events = []; return e; }
 }

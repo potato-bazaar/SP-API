@@ -37,19 +37,37 @@ export function glassSolid(K, base) {
   return { position, index, pane0: base.nv + (F - F0) * 3, panes: NP };
 }
 
+// A view of a collision tree in which broken panes are not there. A server runs many matches on one tree, and each has
+// its own glass: give each match's arena a view of the tree as its `bvh`, and glassInstall the view. gone[id] = 1 takes
+// pane id out of every ray. (A browser has one match: there the pane's corners are moved away in the tree itself.)
+export function glassView(bvh, S) {
+  const gone = new Uint8Array(S.panes), ix = bvh.geometry.index.array, p0 = S.pane0, n6 = S.panes * 6;
+  return { geometry: bvh.geometry, gone, refit() {},
+    raycastFirst(ray, side, near = 0, far = Infinity) { for (let k = 0; k < 32; k++) { const h = bvh.raycastFirst(ray, side, near, far); if (!h) return null; const v = ix[h.faceIndex * 3] - p0; if (v < 0 || v >= n6 || !gone[(v / 6) | 0]) return h; near = h.distance + 1e-3; } return null; } };
+}
+
 // Teach an arena about its glass. S: what glassSolid returned (position must be the very array the collision mesh was
-// built on, so that a broken pane can be taken out of it). V3: the Vector3 class in use.
-export function glassInstall(arena, S, V3) {
-  const R = GLASS_RULES, pos = S.position, p0 = S.pane0 * 3, n = S.panes, orig = pos.slice(p0, p0 + n * 18), hp = new Uint8Array(n).fill(R.HP);
+// built on, so that a broken pane can be taken out of it). V3: the Vector3 class in use. view: on a server, the
+// glassView the arena's rays go through (then nothing is written into S).
+export function glassInstall(arena, S, V3, view = null) {
+  const R = GLASS_RULES, pos = S.position, p0 = S.pane0 * 3, n = S.panes, orig = view ? pos.subarray(p0, p0 + n * 18) : pos.slice(p0, p0 + n * 18), hp = new Uint8Array(n).fill(R.HP);
   const _n = new V3(), _e = new V3(), _q = new V3(), _r = new V3();
-  const G = arena.glass = { n, hp, orig, broken: 0, onBreak: null, onHit: null,
+  const roofs0 = arena.roofs.map((r) => ({ m: r.m.slice(), cells: r.cells.slice(), perch: r.perch ? r.perch.slice() : null, links: r.links.slice() }));   // the roofs as they are with every pane whole
+  const G = arena.glass = { n, hp, orig, broken: 0, touched: 0, onBreak: null, onHit: null, onReset: null,
     // which pane a ray hit, or -1. (The mesh's triangles get reordered when its tree is built: a triangle is known by its first corner.)
     paneAt(h) { if (!h || h.dyn || h.faceIndex == null) return -1; const v = arena.bvh.geometry.index.array[h.faceIndex * 3] - S.pane0; return v >= 0 && v < n * 6 ? (v / 6) | 0 : -1; },
     // the pane's four corners as it was built: [x, y, z] * 4
     corners(id) { const o = id * 18; return [[orig[o], orig[o + 1], orig[o + 2]], [orig[o + 3], orig[o + 4], orig[o + 5]], [orig[o + 6], orig[o + 7], orig[o + 8]], [orig[o + 15], orig[o + 16], orig[o + 17]]]; },
     // a round met this pane. Returns true if that broke it.
-    hit(id, by, at) { if (id < 0 || id >= n || !hp[id]) return false; hp[id]--; if (hp[id]) { if (G.onHit) G.onHit(id, hp[id], at); return false; } G.smash(id, by, at); return true; },
-    smash(id, by, at) { hp[id] = 0; G.broken++; const o = p0 + id * 18; for (let k = 0; k < 18; k += 3) { pos[o + k] = 0; pos[o + k + 1] = -9999; pos[o + k + 2] = 0; } arena.bvh.refit(); G.unfloor(id); if (G.onBreak) G.onBreak(id, by, at); },
+    hit(id, by, at) { if (id < 0 || id >= n || !hp[id]) return false; hp[id]--; G.touched++; if (hp[id]) { if (G.onHit) G.onHit(id, hp[id], at); return false; } G.smash(id, by, at); return true; },
+    smash(id, by, at) { hp[id] = 0; G.broken++; if (view) view.gone[id] = 1; else { const o = p0 + id * 18; for (let k = 0; k < 18; k += 3) { pos[o + k] = 0; pos[o + k + 1] = -9999; pos[o + k + 2] = 0; } arena.bvh.refit(); } G.unfloor(id); if (G.onBreak) G.onBreak(id, by, at); },
+    // what a server says of a pane (in a room the server keeps the glass): `left` rounds before it breaks, 0 = gone
+    set(id, left, by, at) { if (id < 0 || id >= n || left >= hp[id]) return; G.touched++; if (left > 0) { hp[id] = left; if (G.onHit) G.onHit(id, left, at); } else G.smash(id, by, at); },
+    // a new match: every pane whole again, and the roofs as they were
+    reset() { if (!G.broken && !G.touched) return; hp.fill(R.HP); G.broken = 0; G.touched = 0; if (view) view.gone.fill(0); else { pos.set(orig, p0); arena.bvh.refit(); }
+      arena.roofs.forEach((r, i) => { const o = roofs0[i]; r.m.set(o.m); r.cells = o.cells.slice(); if (o.perch) r.perch = o.perch.slice(); r.links = o.links.slice(); }); if (G.onReset) G.onReset(); },
+    // every pane that is not whole, for someone who comes (back) into a room: [id, rounds left] pairs
+    state() { const out = []; for (let i = 0; i < n; i++) if (hp[i] < R.HP) out.push(i, hp[i]); return out; },
     // the floor a broken pane was: nobody's ground any more
     unfloor(id) { const c = G.corners(id); let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, y0 = 1e9, y1 = -1e9; for (const p of c) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); }
       for (const r of arena.roofs) { if (r.roofY < y0 - 0.7 || r.roofY > y1 + 0.7 || r.x1 < x0 || r.x0 > x1 || r.z1 < z0 || r.z0 > z1) continue; let lost = 0;
@@ -57,11 +75,33 @@ export function glassInstall(arena, S, V3) {
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * r.nx + i; if (!r.m[k]) continue; if (arena.groundY(r.ox + (i + 0.5) * arena.cell, r.oz + (j + 0.5) * arena.cell, r.roofY + 0.7, 1.4) == null) { r.m[k] = 0; lost++; } }
         if (!lost) continue; r.cells = r.cells.filter((k) => r.m[k]); if (r.perch && r.perch.length) r.perch = r.perch.filter((k) => r.m[k]);
         if (r.cells.length < 6) { r.cells = []; r.perch = []; for (const q of arena.roofs) if (q.links.length) q.links = q.links.filter((e) => e.to !== r.i && q !== r); } } },   // too little left to be a roof: no way leads there any more
+    // Bots stand where their roof says, not on the mesh: one whose floor has just gone drops to whatever is below, and
+    // it hurts. Nothing below but the street (a map with dropY): out, to the shooter's credit, and the body falls.
+    settle(game, by) {
+      for (const b of game.bots) { if (!b.alive || b.link) continue; if (arena.groundY(b.pos.x, b.pos.z, b.pos.y + 0.7, 1.5) != null) continue; const h = arena.raycast(_q.set(b.pos.x, b.pos.y + 0.5, b.pos.z), _r.set(0, -1, 0), 90); if (!h) continue;
+        if (arena.data.dropY != null && h.point.y < arena.data.dropY) { game.damage(b, 999, by && by !== b ? by : null, { cause: 'drop' }); if (!b.alive) b.fall = { vx: 0, vy: 0, vz: 0 }; continue; }
+        const fall = b.pos.y - h.point.y, vy = Math.sqrt(2 * 22 * Math.max(0, fall)); b.pos.y = h.point.y; b.path.length = 0; b.plan.length = 0; b.state = 'scan'; let rf = arena.roofAt(b.pos.x, b.pos.z, b.pos.y);
+        if (rf < 0 || !arena.walk(arena.roofs[rf], b.pos.x, b.pos.z)) { let bd = 1e9; for (const r of arena.roofs) { if (Math.abs(r.roofY - b.pos.y) > 1.2 || !r.cells.length) continue; const k = arena.nearestCell(r, b.pos.x, b.pos.z); if (k < 0) continue; const q = arena.cellPos(r, k, _e), d = Math.hypot(q.x - b.pos.x, q.z - b.pos.z); if (d < bd) { bd = d; rf = r.i; } }
+          if (rf >= 0) { const r = arena.roofs[rf], q = arena.cellPos(r, arena.nearestCell(r, b.pos.x, b.pos.z), _e); b.pos.set(q.x, r.roofY, q.z); } }
+        if (rf >= 0) b.roof = rf; if (vy > 14.5) game.damage(b, (vy - 14.5) * 8, by && by !== b ? by : null, { cause: 'fall' }); } },
+    // Where a round fired now would go by the glass as it stands: the points it turns at, and where it ends. Nothing is
+    // changed and nobody is hit. A player in a room sees their own shot drawn this way at once; the server's word follows.
+    path(origin, dir) {
+      const o = origin.clone(), d = dir.clone(), nn = new V3(), pts = []; let left = 420, bounces = 0, wall = null;
+      for (let leg = 0; leg < 12; leg++) {
+        const wh = arena.raycast(o, d, left), t = wh ? wh.distance : left, end = o.clone().addScaledVector(d, t); if (!wh) { pts.push(end); break; }
+        const id = G.paneAt(wh); nn.copy(wh.face.normal); if (nn.dot(d) > 0) nn.negate();
+        if (id < 0 || (hp[id] > 1 && bounces >= R.BOUNCES)) { pts.push(end); wall = wh; break; }
+        if (hp[id] <= 1) { o.copy(end).addScaledVector(d, 0.03); left -= t; if (left < 1) { pts.push(end); break; } continue; }      // this round breaks it and flies on
+        pts.push(end); d.addScaledVector(nn, -2 * d.dot(nn)).normalize(); o.copy(end).addScaledVector(nn, 0.03); bounces++; left = Math.min(left, R.REACH + t) - t; if (left < 1) break;
+      }
+      return { pts, wall, n: nn, pane: wall ? G.paneAt(wall) : -1, bounces };
+    },
     // One round, all the way: straight, off a pane, off another, until it meets a sniper, something that is not a pane, or runs out.
     shot(game, shooter, origin, dir, muzzle, wpn, rayActors) {
       const fx = game.fx, au = game.audio, gear = game.gear, me = game.headless ? null : game.player;
       shooter.shots++; shooter.lastShot = game.time; shooter.lastShotPos.copy(origin);
-      const o = origin.clone(), d = dir.clone(), from = muzzle.clone(), end = new V3(); let power = 1, left = 420, ah = null, wall = null, far = 0, bounces = 0, whizzed = false;
+      const o = origin.clone(), d = dir.clone(), from = muzzle.clone(), end = new V3(), via = []; let power = 1, left = 420, ah = null, wall = null, far = 0, bounces = 0, whizzed = false;
       for (let leg = 0; leg < 12; leg++) {
         const wh = arena.raycast(o, d, left), tW = wh ? wh.distance : left;
         ah = rayActors(game.actors, o, d, tW, bounces ? null : shooter, arena);                    // after a bounce the round is anyone's...
@@ -77,12 +117,12 @@ export function glassInstall(arena, S, V3) {
         _n.copy(wh.face.normal); if (_n.dot(d) > 0) _n.negate(); const s = -d.dot(_n), broke = G.hit(id, shooter, end);
         if (game.glassFx) game.glassFx(id, end, _n, broke, shooter);
         if (broke) o.copy(end).addScaledVector(d, 0.03);                 // it shattered: the round flies on through the gap
-        else if (bounces < R.BOUNCES) { d.addScaledVector(_n, 2 * s).normalize(); o.copy(end).addScaledVector(_n, 0.03); power *= R.KEEP; bounces++; left = Math.min(left, R.REACH + t); }
+        else if (bounces < R.BOUNCES) { d.addScaledVector(_n, 2 * s).normalize(); o.copy(end).addScaledVector(_n, 0.03); power *= R.KEEP; bounces++; left = Math.min(left, R.REACH + t); via.push([end.x, end.y, end.z]); }
         else { wall = wh; break; }
         left -= t; from.copy(end); if (left < 1) break;
       }
       const dS = shooter === me ? 0 : origin.distanceTo(game.listenerPos || origin), pan = shooter === me || !game.panOf ? 0 : game.panOf(origin); au.shot(dS, pan, wpn.key === 'pistol'); if (shooter !== me) fx.particles.flash(muzzle, 1.6);
-      const res = { hit: null, zone: -1, point: end.clone(), dist: far, bounces, power };
+      const res = { hit: null, zone: -1, point: end.clone(), dist: far, bounces, power, via };      // via: where it bounced, in order
       if (ah) {
         const v = ah.actor; let dmg = wpn.dmg[ah.zone] * power; if (wpn.falloff) { const f = Math.min(1, Math.max(0, (far - wpn.falloff[0]) / (wpn.falloff[1] - wpn.falloff[0]))); dmg *= 1 - 0.55 * f; }
         fx.particles.blood(end, d, ah.zone === 0 ? 1.7 : 1); const gh = arena.raycast(_q.copy(end), _r.set(0, -1, 0), 3); if (gh) fx.decals.add(gh.point, _n.set(0, 1, 0), 0.22 + Math.random() * 0.3, 0, 0.6);

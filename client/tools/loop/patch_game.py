@@ -14,7 +14,7 @@ R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:SCGLASS?nGl:nA)(n,o,s);')
 R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):SCGLASS?glassParse(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),GLASS(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),RSCOPES(l),RPARTS(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),GLASS(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),RSCOPES(l),RPARTS(l),RLOADUI(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
 R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:n.data&&n.data.dropY!=null?n.data.dropY:9.5)){')   # a map may say where its floor of the world is (arena JSON dropY)
 # ---- no roof lamps on the loop
@@ -322,13 +322,23 @@ R('if(!w&&this.vel.y<=.5&&this._groundProbe()&&(w=!0),w&&!_){','if(!w&&this.vel.
 R('this.mode="walk",this.link=null,this.vel.multiplyScalar(.85),this.g.audio.setZip(0);return}','this.mode="walk",this.link=null,this._jmp=1,this.vel.multiplyScalar(.85),this.g.audio.setZip(0);return}')
 # the picture widens with the speed
 R('u=Ze(bu+(this.sprinting?5:0),l,','u=Ze(bu+(this.sprinting?5+7*(this.flow||0):0),l,')
+# ---- GLASS CITY in a room: the server keeps the glass (server/src/engine.js; 22_glass.js takes its 'pane' events)
+# another sniper's round is drawn the way the server says it went: off each pane it bounced on
+R('this.fx.threads.shot(l,c);let h=RDL(a,this.listenerPos);this.audio.shot(e.q?Math.max(h,38):h,this.panOf(a),e.w==="pistol");',
+  'let h=RDL(a,this.listenerPos);this.audio.shot(e.q?Math.max(h,38):h,this.panOf(a),e.w==="pistol");if(e.v)for(let q of e.v){let d=new ku(q[0],q[1],q[2]);this.fx.threads.shot(l,d);l=d;a=d}this.fx.threads.shot(l,c);')
+# a player's own round is drawn at once, the way the glass stands on their screen (glass.js path); the server's word on what it hit follows
+R('t.netFire=function(e,i,n,s){let AR=this.arena,',
+  't.netFire=function(e,i,n,s){if(this.arena.glass){let P=this.arena.glass.path(e,i),f=n;for(let q of P.pts)this.fx.threads.shot(f,q),f=q;this.audio.shot(0,0,s.key==="pistol");this.player.shots++;this.player.lastShot=this.time;this.player.lastShotPos.copy(e);'
+  'if(P.wall){this.fx.particles.impact(f,P.n);P.pane<0&&this.fx.decals.add(f,P.n,.08,1,.01,.85)}this.net.send({t:"fire",o:[e.x,e.y,e.z].map(u=>+u.toFixed(3)),d:[i.x,i.y,i.z].map(u=>+u.toFixed(5)),w:s.key,ct:this.time});return}let AR=this.arena,')
 # ---- the module
-ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ').replace('export const ','const ')
-ring+='\n/* ---------- parts.js (client/src/parts.js, verbatim) ---------- */\n'+open(REPO+'/client/src/parts.js').read().replace('export function ','function ').replace('export const ','const ')
-ring+='\n/* ---------- glass.js (client/src/glass.js, verbatim) ---------- */\n'+open(REPO+'/client/src/glass.js').read().replace('export function ','function ').replace('export const ','const ')
-mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
+RD=lambda f:open(f,encoding='utf-8').read()   # always UTF-8: a machine whose own code page is not UTF-8 (Windows) otherwise reads every "·", "×" and arrow as two wrong letters
+ring=RD(REPO+'/client/src/ring.js').replace('export function ','function ').replace('export const ','const ')
+ring+='\n/* ---------- parts.js (client/src/parts.js, verbatim) ---------- */\n'+RD(REPO+'/client/src/parts.js').replace('export function ','function ').replace('export const ','const ')
+ring+='\n/* ---------- glass.js (client/src/glass.js, verbatim) ---------- */\n'+RD(REPO+'/client/src/glass.js').replace('export function ','function ').replace('export const ','const ')
+mod='\n'.join(RD(os.path.join(HERE,f)) for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
 MARK='/* ---------- Google Analytics events'
 assert s.count(MARK)==1
 s=s.replace(MARK,'/* ---------- ring.js (client/src/ring.js, verbatim) ---------- */\n'+ring+'\n'+mod+'\n\n'+MARK)
+for bad in ('\u00c2\u00b7','\u00c3\u2014','\u00e2\u20ac','\u00e2\u2013','\u00e2\u0153'): assert bad not in s, 'the bundle has text read in the wrong code page (%r): nothing written' % bad
 p=REPO+'/client/dist/game.js'; open(p+'.tmp','w',encoding='utf-8',newline='\n').write(s); os.replace(p+'.tmp',p)
 print('patched',len(s))

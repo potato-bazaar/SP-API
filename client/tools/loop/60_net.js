@@ -6,8 +6,12 @@ function RSWITCH(map,code){
   if(_mapSw)return;_mapSw=1;
   const m=map==="loop"?"loop":map==="glass"?"glass":"city";
   try{localStorage.setItem("sc.world",m)}catch(e){}
-  const h=code?"#room="+code:location.hash;location.replace(location.pathname+"?map="+m+h);
-  if(code)setTimeout(()=>location.reload(),60);   // same page, new query: some browsers only change the hash
+  const h=code?"#room="+code:location.hash,q="?map="+m;
+  // A new query loads the page by itself. Only when the address already has it (just the room code changes) does the
+  // page stay put and need a reload. (A reload after a new query cancelled that load when it took over 60 ms, a phone
+  // on mobile data: the old map came back without the room, and the player was thrown out of the code they typed.)
+  const onlyHash=location.search===q;location.replace(location.pathname+q+h);
+  if(onlyHash)setTimeout(()=>location.reload(),60);
 }
 // a room on the other map: load that map and come straight back in (the room code rides in the address)
 function RMAPSW(room){const m=room&&room.settings&&room.settings.map||"city";if(m===window.SCMAP)return!1;RSWITCH(m,room.code);return!0}

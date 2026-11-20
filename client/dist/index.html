@@ -652,6 +652,106 @@ html.booted #play,html.booted #playnote{display:none}
   <div id="fade"></div>
   <div id="err" hidden></div>
 </div>
+<!-- ---------- the loading screen: from Play until the game draws its first frames, and whenever the game makes you wait
+     (switching map, joining or making a room, starting a match). window.__scLoad: show(title, sub, opts), progress(f, text),
+     hide(), banner(text|null). It is plain HTML so it shows before game.js arrives. -->
+<style>
+#scl{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:clamp(10px,2.4vh,22px);padding:max(16px,env(safe-area-inset-top)) 20px max(16px,env(safe-area-inset-bottom));background:radial-gradient(ellipse at 50% 40%,rgba(5,5,5,.55),#050505 75%),#050505 url(poster.jpg) center/cover no-repeat;color:var(--paper,#f2f2ef);font-family:var(--display,sans-serif);text-align:center;opacity:1;transition:opacity .45s;-webkit-user-select:none;user-select:none;touch-action:manipulation;overflow:hidden}
+#scl[hidden]{display:none}#scl.out{opacity:0;pointer-events:none}
+#scl .k{font:700 clamp(11px,1.6vh,14px)/1 var(--display,sans-serif);letter-spacing:.32em;text-transform:uppercase;color:var(--blood,#b51224);display:flex;align-items:center;gap:10px}
+#scl .k::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;animation:sclp 1.1s ease-in-out infinite}
+#scl h2{margin:0;font:italic 800 clamp(30px,8vh,64px)/.95 var(--display,sans-serif);letter-spacing:.04em;text-transform:uppercase;text-shadow:0 2px 18px rgba(0,0,0,.8)}
+#scl .sub{font:600 clamp(12px,1.9vh,16px)/1.3 var(--display,sans-serif);letter-spacing:.16em;text-transform:uppercase;color:var(--silver,#cfd0d2);min-height:1.3em}
+#scl .bar{width:min(560px,82vw);height:12px;background:rgba(242,242,239,.12);border:1px solid rgba(242,242,239,.22);position:relative;overflow:hidden;transform:skewX(-14deg)}
+#scl .bar i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--blood,#b51224),#ff3049);box-shadow:0 0 16px rgba(255,48,73,.6);transition:width .35s}
+#scl .bar b{position:absolute;inset:0;width:30%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:sclsw 1.3s linear infinite}
+#scl.busy .bar i{width:100%!important;background:rgba(181,18,36,.45);box-shadow:none}
+#scl .row{display:flex;justify-content:space-between;width:min(560px,82vw);font:700 clamp(12px,1.8vh,15px)/1 var(--display,sans-serif);letter-spacing:.14em;text-transform:uppercase;color:var(--silver,#cfd0d2)}
+#scl .row .pc{color:var(--paper,#f2f2ef);font-variant-numeric:tabular-nums}#scl.busy .row .pc{visibility:hidden}
+#scl .tip{width:min(560px,86vw);min-height:4.2em;padding:12px 16px;border-left:3px solid var(--blood,#b51224);background:rgba(5,5,5,.6);text-align:left;cursor:pointer;font:500 clamp(13px,2vh,17px)/1.35 var(--display,sans-serif);letter-spacing:.04em;color:var(--silver,#cfd0d2)}
+#scl .tip b{display:block;font-weight:800;letter-spacing:.2em;font-size:.78em;color:var(--paper,#f2f2ef);margin-bottom:4px;text-transform:uppercase}
+#scl .tip small{float:right;opacity:.55;letter-spacing:.14em;font-size:.72em}
+#scl .acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}#scl .acts:empty{display:none}
+#scl .acts button{font:800 clamp(13px,2vh,16px)/1 var(--display,sans-serif);letter-spacing:.2em;text-transform:uppercase;padding:12px 22px;border:1px solid rgba(242,242,239,.4);background:rgba(5,5,5,.6);color:var(--paper,#f2f2ef);cursor:pointer}
+#scl .acts button.red{background:var(--blood,#b51224);border-color:var(--blood,#b51224)}
+#scl .warn{color:#ffb547;font:600 clamp(12px,1.8vh,15px)/1.3 var(--display,sans-serif);letter-spacing:.1em;text-transform:uppercase;min-height:1.3em}
+#scl .err{color:#ff5a6a}#scl.failed .bar,#scl.failed .row{display:none}#scl.failed .warn{font-size:clamp(14px,2.3vh,18px)}
+#scl .game{font:600 clamp(11px,1.6vh,13px)/1 var(--display,sans-serif);letter-spacing:.2em;text-transform:uppercase;color:var(--ash,#7b7c7e)}
+#scl .game em{font-style:normal;color:var(--paper,#f2f2ef)}
+#scl .tg{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:3px solid #ff3049;box-shadow:0 0 0 6px rgba(255,48,73,.18),inset 0 0 0 9px rgba(5,5,5,.3);cursor:crosshair;animation:scltg .25s ease-out;background:radial-gradient(circle,#ff3049 0 5px,transparent 6px)}
+#scl .tg.hit{animation:sclhit .3s ease-out forwards;pointer-events:none}
+#scl.busy .game,#scl.busy .tg,#scl.short .game,#scl.short .tg{display:none}
+#sclban{position:fixed;left:50%;top:max(10px,env(safe-area-inset-top));transform:translateX(-50%);z-index:8999;display:flex;align-items:center;gap:10px;padding:9px 16px;background:rgba(5,5,5,.88);border:1px solid #ffb547;color:#ffb547;font:700 13px/1 var(--display,sans-serif);letter-spacing:.16em;text-transform:uppercase;pointer-events:none;white-space:nowrap}
+#sclban[hidden]{display:none}#sclban::before{content:"";width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sclspin .8s linear infinite}
+@keyframes sclp{50%{opacity:.25}}@keyframes sclsw{from{transform:translateX(-110%)}to{transform:translateX(380%)}}@keyframes sclspin{to{transform:rotate(1turn)}}
+@keyframes scltg{from{transform:scale(.2);opacity:0}}@keyframes sclhit{to{transform:scale(1.8);opacity:0}}
+@media (prefers-reduced-motion:reduce){#scl .bar b,#scl .k::before,#sclban::before{animation:none}}
+html.booted .go #load{display:none!important}
+</style>
+<div id="scl" hidden role="status" aria-live="polite">
+  <div class="k">loading</div>
+  <h2>Sniper City</h2>
+  <div class="sub"></div>
+  <div class="bar"><i></i><b></b></div>
+  <div class="row"><span class="st">starting</span><span class="pc">0%</span></div>
+  <div class="warn"></div>
+  <div class="tip" tabindex="0"><small>tap for next</small><b>tip</b><span></span></div>
+  <div class="acts"></div>
+  <div class="game">while you wait: tap the targets · hits <em class="hits">0</em> · best <em class="best">0</em></div>
+</div>
+<div id="sclban" hidden></div>
+<script>
+(function(){
+  var $=function(s){return document.querySelector(s)},L=$("#scl"),bar=L.querySelector(".bar i"),st=L.querySelector(".st"),pc=L.querySelector(".pc"),warn=L.querySelector(".warn"),acts=L.querySelector(".acts"),tipEl=L.querySelector(".tip"),ban=$("#sclban");
+  var MAPS={city:["Sniper City","Hong Kong · District 04"],loop:["Loop City","Orbital · Ring 01"],glass:["Glass City","Roofs · Light"]};
+  function mapNow(){var m=null;try{m=new URLSearchParams(location.search).get("map")||localStorage.getItem("sc.world")}catch(e){}return MAPS[m]?m:"city"}
+  var TIPS=[["Every shot leaves a thread","A red line hangs in the air and points back at whoever fired. Shoot, then move."],
+    ["The angel looks","When the halo tightens it opens its arms. Break its line of sight or be seen through walls."],
+    ["Blood for blood","No medkits. An elimination gives back 30 health."],
+    ["Don't fall","Launch pads, ziplines, ladders and jumps link the roofs. The street does not."],
+    ["Hold your breath","Scoped in, hold Shift (or the breath button) to steady the rifle for a moment."],
+    ["Glass City","Run to build speed, sprint at the arrows to leap, and remember: rounds bounce off the glass."],
+    ["Loop City","The far side of the wheel hangs over your head. Look up, and shoot straight across the hub."],
+    ["Play with friends","Custom Match makes a room. Share the 5-letter code or the invite link."]];
+  var ti=Math.floor(Math.random()*TIPS.length),tipT=0,shown=false,f=0,last=0,lastAt=0,stallT=0,mode="",onTimeout=null,deadline=0,timer=0,hits=0,best=0;
+  try{best=+localStorage.getItem("sc.loadbest")||0}catch(e){}L.querySelector(".best").textContent=best;
+  function tip(d){ti=(ti+(d||1)+TIPS.length)%TIPS.length;tipEl.querySelector("b").textContent=TIPS[ti][0];tipEl.querySelector("span").textContent=TIPS[ti][1];clearInterval(tipT);tipT=setInterval(function(){tip(1)},6000)}
+  tipEl.addEventListener("click",function(){tip(1)});tipEl.addEventListener("keydown",function(e){if(e.key==="ArrowLeft")tip(-1);else if(e.key==="ArrowRight"||e.key==="Enter"||e.key===" ")tip(1)});
+  function buttons(list){acts.innerHTML="";(list||[]).forEach(function(b){var e=document.createElement("button");e.type="button";e.textContent=b[0];b[2]&&(e.className="red");e.addEventListener("click",b[1]);acts.appendChild(e)})}
+  function reload(){location.reload()}
+  // the little game: a target somewhere on the screen, tap it, another comes (only while the long load runs)
+  var tg=null;function target(){if(tg)tg.remove();if(!shown||mode!=="boot")return;tg=document.createElement("i");tg.className="tg";var W=innerWidth,H=innerHeight,x,y,n=0;
+    do{x=30+Math.random()*(W-60);y=30+Math.random()*(H-60);n++}while(n<20&&Math.abs(x-W/2)<Math.min(300,W*.42)&&y>H*.18&&y<H*.86);
+    tg.style.left=x+"px";tg.style.top=y+"px";var me=tg;tg.addEventListener("pointerdown",function(e){e.preventDefault();e.stopPropagation();me.classList.add("hit");hits++;L.querySelector(".hits").textContent=hits;if(hits>best){best=hits;L.querySelector(".best").textContent=best;try{localStorage.setItem("sc.loadbest",best)}catch(e){}}tg=null;setTimeout(function(){me.remove()},300);setTimeout(target,250)});
+    L.appendChild(tg);clearTimeout(timer);timer=setTimeout(target,2600)}
+  function check(){if(!shown)return;var now=Date.now();
+    if(deadline&&now>deadline){deadline=0;if(onTimeout)onTimeout();return}
+    if(mode==="boot"&&now-lastAt>20000){warn.textContent=navigator.onLine===false?"you are offline · check your connection":"slow connection · still loading";buttons([["Reload",reload]])}}
+  setInterval(check,1000);
+  var API={
+    // opts: {busy: no percentage (a wait with no steps), short: no little game, timeout: ms, onTimeout: fn, buttons: [[label, fn, red]]}
+    show:function(title,sub,o){o=o||{};mode=o.mode||"wait";shown=true;L.hidden=false;L.classList.remove("out","failed");L.classList.toggle("busy",!!o.busy);L.classList.toggle("short",!!o.short||mode!=="boot");
+      L.querySelector(".k").textContent=o.kick||"loading";L.querySelector("h2").textContent=title||"Sniper City";L.querySelector(".sub").textContent=sub||"";warn.textContent="";warn.classList.remove("err");
+      if(!o.keep){f=0;bar.style.width="0%";pc.textContent="0%";st.textContent=o.step||(o.busy?"one moment":"starting")}lastAt=Date.now();deadline=o.timeout?Date.now()+o.timeout:0;onTimeout=o.onTimeout||null;buttons(o.buttons);tip(1);target()},
+    progress:function(x,text){if(!shown)return;x=Math.max(f,Math.min(1,x));if(x>f+.001)lastAt=Date.now(),warn.textContent!==""&&!warn.classList.contains("err")&&(warn.textContent="",buttons());f=x;bar.style.width=Math.round(x*100)+"%";pc.textContent=Math.round(x*100)+"%";text&&(st.textContent=text)},
+    error:function(text,list){shown=true;L.hidden=false;L.classList.remove("out","busy");L.classList.add("failed");warn.textContent=text;warn.classList.add("err");deadline=0;buttons(list||[["Reload",reload,1]])},
+    hide:function(){if(!shown)return;shown=false;deadline=0;clearTimeout(timer);clearInterval(tipT);if(tg){tg.remove();tg=null}L.classList.add("out");setTimeout(function(){shown||(L.hidden=true)},460)},
+    isOn:function(){return shown},
+    banner:function(text){if(text){ban.textContent=text;ban.hidden=false}else ban.hidden=true},
+    // from Play to the first frames: the page downloads game.js, then the game reports its own steps on #loadbar / #loadtxt
+    boot:function(){var M=MAPS[mapNow()],ctx=null;try{ctx=JSON.parse(sessionStorage.getItem("sc.loadctx")||"null");sessionStorage.removeItem("sc.loadctx")}catch(e){}
+      var room=null;try{var h=new URLSearchParams(location.hash.slice(1));room=h.get("room")||((/\/r\/([A-Za-z0-9]{5,8})\b/.exec(location.pathname)||[])[1])}catch(e){}
+      API.show(M[0],ctx&&ctx.sub||(room?"then joining room "+room.toUpperCase():M[1]),{mode:"boot",kick:ctx&&ctx.kick||"loading",step:"downloading the game"});
+      // ease toward 15% while game.js itself downloads (it reports nothing until it runs)
+      var e0=Date.now(),ease=setInterval(function(){if(!shown||f>=.15){clearInterval(ease);return}API.progress(.15*(1-Math.exp(-(Date.now()-e0)/6000)))},250);
+      var gb=document.querySelector("#loadbar i"),gt=document.getElementById("loadtxt"),er=document.getElementById("err");
+      var mo=new MutationObserver(function(){if(er&&!er.hidden&&er.textContent){API.error(er.textContent);return}var w=parseFloat(gb&&gb.style.width)||0;if(w>0)API.progress(.15+.83*w/100,gt&&gt.textContent&&gt.textContent!=="ready"?gt.textContent:"building the city")});
+      gb&&mo.observe(gb,{attributes:true,attributeFilter:["style"]});gt&&mo.observe(gt,{childList:true,characterData:true,subtree:true});er&&mo.observe(er,{attributes:true,childList:true,subtree:true});
+      var w8=setInterval(function(){if(window.__ready===true){clearInterval(w8);mo.disconnect();API.progress(1,"ready");setTimeout(function(){mode==="boot"&&API.hide()},350)}},150)}
+  };
+  window.__scLoad=API;
+})();
+</script>
 <script>
 /* The game's files (about 15 MB) load only when someone presses Play, so the page itself stays light for visitors and search engines.
    Returning players, invite links and automated tests skip the button. */
@@ -662,7 +762,8 @@ html.booted #play,html.booted #playnote{display:none}
   function paintTilt(){var t=document.getElementById("tilt");if(!t)return;var need=mob()&&!land();t.hidden=!need;root.classList.toggle("need-land",need)}
   paintTilt();addEventListener("resize",paintTilt);addEventListener("orientationchange",paintTilt);
   function boot(){if(done)return;done=true;root.classList.add("booted");try{localStorage.setItem("sc.played","1")}catch(e){}
-    try{gtag("event","play_click")}catch(e){}var s=document.createElement("script");s.src="game.js";s.onerror=function(){var t=document.getElementById("loadtxt");t&&(t.textContent="could not load - check your connection and reload")};document.body.appendChild(s)}
+    try{gtag("event","play_click")}catch(e){}try{window.__scLoad&&window.__scLoad.boot()}catch(e){}
+    var s=document.createElement("script");s.src="game.js";s.onerror=function(){var t=document.getElementById("loadtxt");t&&(t.textContent="could not load - check your connection and reload");try{window.__scLoad.error("could not load the game · check your connection")}catch(e){}};document.body.appendChild(s)}
   window.__scBoot=boot;window.__scTilt={mob:mob,land:land,paint:paintTilt};
   var auto=!!window.__TEST;try{auto=auto||localStorage.getItem("sc.played")==="1"}catch(e){}
   auto=auto||/\/r\/[A-Za-z0-9]{5,8}\b/.test(location.pathname)||/(^|[#&])room=/.test(location.hash);
