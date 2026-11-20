@@ -130,16 +130,17 @@ class Room {
   startMsg(rejoin, who) {
     const M = this.match; const roster = Object.fromEntries(M.actors.map(a => [a.netId, { name: a.name, team: a.team, bot: !a.human, op: (this.members.get(a.netId) || {}).op | 0 }]));
     const you = {}; for (const a of M.humans) you[a.netId] = { ammo: M._ammo(a), ham: a.hammerLeft, pts: a.pts || 0 };
-    return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? [...M.extras.state(M.byId.get(who)), ...M.power.state(M.byId.get(who))] : M.drain(), snap: M.snapshot(), log: M.log, zc: [M.zone.cx, M.zone.cz] };   // zc: where the halo closes this match
+    return { t: 'start', rejoin, round: this.round, settings: this.settings, roster, ammo: you, events: rejoin ? [...M.extras.state(M.byId.get(who)), ...M.power.state(M.byId.get(who)), ...M.glassState()] : M.drain(), snap: M.snapshot(), log: M.log, zc: [M.zone.cx, M.zone.cz] };   // zc: where the halo closes this match
   }
   backToLobby(s) { this._hostOnly(s); if (this.state === 'lobby') return; this.stopLoop(); this.match = null; this.state = 'lobby'; for (const m of this.members.values()) m.ready = false; this.broadcastRoom(); }
   startLoop() {
-    this.stopLoop(); let last = process.hrtime.bigint(), acc = 0, n = 0;
+    this.stopLoop(); let last = process.hrtime.bigint(), acc = 0, n = 0, sent = 0;
     this.loop = setInterval(() => {
       const now = process.hrtime.bigint(); acc += Number(now - last) / 1e9; last = now; if (acc > 0.5) acc = 0.5;
       const M = this.match; if (!M) return;
       while (acc >= TICK) { M.step(TICK); acc -= TICK; n++; }
-      const ev = M.drain(); const msg = { t: 's', s: M.snapshot(), e: ev.length ? ev : undefined }; const str = JSON.stringify(msg);   // encoded once per tick, not once per player
+      // (GLASS CITY: each pane is told of as it breaks, in the events; the whole list of broken ones rides along every 45th message only)
+      const ev = M.drain(); const msg = { t: 's', s: M.snapshot(++sent % 45 !== 0), e: ev.length ? ev : undefined }; const str = JSON.stringify(msg);   // encoded once per tick, not once per player
       for (const m of this.members.values()) { if (m.conn) deliver(m.conn, msg, str); }
       if (M.state === 'over' && this.state === 'match') { this.state = 'results'; this.broadcastRoom(); setTimeout(() => { if (this.match === M) this.stopLoop(); }, 4000); }
     }, 1000 * TICK);

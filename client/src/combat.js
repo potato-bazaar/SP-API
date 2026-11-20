@@ -32,6 +32,7 @@ export function rayActors(actors, o, d, maxT, skip, ar) {
 const _p = new THREE.Vector3(), _n = new THREE.Vector3(), _q = new THREE.Vector3(), _d2 = new THREE.Vector3(), _dh = new THREE.Vector3();
 // fire one round. origin/dir: the true ray. muzzle: where the thread visibly starts.
 export function fireShot(game, shooter, origin, dir, muzzle, wpn) {
+  if (game.arena.glass) return game.arena.glass.shot(game, shooter, origin, dir, muzzle, wpn, rayActors);   // GLASS CITY: a round's whole way, off panes and through broken ones (client/src/glass.js)
   const { arena, fx, audio } = game; const wh = arena.raycast(origin, dir, 420); const tW = wh ? wh.distance : 420;
   const ah = rayActors(game.actors, origin, dir, tW, shooter, arena); const t = ah ? ah.t : tW; _p.copy(origin).addScaledVector(dir, t);
   // the ray is straight in the shooter's frame; what is kept is the chart position of the end and the direction as it arrives there

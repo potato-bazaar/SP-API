@@ -61,6 +61,11 @@ in `ring.js` and the modules in this folder. Every edit asserts that it finds it
 change to the bundle that moves one of them fails loudly instead of silently. After merging other work into
 `game.js`: set `BASE_COMMIT` to that commit and run the script again.
 
+The script reads every source as UTF-8, whatever the machine it runs on uses by itself, and writes nothing if the
+result holds text read in the wrong code page. (Run on Windows without that, every "·", "×", "✓" and arrow in the
+game came out as two or three wrong letters: "GLASS CITY Â· PROTOTYPE".) `client/dist/game.js` is never edited by
+hand: a change belongs in a module here or in an `R()` step, or the next run of the script loses it.
+
 ## Online
 
 A room has a `map` setting, fixed when the room is made (everyone in it has that map loaded). The client
@@ -111,10 +116,11 @@ Measured with `node` on the test machine: the loop world loads in about 0.3 s an
 eight bots costs 0.13 ms a tick (the city: 0.16 ms). The server loads the loop a moment after it starts
 (`loopWarm` in `server/src/server.js`), so the first loop room does not stall a match that is already running.
 
-## GLASS CITY (a third map, in the making)
+## GLASS CITY (a third map)
 
-Reached with `?map=glass`; it is not on the map chooser yet, and it is solo only (a room made or joined from it is a
-city room, see `RNMAP` in `60_net.js`; the server does not know the map).
+Picked on the menu (District Rotation) or reached with `?map=glass`. It is played alone with bots, or in a room: a
+room made from its page, or one whose host sets the map to GLASS CITY, is played on it, and a friend who joins by its
+code is sent to the map (see "In a room" below).
 
 | what | where |
 | --- | --- |
@@ -183,6 +189,39 @@ What the player gets on this map (arena JSON `parkour`; the code is `R()` steps 
 * **The way in.** While a sniper stands outside the ring the halo is closing to, the way off their roof that gets
   there soonest is marked on the screen ("WAY IN · LAUNCH PAD · 14 M"): the route a bot would take
   (`flatArena` `route`), kept inside the halo when the sniper is inside it. `22_glass.js`, `g.glassWay()` for tests.
+
+### In a room
+
+The server knows the map (`server/src/world.js` `loadGlass`: the same pack, the same `glassSolid` as the page builds,
+so a pane has the same number on both sides; loaded a moment after the server starts, `glassWarm` in `server.js`) and
+keeps the glass:
+
+* **One tree, many matches.** Every match on the map shares one collision tree. Each match's arena looks at it through
+  its own `glassView` (`client/src/glass.js`): a broken pane is skipped by that match's rays and nobody else's, and
+  nothing is ever written into the shared mesh. (Without the view a pane broken in one match stays broken, on the
+  server only, for every match after it until the server restarts.)
+* **Rounds.** `fireShot` (`client/src/combat.js`) hands a round to `arena.glass.shot` wherever an arena has glass:
+  players' rounds and bots' alike, lag-compensated as on the other maps. The `shot` event carries `v`, the points
+  the round bounced at, and pages draw it leg by leg. A player's own round is drawn at once by `G.path` (the way the
+  glass stands on their screen); what it hit is the server's word.
+* **Panes.** Each pane a round meets goes out as `{t:'pane', id, hp, p, by}`: `hp` rounds left (0 = broken), `p`
+  where it was hit, `by` whose round broke it. Pages apply it with `G.set` (`22_glass.js`): the crack where the round
+  struck, or the pane gone from their own collision mesh. Someone coming back into a match gets
+  `{t:'panes', s:[id, left, ...]}` with the start message: every pane that is not whole, cracked ones too. The
+  snapshot's `panes` (the broken panes' numbers) goes with the start message and with every 45th tick; pages built
+  before this read only that list and `{t:'pane', id, hp}`, and still work. A new match starts with every pane
+  whole on every screen (`G.reset`).
+* **Who falls.** A player's own screen drops them when their floor goes; a bot is dropped by the server
+  (`G.settle`, after everyone rewound for the shot is back in place). Below `dropY` anyone is out.
+* **Movement believed.** Where an arena has `parkour`, the server allows what the map gives: 13 m/s on foot (the
+  boost is 10.6), 24 m/s on a link (a cable covers its length at 17 m/s, but the ride itself is the middle 76% of its
+  time: 22.4 m/s), pads as before. The allowance has to be over the true speed: a page reports its place once a frame,
+  and one that runs at 15 or 20 frames a second is otherwise pulled back off a cable in mid-air. The other maps'
+  numbers are unchanged.
+* **Getting in.** Every page says it can load the three maps. A page on another map that joins a GLASS CITY room is
+  told `MAPSWITCH:glass` and reloads into the map with the room code (`RSWITCH` in `60_net.js`).
+
+`server/test/glass.test.mjs` covers the above on the server and over real sockets.
 
 Bots know the same roofs and links. A bot's feet follow the real floor (`flatArena` `floorY` in `client/src/ring.js`),
 it judges a way by how far it is to walk (`route`), and the halo closes where the arena says: the place in the middle

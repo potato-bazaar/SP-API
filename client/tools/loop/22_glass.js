@@ -185,26 +185,36 @@ function GLASS(g){
   g.glassFx=(id,at,n,broke,by)=>{if(broke)return;const c=colOf(id);for(let k=0;k<7;k++){V.set(Math.random()-.5,Math.random()-.5,Math.random()-.5).multiplyScalar(3.2).addScaledVector(n,1.6+Math.random()*2);shard(at,V,.035+Math.random()*.05,c,.35+Math.random()*.4)}
     try{g.fx.particles.impact(at,n)}catch(e){}
     if(au.ctx){const o=au._out(pan(at),.35,vol(at));au._tone("sine",2300+Math.random()*500,4700+Math.random()*900,.16,.22,o);au._burst(.05,5200,3000,6,.5,o)}};
-  G.onHit=(id,left,at)=>{const f=glFlat(G.corners(id)),b=f.b,q=[at.x-f.c0[0],at.y-f.c0[1],at.z-f.c0[2]];
+  const marked=new Set;   // panes drawn cracked or taken away
+  G.onHit=(id,left,at)=>{marked.add(id);const f=glFlat(G.corners(id)),b=f.b,q=[at.x-f.c0[0],at.y-f.c0[1],at.z-f.c0[2]];
     const u=q[0]*b[0]+q[1]*b[1]+q[2]*b[2]-f.u0,v=q[0]*b[3]+q[1]*b[4]+q[2]*b[5]-f.v0,sd=(id*.6180339)%1;for(let k=0;k<6;k++)phit.setXYZW(id*6+k,u,v,GLASS_RULES.HP-left,sd);phit.needsUpdate=!0};
   // the third round: the pane is gone. Splinters all over where it was, the sound of it, and whoever stood on it falls
   G.onBreak=(id,by,at)=>{const c=G.corners(id),col=colOf(id),A=c[0],B=c[1],C=c[3],D=c[2],tri=(p,q,r)=>.5*Math.hypot((q[1]-p[1])*(r[2]-p[2])-(q[2]-p[2])*(r[1]-p[1]),(q[2]-p[2])*(r[0]-p[0])-(q[0]-p[0])*(r[2]-p[2]),(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0])),a1=tri(A,B,D),a2=tri(A,D,C),area=a1+a2,nn=Math.min(mobG(g)?70:170,Math.max(24,Math.round(area*1.6)));
-    for(let k=0;k<6;k++)ppos.setXYZ(id*6+k,0,-9999,0);ppos.needsUpdate=!0;
+    marked.add(id);for(let k=0;k<6;k++)ppos.setXYZ(id*6+k,0,-9999,0);ppos.needsUpdate=!0;if(G.quiet)return;   // (told of old breaks on coming back into a room: no splinters, no sound)
     for(let k=0;k<nn;k++){let a=Math.random(),b=Math.random();a+b>1&&(a=1-a,b=1-b);const X=Math.random()*area<a1?B:C;P.set(A[0]+(X[0]-A[0])*a+(D[0]-A[0])*b,A[1]+(X[1]-A[1])*a+(D[1]-A[1])*b,A[2]+(X[2]-A[2])*a+(D[2]-A[2])*b);V.set(Math.random()-.5,Math.random()*.6,Math.random()-.5).multiplyScalar(2.4);shard(P,V,.06+Math.random()*.16,col,.9+Math.random()*1.1)}
     P.set((A[0]+c[2][0])/2,(A[1]+c[2][1])/2,(A[2]+c[2][2])/2);
     if(au.ctx){const o=au._out(pan(P),.5,Math.min(1,vol(P)*1.5));au._burst(.55,6500,1500,.9,.9,o);au._burst(.12,900,300,1.2,.5,o);for(let k=0;k<9;k++)au._tone("triangle",1800+Math.random()*4200,1500+Math.random()*2500,.07+Math.random()*.1,.09,o,.04+Math.random()*.6)}
     try{g.hud&&by&&by.isPlayer&&g.hud.banner("glass down",1.2,!0)}catch(e){}
-    // bots stand where their roof says, not on the mesh: one whose floor has just gone drops to whatever is below, and it hurts
-    for(const b of g.bots){if(!b.alive||b.link)continue;if(ar.groundY(b.pos.x,b.pos.z,b.pos.y+.7,1.5)!=null)continue;const h=ar.raycast(V.set(b.pos.x,b.pos.y+.5,b.pos.z),W.set(0,-1,0),90);if(!h)continue;
-      if(ar.data.dropY!=null&&h.point.y<ar.data.dropY){g.damage(b,999,by&&by!==b?by:null,{cause:"drop"});b.alive||(b.fall={vx:0,vy:0,vz:0});continue}   // nothing below but the street: out (the body falls)
-      const fall=b.pos.y-h.point.y,vy=Math.sqrt(2*22*Math.max(0,fall));b.pos.y=h.point.y;b.path.length=0;b.plan.length=0;b.state="scan";let rf=ar.roofAt(b.pos.x,b.pos.z,b.pos.y);
-      if(rf<0||!ar.walk(ar.roofs[rf],b.pos.x,b.pos.z)){let bd=1e9;for(const r of ar.roofs){if(Math.abs(r.roofY-b.pos.y)>1.2||!r.cells.length)continue;const k=ar.nearestCell(r,b.pos.x,b.pos.z);if(k<0)continue;const q=ar.cellPos(r,k,P),d=Math.hypot(q.x-b.pos.x,q.z-b.pos.z);d<bd&&(bd=d,rf=r.i)}
-        if(rf>=0){const r=ar.roofs[rf],q=ar.cellPos(r,ar.nearestCell(r,b.pos.x,b.pos.z),P);b.pos.set(q.x,r.roofY,q.z)}}
-      rf>=0&&(b.roof=rf);vy>14.5&&g.damage(b,(vy-14.5)*8,by&&by!==b?by:null,{cause:"fall"})}};
+    g.net||G.settle(g,by)};   // solo: a bot whose floor has just gone drops to what is below, or to the street (client/src/glass.js; in a room the server does this)
+  // a new match starts with every pane whole: the panes that were cracked or broken are drawn as they were built
+  G.onReset=()=>{const o=G.orig;for(const id of marked){for(let k=0;k<6;k++){ppos.setXYZ(id*6+k,o[id*18+k*3],o[id*18+k*3+1],o[id*18+k*3+2]);phit.setXYZW(id*6+k,0,0,0,0)}}marked.clear();ppos.needsUpdate=!0;phit.needsUpdate=!0};
+  {const st=g.start;g.start=function(){G.reset();return st.apply(this,arguments)};const sn=g.startNet;g.startNet=function(){G.reset();return sn.apply(this,arguments)}}
+  // ---- in a room the server keeps the glass. It says which pane each round met ({t:'pane', id, hp, p, by}: hp rounds left,
+  //      0 = broken; p where it was hit) and, to someone coming back into a match, every pane that is not whole
+  //      ({t:'panes', s:[id, left, ...]}). Rounds are drawn from the server's word too (the 'shot' event carries where a
+  //      round bounced; a player's own shot is drawn at once by G.path: patch_game.py). A server from before this sent
+  //      {t:'pane', id, hp} alone and the broken panes' numbers in every snapshot (panes): both are still understood.
+  {const ng=g.netGearEvent,N=new I,mid=id=>{const c=G.corners(id);return new I((c[0][0]+c[2][0])/2,(c[0][1]+c[2][1])/2,(c[0][2]+c[2][2])/2)};
+    g.netGearEvent=function(e){
+      if(e.t==="pane"){const id=e.id,hp=e.hp;if(!(id>=0&&id<G.n))return!0;const by=e.by&&this.byNet?this.byNet.get(e.by)||null:null,at=e.p?new I(e.p[0],e.p[1],e.p[2]):mid(id);
+        if(hp>0&&G.hp[id]>hp&&e.p){const c=G.corners(id);N.set(c[1][0]-c[0][0],c[1][1]-c[0][1],c[1][2]-c[0][2]).cross(P.set(c[3][0]-c[0][0],c[3][1]-c[0][1],c[3][2]-c[0][2])).normalize();N.dot(P.copy(g.gfx.camera.position).sub(at))<0&&N.negate();g.glassFx(id,at,N,!1,by)}
+        G.set(id,hp,by,at);return!0}
+      if(e.t==="panes"){G.quiet=!0;try{for(let k=0;k+1<e.s.length;k+=2)G.set(e.s[k],e.s[k+1],null,mid(e.s[k]))}finally{G.quiet=!1}return!0}
+      return ng.call(this,e)};
+    // a list of the broken panes' numbers (now and then in a snapshot, and in the one a match starts or is come back into with):
+    // whatever of it this screen has missed is taken away without a sound. (The events of the same message were played first.)
+    const gone=L=>{if(!L||L.length===G.broken)return;const miss=L.filter(id=>id>=0&&id<G.n&&G.hp[id]>0);if(!miss.length)return;G.quiet=!0;try{for(const id of miss)G.set(id,0,null,mid(id))}finally{G.quiet=!1}};
+    const sn=g.onNetSnap;g.onNetSnap=function(m){const r=sn.apply(this,arguments);m&&m.s&&gone(m.s.panes);return r};
+    const sN=g.startNet;g.startNet=function(n,m){const r=sN.apply(this,arguments);m&&m.snap&&gone(m.snap.panes);return r}}
   g.glass={pack:g.city.glass,rules:G,look:GLT};
-  // online: apply pane hits the server decided (and panes already gone when you rejoin mid-match)
-  const applyPane=(id,hp)=>{if(!G||id<0||id>=G.n)return;if(hp<=0){if(G.hp[id])G.smash(id,null,null)}else if(G.hp[id]>hp)G.hp[id]=hp};
-  {const wrap=()=>{if(!g._netEvent||g._paneNetHook)return;g._paneNetHook=1;const ne=g._netEvent.bind(g);g._netEvent=e=>{if(e&&e.t==="pane"){applyPane(e.id,e.hp);return}ne(e)}};wrap();const u0=g.update.bind(g);g.update=t=>{wrap();return u0(t)}}
-  {const snap0=g.onNetSnap.bind(g);g.onNetSnap=function(m){const r=snap0.call(this,m);if(m&&m.s&&m.s.panes)for(const id of m.s.panes)applyPane(id,0);return r}}
-  {const start0=g.startNet.bind(g);g.startNet=function(n,m,o){const r=start0.call(this,n,m,o);if(m&&m.snap&&m.snap.panes)for(const id of m.snap.panes)applyPane(id,0);return r}}
 }
