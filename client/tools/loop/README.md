@@ -110,3 +110,20 @@ Worth knowing if you add a feature. Each of these worked on the city map and fai
 Measured with `node` on the test machine: the loop world loads in about 0.3 s and adds about 58 MB; a match of
 eight bots costs 0.13 ms a tick (the city: 0.16 ms). The server loads the loop a moment after it starts
 (`loopWarm` in `server/src/server.js`), so the first loop room does not stall a match that is already running.
+
+## GLASS CITY (a third map, in the making)
+
+Reached with `?map=glass`; it is not on the map chooser yet, and it is solo only (a room made or joined from it is a
+city room, see `RNMAP` in `60_net.js`).
+
+| what | where |
+| --- | --- |
+| the drawing -> game data | `client/tools/pack_glass.py <virtual_city_tilt_brush.glb>` writes `client/dist/glass.txt` (about 90 seconds; the 168 MB GLB is not in the repository) |
+| the arena | `client/tools/pack_glass_arena.py` reads `glass.txt` and writes `client/dist/arena-glass.json` (seconds) |
+| in the game | `client/tools/loop/22_glass.js` (`GLPARSE`, `nGl` builds the city, `GLASS` sets the night), `10_boot.js` picks the map |
+| colours | no grade: `95_grade.js` "raw", and `uRaw` in the post pass (`patch_game.py`) |
+
+The model is "Virtual City [Tilt Brush]" by factoryfifteen (CC BY 4.0, credited on the title screen and in about.html).
+Each brush stroke is one flat rectangle: a pane. Panes are drawn as glass (see-through, bright edges) and are solid:
+people walk, jump and climb on the real panes, the same capsule physics as on the other maps. The towers of the middle
+block carry the model's own window pictures and are solid too; so are the dark catwalks. Bots only know the street so far.

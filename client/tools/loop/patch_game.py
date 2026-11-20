@@ -11,12 +11,12 @@ def R(a,b,n=1):
     assert s.count(a)==n,(s.count(a),a[:90]); s=s.replace(a,b)
 # ---- boot
 R('async function sE(){og();','async function sE(){og();RINGBOOT();')
-R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
-R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
+R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:SCGLASS?nGl:nA)(n,o,s);')
+R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):SCGLASS?GLPARSE(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),RSCOPES(l),RPARTS(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),GLASS(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),RSCOPES(l),RPARTS(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
-R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
+R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:n.data&&n.data.dropY!=null?n.data.dropY:9.5)){')   # a map may say where its floor of the world is (arena JSON dropY)
 # ---- no roof lamps on the loop
 R('this.lamps=[];for(let e of t.roofs){let i=bA(t,e);i&&this.lamps.push({i:e.i,pos:i})}','this.lamps=[];if(!t.ring)for(let e of t.roofs){let i=bA(t,e);i&&this.lamps.push({i:e.i,pos:i})}')
 # ---- world-space shaders bend with the ring
@@ -232,8 +232,8 @@ R('n.rotation.set(this.pitch+this.kick+this.swayY+Math.sin(this.hurtT*40)*this.h
 # ---- the dead rise to the angel's hands: the hands are where the picture shows them (the angel is carried whole to its
 #      place, so its parts keep their own numbers there), and a soul leaves from the street, not from 6 m above it
 R('wristPos(t,e){return this.wrists[t%this.wrists.length].getWorldPosition(e)}','wristPos(t,e){let w=this.wrists[t%this.wrists.length].getWorldPosition(e);return SCLOOP?this.g.arena.unsee(w,w,this.root.position.x):w}')
-R('this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,6)),','this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,SCLOOP?.4:6)),')
-R('this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,6)),','this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,SCLOOP?.4:6)),')
+R('this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,6)),','this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,SCLOOP||SCGLASS?.4:6)),')
+R('this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,6)),','this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,SCLOOP||SCGLASS?.4:6)),')
 # ---- the menu on the loop shows the wheel (RLOBBY in 70_lobby.js)
 R('const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;',
   'const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;if(RSAFE(g,cam,t,T,s,light))return;if(SCLOOP){RLOBBY(g,cam,t,T,s,light);return}')
@@ -244,9 +244,9 @@ R('A store that sells looks for XP comes with player accounts.</p>`),','A store 
 # (shadow, middle, light, the brightest lights), so a map can be a blue storm night or a green rain haze. Red, gas green and
 # zipline cyan stay what they were.
 R('void main() {\n  vec2 uv = vUv;\n  // zone glitch',
-  'uniform vec3 uG0, uG1, uG2, uGW; uniform float uGA;\nvec3 gradeC(float l) { l = clamp(l, 0.0, 1.25); vec3 c = mix(uG0, uG1, smoothstep(0.0, 0.42, l)); c = mix(c, uG2, smoothstep(0.36, 0.80, l)); c = mix(c, uGW, smoothstep(0.78, 1.02, l)); return mix(vec3(l), c * (0.35 + 0.65 * smoothstep(0.0, 0.06, l)), uGA); }\nvoid main() {\n  vec2 uv = vUv;\n  // zone glitch')
+  'uniform vec3 uG0, uG1, uG2, uGW; uniform float uGA, uRaw, uRip;\nvec3 gradeC(float l) { l = clamp(l, 0.0, 1.25); vec3 c = mix(uG0, uG1, smoothstep(0.0, 0.42, l)); c = mix(c, uG2, smoothstep(0.36, 0.80, l)); c = mix(c, uGW, smoothstep(0.78, 1.02, l)); return mix(vec3(l), c * (0.35 + 0.65 * smoothstep(0.0, 0.06, l)), uGA); }\nvoid main() {\n  vec2 uv = vUv;\n  // zone glitch')
 R('vec3 outc = mix(vec3(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);','vec3 outc = mix(gradeC(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);')
-R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},')
+R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},uRaw:{value:0},uRip:{value:1},')
 # ---- joining a room says which map this page has loaded; if the room is on the other one the server answers
 # MAPSWITCH:<map> and the page reloads onto it and rejoins (server/src/rooms.js; RSWITCH in 60_net.js)
 # ---- rain on the puddles (96_rain.js has the drops): rings spread from where drops land and bend what the wet roof
@@ -254,7 +254,7 @@ R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:
 R('vec3 gradeC(float l) {',
   'vec2 rpH(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }\nvec2 ripples(vec2 p, float t) { vec2 g = floor(p); vec2 acc = vec2(0.0);\n  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 cell = g + vec2(float(i), float(j)); vec2 h = rpH(cell); float cyc = t * (0.5 + 0.4 * h.x) + h.y; float ph = fract(cyc);\n    vec2 d = p - (cell + 0.15 + 0.7 * rpH(cell + floor(cyc) * 7.3)); float r = length(d); float w = (r - ph * 1.2) * 24.0; float fall = 1.0 - ph;\n    acc += d / max(r, 0.001) * sin(w) * exp(-w * w * 0.1) * fall * fall; }\n  return acc; }\nvec3 gradeC(float l) {')
 R('vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3), 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt)));',
-  'vec2 rg = ripples(wp.xz * 2.6, uTime) * 0.2 * (1.0 - smoothstep(18.0, 42.0, pz)); vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3) + rg.x * 16.0, 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt) + rg.y * 16.0));')
+  'vec2 rg = ripples(wp.xz * 2.6, uTime) * 0.2 * uRip * (1.0 - smoothstep(18.0, 42.0, pz)); vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3) + rg.x * 16.0, 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt) + rg.y * 16.0));')
 R('float fres = 0.16 + 0.84 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);','float fres = 0.24 + 0.76 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);')
 R('col = col * (1.0 - 0.3 * wet) + refl * fres * wet * 1.6;','col = col * (1.0 - 0.5 * wet) + refl * fres * wet * 2.3 + vec3(dot(rg, rg)) * 0.9 * wet;')
 R('this.net.send({t:"join",code:t}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),')
@@ -264,7 +264,7 @@ R('t.on("left",e=>{this.room=null,this.g.net&&this.g.stopNet(),this.g.state="tit
 R('em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.78)) * on * tw','em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.95, 0.70, 0.30)) * on * tw')
 R('vec3(0.42 + 0.5 * skHash(cell + 3.1))) * lit','vec3(1.0, 0.76, 0.36) * (0.42 + 0.5 * skHash(cell + 3.1))) * lit')
 R('float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);',
-  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);')
+  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);\n  if (uRaw > 0.5) { vec3 rc = col * uExposure; rc = rc / (1.0 + rc) * 1.72; rc = mix(rc, smoothstep(0.0, 1.0, rc), 0.5); outc = rc * mix(1.0, vig, 0.82); }   // a map that keeps its own colours (GLASS CITY)')
 # ---- rifle parts (99_parts.js, client/src/parts.js): the player's own rifle is a copy with their parts' numbers; the
 # bots keep the plain one. Rooms are told which parts you carry when you make or join one.
 R('get weapon(){return this.awm&&this.cur==="rifle"?Vi.awm:Vi[this.cur]}','get weapon(){return this.awm&&this.cur==="rifle"?Vi.awm:this.cur==="rifle"&&this.kitRifle||Vi[this.cur]}')
@@ -272,6 +272,9 @@ R('this.w={rifle:{mag:Vi.rifle.mag,reserve:Vi.rifle.reserve,cool:0}','this.w={ri
 R('this.ads=zr(this.ads+(h?t/.16:-t/.12),0,1)','this.ads=zr(this.ads+(h?t/(this.kitRifle&&this.cur==="rifle"&&this.kitRifle.ads||.16):-t/.12),0,1)')
 R('this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:window.SCPARTS||[0,0,0,0]}),')
 R('this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"}})','this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"},parts:window.SCPARTS||[0,0,0,0]})')
+# GLASS CITY has no rooms yet: what the server is asked for is a city room (60_net.js RNMAP)
+R('this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:','this.net.send({t:"join",code:t,map:RNMAP(),parts:')
+R('map:window.SCMAP||"city"},parts:window.SCPARTS','map:RNMAP()},parts:window.SCPARTS')
 # ---- the menu says WEAPON (finish, scope, parts: 82_workshop.js) and has no STORE
 R('<button data-n="arsenal">ARSENAL</button>','<button data-n="arsenal">WEAPON</button>')
 R('<button data-n="store">${I.cart}STORE</button>','')

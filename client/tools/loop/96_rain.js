@@ -14,5 +14,6 @@ void main() { vec3 box = vec3(40.0, 30.0, 40.0); float h = fract(position.x * 7.
     fragmentShader:`precision highp float; uniform float uAmt; varying vec2 vC; varying float vA;
 void main() { float w = mix(1.0, 0.12, vC.y); float a = 1.0 - smoothstep(w * 0.5, w, abs(vC.x)); a *= smoothstep(0.0, 0.07, vC.y) * (1.0 - smoothstep(0.7, 1.0, vC.y)); gl_FragColor = vec4(vec3(0.74), a * vA * 0.46 * uAmt); }`});
   const m=new Qt(geo,mat);m.frustumCulled=!1;m.renderOrder=18;m.name="rain";S.add(m);
-  const old=g.fx.rain;m.visible=SCLOOP?!0:!old||old.visible!==!1;old&&old.isObject3D&&S.remove(old);g.fx.rain=m;   // the RAIN switch now turns these on and off
+  const old=g.fx.rain;m.visible=SCGLASS?!1:SCLOOP?!0:!old||old.visible!==!1;old&&old.isObject3D&&S.remove(old);g.fx.rain=m;
+  {const u0=g.update.bind(g);g.update=t=>{U.uRip&&(U.uRip.value=m.visible?1:0);return u0(t)}}   // no rain, no rings in the puddles   // the RAIN switch now turns these on and off
 }

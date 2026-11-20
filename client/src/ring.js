@@ -259,6 +259,14 @@ export function flatArena(proto) {
   proto.see = (out, p) => out.copy(p); proto.unsee = (out, q) => out.copy(q);
   proto.rel = (out, a, b) => out.copy(b).sub(a); proto.dist = (a, b) => a.distanceTo(b);
   proto.rayTo = (fx, o, d, oo, dd) => { oo.copy(o); dd.copy(d); }; proto.dirAt = (out, o, d) => out.copy(d);
+  // streets cut into tiles are joined by 'walk' links, as on the ring: a step on the level from one tile to the next
+  const lp = proto.linkPos, lm = proto.linkMode, ll = proto.linkLabel;
+  if (lp && !proto.walkLinks) {
+    proto.walkLinks = true;
+    proto.linkPos = function (l, dir, u, out) { if (l.kind !== 'walk') return lp.call(this, l, dir, u, out); const A = dir ? l.p1 : l.p0, B = dir ? l.p0 : l.p1; return out.set(A.x + (B.x - A.x) * u, A.y + (B.y - A.y) * u, A.z + (B.z - A.z) * u); };
+    proto.linkMode = function (l, u, dir = 0) { return l.kind === 'walk' ? 'ground' : lm.call(this, l, u, dir); };
+    proto.linkLabel = function (l) { return l.kind === 'walk' ? '' : ll.call(this, l); };
+  }
 }
 
 // Distance of (x, z) from the halo's centre, in the halo's own measure: compare with zone.r. r lets you ask about another radius.
