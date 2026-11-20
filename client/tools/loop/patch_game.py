@@ -12,7 +12,7 @@ def R(a,b,n=1):
 # ---- boot
 R('async function sE(){og();','async function sE(){og();RINGBOOT();')
 R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:SCGLASS?nGl:nA)(n,o,s);')
-R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):SCGLASS?GLPARSE(o):ag(o),pack:XS(a),')
+R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):SCGLASS?glassParse(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
 R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),GLASS(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),RSCOPES(l),RPARTS(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
@@ -264,7 +264,7 @@ R('t.on("left",e=>{this.room=null,this.g.net&&this.g.stopNet(),this.g.state="tit
 R('em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.78)) * on * tw','em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.95, 0.70, 0.30)) * on * tw')
 R('vec3(0.42 + 0.5 * skHash(cell + 3.1))) * lit','vec3(1.0, 0.76, 0.36) * (0.42 + 0.5 * skHash(cell + 3.1))) * lit')
 R('float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);',
-  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);\n  if (uRaw > 0.5) { vec3 rc = col * uExposure; rc = rc / (1.0 + rc) * 1.72; rc = mix(rc, smoothstep(0.0, 1.0, rc), 0.5); outc = rc * mix(1.0, vig, 0.82); }   // a map that keeps its own colours (GLASS CITY)')
+  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);\n  if (uRaw > 0.5) outc = col * uExposure * mix(1.0, vig, 0.5);   // a map that keeps its own colours (GLASS CITY)')
 # ---- rifle parts (99_parts.js, client/src/parts.js): the player's own rifle is a copy with their parts' numbers; the
 # bots keep the plain one. Rooms are told which parts you carry when you make or join one.
 R('get weapon(){return this.awm&&this.cur==="rifle"?Vi.awm:Vi[this.cur]}','get weapon(){return this.awm&&this.cur==="rifle"?Vi.awm:this.cur==="rifle"&&this.kitRifle||Vi[this.cur]}')
@@ -272,6 +272,15 @@ R('this.w={rifle:{mag:Vi.rifle.mag,reserve:Vi.rifle.reserve,cool:0}','this.w={ri
 R('this.ads=zr(this.ads+(h?t/.16:-t/.12),0,1)','this.ads=zr(this.ads+(h?t/(this.kitRifle&&this.cur==="rifle"&&this.kitRifle.ads||.16):-t/.12),0,1)')
 R('this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:window.SCPARTS||[0,0,0,0]}),')
 R('this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"}})','this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"},parts:window.SCPARTS||[0,0,0,0]})')
+# GLASS CITY: a crate or a screen only on a roof of 60 m2 or more (there are hundreds of small ones)
+R('for(let i of r.roofs){if(!i.cells||i.cells.length<16)continue;let n=bA(r,i,new De),s=i.cells.length>=44?2:1,o=[];','for(let i of r.roofs){if(!i.cells||i.cells.length<(SCGLASS?240:16))continue;let n=bA(r,i,new De),s=i.cells.length>=(SCGLASS?800:44)?2:1,o=[];')
+# a bot's feet are on the real floor where a map says its floors are not level (GLASS CITY: client/src/ring.js flatArena floorY)
+R('if(this.pos.y=Gr(this.pos.y,this.roofObj.roofY,Math.min(1,t*12)),this.state==="scan")','if(this.pos.y=Gr(this.pos.y,i.floorY?i.floorY(this.roofObj,this.pos.x,this.pos.z):this.roofObj.roofY,Math.min(1,t*12)),this.state==="scan")')
+# a bot leaving for a safer roof says where it stands: a big flat map (GLASS CITY) judges a way by how far it is to walk (client/src/ring.js flatArena)
+R('let h=i.route(this.roof,u=>i.safeCount(u,s-2.2)>=10);h||(h=i.route(this.roof,u=>i.safeCount(u,s-1)>=1))','let h=i.route(this.roof,u=>i.safeCount(u,s-2.2)>=10,null,this.pos);h||(h=i.route(this.roof,u=>i.safeCount(u,s-1)>=1,null,this.pos))')
+# GLASS CITY: a round's whole way (through panes, off panes) is worked out by client/src/glass.js; and a name for being hit by your own
+R('function xu(r,t,e,i,n,s){let{arena:o,fx:a,audio:c}=r,','function xu(r,t,e,i,n,s){if(r.arena.glass)return r.arena.glass.shot(r,t,e,i,n,s,yu);let{arena:o,fx:a,audio:c}=r,')
+R('i.cause==="rpg"&&!e?"OWN ROCKET":','i.cause==="glass"&&!e?"OWN ROUND":i.cause==="rpg"&&!e?"OWN ROCKET":')
 # GLASS CITY has no rooms yet: what the server is asked for is a city room (60_net.js RNMAP)
 R('this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:','this.net.send({t:"join",code:t,map:RNMAP(),parts:')
 R('map:window.SCMAP||"city"},parts:window.SCPARTS','map:RNMAP()},parts:window.SCPARTS')
@@ -281,6 +290,7 @@ R('<button data-n="store">${I.cart}STORE</button>','')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ').replace('export const ','const ')
 ring+='\n/* ---------- parts.js (client/src/parts.js, verbatim) ---------- */\n'+open(REPO+'/client/src/parts.js').read().replace('export function ','function ').replace('export const ','const ')
+ring+='\n/* ---------- glass.js (client/src/glass.js, verbatim) ---------- */\n'+open(REPO+'/client/src/glass.js').read().replace('export function ','function ').replace('export const ','const ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
 MARK='/* ---------- Google Analytics events'
 assert s.count(MARK)==1

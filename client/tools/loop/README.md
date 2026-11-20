@@ -114,16 +114,38 @@ eight bots costs 0.13 ms a tick (the city: 0.16 ms). The server loads the loop a
 ## GLASS CITY (a third map, in the making)
 
 Reached with `?map=glass`; it is not on the map chooser yet, and it is solo only (a room made or joined from it is a
-city room, see `RNMAP` in `60_net.js`).
+city room, see `RNMAP` in `60_net.js`; the server does not know the map).
 
 | what | where |
 | --- | --- |
-| the drawing -> game data | `client/tools/pack_glass.py <virtual_city_tilt_brush.glb>` writes `client/dist/glass.txt` (about 90 seconds; the 168 MB GLB is not in the repository) |
+| the drawing -> game data | `client/tools/pack_glass.py <virtual_city_tilt_brush.glb>` writes `client/dist/glass.txt` (about 20 seconds; the 168 MB GLB is not in the repository) |
 | the arena | `client/tools/pack_glass_arena.py` reads `glass.txt` and writes `client/dist/arena-glass.json` (seconds) |
-| in the game | `client/tools/loop/22_glass.js` (`GLPARSE`, `nGl` builds the city, `GLASS` sets the night), `10_boot.js` picks the map |
+| the rules of its glass | `client/src/glass.js` (pasted into the bundle by `patch_game.py`): rounds bounce off panes, the third round breaks one |
+| in the game | `client/tools/loop/22_glass.js` (`nGl` builds the city, `GLASS` sets the night and the glass), `10_boot.js` picks the map |
 | colours | no grade: `95_grade.js` "raw", and `uRaw` in the post pass (`patch_game.py`) |
 
 The model is "Virtual City [Tilt Brush]" by factoryfifteen (CC BY 4.0, credited on the title screen and in about.html).
-Each brush stroke is one flat rectangle: a pane. Panes are drawn as glass (see-through, bright edges) and are solid:
-people walk, jump and climb on the real panes, the same capsule physics as on the other maps. The towers of the middle
-block carry the model's own window pictures and are solid too; so are the dark catwalks. Bots only know the street so far.
+It is shown as it was built and as its page on Sketchfab shows it. What that took:
+
+* **Shapes.** Each flat run of a brush stroke is one pane with the stroke's own outline (four corners, or three), its
+  own colour, one scale in every direction. The wires (cables and line-work) are their centre lines with their own
+  thickness. Lights, grids, signs, ribbons of light, towers with their window pictures and the ground are kept triangle
+  for triangle.
+* **Light.** The file does not say how the city is lit; the picture does, and `22_glass.js` (`GLT`) follows it: a black
+  night with very little light of its own, one strong red-orange light from the west whose shadows are worked out once
+  in `pack_glass.py`, and things that give light (red lights, ribbons, wires, signs, windows).
+* **Lines.** The picture shows the model with its wireframe on: every edge of the mesh as a thin blue line. The game
+  draws those lines in the panes' shader: round each pane, across it at each step its stroke took, and corner to
+  corner of each step. The pack carries how many steps each pane's stroke took.
+
+How the look was matched: the camera of the Sketchfab picture was found by fitting the red lights and lit windows of a
+render to the picture (it stands at 46, 23, -60 looking west-north-west, 44 degrees of view), and the game was then
+compared with the picture from there, class of colour by class of colour (black, blue lines, dark blue, red, orange,
+windows).
+
+Every pane is solid: people walk, jump and climb on the real panes, the same capsule physics as on the other maps. The
+towers, the signs, the ribbons of light and their dark copies are solid too. Bots know the floors, steps, ladders and
+cables in `arena-glass.json`: the street inside the halo's first ring (cut into 36 m tiles) and every level floor of
+60 m2 or more above it. A bot's feet follow the real floor (`flatArena` `floorY` in `client/src/ring.js`), it judges a
+way by how far it is to walk (`route`), and the halo closes where the arena says (`GLASS` sets it: the game otherwise
+keeps the halo on the middle of the map).

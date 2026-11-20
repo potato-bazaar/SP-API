@@ -267,6 +267,38 @@ export function flatArena(proto) {
     proto.linkMode = function (l, u, dir = 0) { return l.kind === 'walk' ? 'ground' : lm.call(this, l, u, dir); };
     proto.linkLabel = function (l) { return l.kind === 'walk' ? '' : ll.call(this, l); };
   }
+  // roofs that lie over one another (data.stacked: GLASS CITY's floors): which one you are on goes by its cells as well as its height
+  const ra = proto.roofAt;
+  if (ra && !proto.stackedRoofs) {
+    proto.stackedRoofs = true;
+    proto.roofAt = function (x, z, y = null) {
+      if (!this.data.stacked) return ra.call(this, x, z, y);
+      let best = -1, bd = 1e9;
+      for (const r of this.roofs) { if (x < r.x0 - 0.35 || x > r.x1 + 0.35 || z < r.z0 - 0.35 || z > r.z1 + 0.35) continue; const d = (y == null ? 0 : Math.abs(y - r.roofY)) + (this.walk(r, x, z) ? 0 : 1.2); if (d < bd) { bd = d; best = r.i; } }
+      return bd < 3.5 || y == null ? best : -1;
+    };
+  }
+  // On such a map a roof is not quite level, and low things lie across the street (GLASS CITY's ribbons of light): the
+  // floor under a bot is the real one, up to 1.7 m over its roof's height. It steps over a ribbon; it does not wade through.
+  if (!proto.floorY) proto.floorY = function (r, x, z) { if (!this.data.stacked) return r.roofY; const y = this.groundY(x, z, r.roofY + 1.7, 2.0); return y == null ? r.roofY : y; };
+  // On such a map a way is judged by how far it is to walk, not by how many links it has: its streets are cut into
+  // tiles, and the nearest crossing to the next tile may lie behind you. from: where the one asking stands.
+  const rt = proto.route;
+  if (rt && !proto.farRoutes) {
+    proto.farRoutes = true;
+    proto.route = function (a, ok, blocked = null, from = null) {
+      if (!this.data.stacked) return rt.call(this, a, ok, blocked);
+      const R = this.roofs, open = [{ r: a, x: from ? from.x : R[a].x, z: from ? from.z : R[a].z, c: 0, e: null, prev: null }], best = new Float32Array(R.length).fill(1e9); best[a] = 0;
+      for (let guard = 0; open.length && guard < 4000; guard++) {
+        let bi = 0; for (let i = 1; i < open.length; i++) if (open[i].c < open[bi].c) bi = i; const s = open[bi]; open[bi] = open[open.length - 1]; open.pop();
+        if (s.e && ok(R[s.r])) { const path = []; for (let q = s; q.e; q = q.prev) path.push(q.e); return path.reverse(); }
+        if (s.c > best[s.r] + 1e-6) continue;
+        for (const e of R[s.r].links) { if (blocked && blocked(e)) continue; const A = e.dir ? e.link.p1 : e.link.p0, B = e.dir ? e.link.p0 : e.link.p1, c = s.c + Math.hypot(A.x - s.x, A.z - s.z) / 5 + e.link.time + 0.6;
+          if (c < best[e.to]) { best[e.to] = c; open.push({ r: e.to, x: B.x, z: B.z, c, e, prev: s }); } }
+      }
+      return null;
+    };
+  }
 }
 
 // Distance of (x, z) from the halo's centre, in the halo's own measure: compare with zone.r. r lets you ask about another radius.

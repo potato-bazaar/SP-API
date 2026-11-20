@@ -104,7 +104,7 @@ export class Bot {
     if (!outsideNow && z.phaseAge < this.zoneDelay && !z.shrinking && z.toNext > 9) return;                  // not everyone leaves at the same second
     const r = this.roofObj; const roofSafe = ar.safeCount(r, sr - 2.0) >= 6;
     if (roofSafe) { if (this.state !== 'move' || force) { let best = null, bd = 1e9; for (let i = 0; i < 40; i++) { const k = r.cells[(Math.random() * r.cells.length) | 0]; ar.cellPos(r, k, _a); if (!this._safeAt(_a.x, _a.z, sr - 0.8)) continue; const d = Math.hypot(_a.x - this.pos.x, _a.z - this.pos.z); if (d < bd) { bd = d; best = _a.clone(); } } if (best) { this.state = 'move'; this.plan.length = 0; this.fleeing = true; this.target = null; this._goTo(best.x, best.z, () => { this.state = 'scan'; this.fleeing = false; }); } } return; }
-    let route = ar.route(this.roof, (rr) => ar.safeCount(rr, sr - 2.2) >= 10); if (!route) route = ar.route(this.roof, (rr) => ar.safeCount(rr, sr - 1) >= 1);
+    let route = ar.route(this.roof, (rr) => ar.safeCount(rr, sr - 2.2) >= 10, null, this.pos); if (!route) route = ar.route(this.roof, (rr) => ar.safeCount(rr, sr - 1) >= 1, null, this.pos);      // (this.pos: a big flat map judges a way by how far it is from here)
     if (route) { this.fleeing = false; this._travel(route); }
   }
   hideFromAngel(eyePos) { // the angel is about to look: break its line of sight if this roof allows it
@@ -153,7 +153,7 @@ export class Bot {
         if (d <= stepLen + 0.05) { this.pos.x = p.x; this.pos.z = p.z; this.path.shift(); if (!this.path.length && this.arrive) { const f = this.arrive; this.arrive = null; f(); } }
         else { this.pos.x += dx / d * stepLen; this.pos.z += dz / d * stepLen; this.speed = sp; const want = Math.atan2(-dx, -dz); this.yaw += wrap(want - this.yaw) * Math.min(1, dt * 9); if (this.state === 'move') { this.aimYaw += wrap(this.yaw - this.aimYaw) * Math.min(1, dt * 6); this.aimPitch = lerp(this.aimPitch, 0, dt * 4); this.crouch = false; } }
       }
-      this.pos.y = lerp(this.pos.y, this.roofObj.roofY, Math.min(1, dt * 12));
+      this.pos.y = lerp(this.pos.y, ar.floorY ? ar.floorY(this.roofObj, this.pos.x, this.pos.z) : this.roofObj.roofY, Math.min(1, dt * 12));      // (floorY: a map whose floors are not level tells where the real one is)
       // ---- stance + aim
       if (this.state === 'scan') {
         if (this.stanceT <= 0) { this.crouch = !this.crouch; this.stanceT = this.crouch ? 1.2 + Math.random() * 2.6 : 2.6 + Math.random() * 3.6; if (this.hideUntil > g.time) this.crouch = true; }

@@ -3,7 +3,7 @@
    warm yellow in the brightest windows, and lightning. LOOP CITY is rain haze: green-black shadows, grey-green air,
    amber in the brightest lights. Values are sRGB as you would read them off a picture. ---------- */
 var RGR={storm:{g0:[8,12,34],g1:[64,92,164],g2:[194,210,242],gw:[255,226,160],a:1,ex:1.3,bolt:!0},
-  raw:{g0:[0,0,0],g1:[128,128,128],g2:[255,255,255],gw:[255,255,255],a:0,raw:1,ex:1.15,bolt:!1},   // no grade: the map's own colours (GLASS CITY)
+  raw:{g0:[0,0,0],g1:[128,128,128],g2:[255,255,255],gw:[255,255,255],a:0,raw:1,ex:1,bolt:!1},   // no grade: the map's own colours (GLASS CITY)
   haze:{g0:[5,13,11],g1:[64,104,88],g2:[178,206,186],gw:[255,204,138],a:1,ex:1.3,bolt:!1}};
 function RGRADE(g){
   const U=g.gfx&&g.gfx.post;if(!U||!U.uGA)return;

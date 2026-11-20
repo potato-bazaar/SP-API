@@ -8,7 +8,7 @@ function RINGBOOT(){
   zt.sc_roll="vec3 scRoll(vec3 p){ return p; }";
   let m=null;try{m=new URLSearchParams(location.search).get("map")||localStorage.getItem("sc.world")}catch(e){}
   window.SCMAP=m==="loop"?"loop":m==="glass"?"glass":"city";
-  if(m==="glass"){SCGLASS=!0;sc.city="glass.txt";sc.arena="arena-glass.json";lg["glass.txt"]=372e4;lg["arena-glass.json"]=27e4;return}   // GLASS CITY (22_glass.js): flat, like the city map
+  if(m==="glass"){SCGLASS=!0;sc.city="glass.txt";sc.arena="arena-glass.json";lg["glass.txt"]=485e4;lg["arena-glass.json"]=35e4;return}   // GLASS CITY (22_glass.js): flat, like the city map
   if(m!=="loop")return;
   SCLOOP=!0;sc.city="loop.txt";sc.arena="arena-loop.json";lg["loop.txt"]=557e4;lg["arena-loop.json"]=7e5;
   RK=ringKit({Vector3:I,Ray:yn,DoubleSide:Te,MeshBVH:Zo,BufferGeometry:se,BufferAttribute:Ft});
