@@ -11,12 +11,12 @@ def R(a,b,n=1):
     assert s.count(a)==n,(s.count(a),a[:90]); s=s.replace(a,b)
 # ---- boot
 R('async function sE(){og();','async function sE(){og();RINGBOOT();')
-R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:nA)(n,o,s);')
-R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):ag(o),pack:XS(a),')
+R('let a=await nA(n,o,s);','let a=await(SCLOOP?nL:SCGLASS?nGl:nA)(n,o,s);')
+R('return{kit:ag(o),pack:XS(a),','return{kit:SCLOOP?RK.parsePack(o):SCGLASS?glassParse(o):ag(o),pack:XS(a),')
 R('this.arena=new au(e.arena,i.bvh)','this.arena=RINGA(new au(e.arena,i.bvh),i)')
-R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),')
+R('MENU(l),VOICE(l),','MENU(l),VOICE(l),RMENU(l),RING(l),GLASS(l),RLADDERS(l),RGRAPHITE(l),RWALLS(l),RDOORS(l),RWORKSHOP(l),RGRADE(l),RRAIN(l),RSCOPES(l),RPARTS(l),')
 # ---- no kill plane at street height on the loop (the street is where you walk); the void below the hull still kills
-R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:9.5)){')
+R('this.pos.y<9.5){','this.pos.y<(n.ring?-25:n.data&&n.data.dropY!=null?n.data.dropY:9.5)){')   # a map may say where its floor of the world is (arena JSON dropY)
 # ---- no roof lamps on the loop
 R('this.lamps=[];for(let e of t.roofs){let i=bA(t,e);i&&this.lamps.push({i:e.i,pos:i})}','this.lamps=[];if(!t.ring)for(let e of t.roofs){let i=bA(t,e);i&&this.lamps.push({i:e.i,pos:i})}')
 # ---- world-space shaders bend with the ring
@@ -63,7 +63,7 @@ R('try{g.gear&&g.gear.shotWorld&&g.gear.shotWorld(p,b.p,nx)}catch(x){}','try{g.g
 R('ex=e.x-b.p.x,ey=e.y-b.p.y,ez=e.z-b.p.z,sd=ex*dir.x+ey*dir.y+ez*dir.z;','rv=A.rel(RQ,pc,e),ex=rv.x,ey=rv.y,ez=rv.z,sd=ex*dc.x+ey*dc.y+ez*dc.z;')
 R('if(b.t>2.4||b.far>420||b.p.y<-30){try{g.fx.threads.shot(b.mz,b.p)}catch(x){}done=!0}','if(b.t>2.4||b.far>420||(A.ring?A.unsee(this._pc,b.p,b.fx).y:b.p.y)<-30){try{g.fx.threads.shot(b.mz,A.ring?this._pc:b.p)}catch(x){}done=!0}')
 # ---- cables are drawn along the line the rider takes (see RCABLE)
-R('let m=new Qt(new Rn(.028,.028,len,5,1,!0),mat);m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(up,d.normalize());','let m=SCLOOP?RCABLE(g,l,mat):new Qt(new Rn(.028,.028,len,5,1,!0),mat);SCLOOP||(m.position.copy(a).addScaledVector(d,.5),m.quaternion.setFromUnitVectors(up,d.normalize()));')
+R('let m=new Qt(new Rn(.028,.028,len,5,1,!0),mat);m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(up,d.normalize());','let m=SCLOOP||SCGLASS?RCABLE(g,l,mat):new Qt(new Rn(.028,.028,len,5,1,!0),mat);SCLOOP||SCGLASS||(m.position.copy(a).addScaledVector(d,.5),m.quaternion.setFromUnitVectors(up,d.normalize()));')   # (GLASS CITY has a hundred cables: one mesh for them all there too, with a mast at each end)
 R('let n=ki.set((e.p0.x+e.p1.x)/2,(e.p0.y+e.p1.y)/2+(e.lift||0)+2.05,(e.p0.z+e.p1.z)/2);this.fx.particles.flash(n,2.4);','let n=ki.set((e.p0.x+e.p1.x)/2,(e.p0.y+e.p1.y)/2+(e.lift||0)+2.05,(e.p0.z+e.p1.z)/2);SCLOOP&&n.copy(RCPTS(this.arena,e)[RCPTS(this.arena,e).length>>1]);this.fx.particles.flash(n,2.4);')
 # ---- HUD: spawn numbers above nine, and what is under the crosshair is judged along the real sight line
 R('`${e.spawnRoof.name} \\xB7 0${e.spawnRoof.spawn+1}`','`${e.spawnRoof.name} \\xB7 ${String(e.spawnRoof.spawn+1).padStart(2,"0")}`')
@@ -93,7 +93,7 @@ R('a.position.set(c+Math.cos(this.orbit)*u,d,h+Math.sin(this.orbit)*u),a.lookAt(
 R('cam.lookAt(c.x,(c.y+p.pos.y)*.5+6,c.z);cam.updateMatrixWorld();','RLOOK(g,cam,c.x,(c.y+p.pos.y)*.5+6,c.z);cam.updateMatrixWorld();')
 R('cam.lookAt(cx,cy+4,cz);cam.updateMatrixWorld();','RLOOK(g,cam,cx,cy+4,cz);cam.updateMatrixWorld();')
 # ---- eggs: on the loop one on every fourth rooftop is plenty (there are many more roofs, and the streets stay clear)
-R('for(let r of A.roofs)for(let k=0;k<E.PER;k++)for(let t=0;t<8;t++){','for(let r of A.roofs)for(let k=0;k<(SCLOOP?(r.kind==="roof"&&r.i%4===0?1:0):E.PER);k++)for(let t=0;t<8;t++){')
+R('for(let r of A.roofs)for(let k=0;k<E.PER;k++)for(let t=0;t<8;t++){','for(let r of A.roofs)for(let k=0;k<(SCLOOP?(r.kind==="roof"&&r.i%4===0?1:0):SCGLASS?(r.cells.length>=60&&r.i%4===0?1:0):E.PER);k++)for(let t=0;t<8;t++){')   # (GLASS CITY has four hundred roofs, most of them small: an egg on one in four of the larger ones)
 # ---- solo gear: a decoy fires along the real line; the missile view stays under the hub and probes down from there
 R('n?o.copy(n.chest(wc)).sub(i).normalize():o.set(Math.random()-.5,0,Math.random()-.5).normalize()','n?e.arena.rel(o,i,n.chest(wc)).normalize():o.set(Math.random()-.5,0,Math.random()-.5).normalize()')
 R('c=new De().copy(i).addScaledVector(o,a?a.distance:300);t.fake.lastShot=e.time','c=e.arena.unsee(new De,new De().copy(i).addScaledVector(o,a?a.distance:300),i.x);t.fake.lastShot=e.time')
@@ -232,8 +232,8 @@ R('n.rotation.set(this.pitch+this.kick+this.swayY+Math.sin(this.hurtT*40)*this.h
 # ---- the dead rise to the angel's hands: the hands are where the picture shows them (the angel is carried whole to its
 #      place, so its parts keep their own numbers there), and a soul leaves from the street, not from 6 m above it
 R('wristPos(t,e){return this.wrists[t%this.wrists.length].getWorldPosition(e)}','wristPos(t,e){let w=this.wrists[t%this.wrists.length].getWorldPosition(e);return SCLOOP?this.g.arena.unsee(w,w,this.root.position.x):w}')
-R('this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,6)),','this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,SCLOOP?.4:6)),')
-R('this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,6)),','this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,SCLOOP?.4:6)),')
+R('this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,6)),','this.fx.threads.addSoul(d.clone().setY(Math.max(d.y,SCLOOP||SCGLASS?.4:6)),')
+R('this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,6)),','this.fx.threads.addSoul(c.clone().setY(Math.max(c.y,SCLOOP||SCGLASS?.4:6)),')
 # ---- the menu on the loop shows the wheel (RLOBBY in 70_lobby.js)
 R('const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;',
   'const lobby=(cam,t)=>{ensure();let s=stage[g.op]||stage[0];if(!s)return;stage.forEach(q=>q&&(q.rig.root.visible=q===s));light&&(light.intensity=70);T+=t;if(RSAFE(g,cam,t,T,s,light))return;if(SCLOOP){RLOBBY(g,cam,t,T,s,light);return}')
@@ -244,11 +244,19 @@ R('A store that sells looks for XP comes with player accounts.</p>`),','A store 
 # (shadow, middle, light, the brightest lights), so a map can be a blue storm night or a green rain haze. Red, gas green and
 # zipline cyan stay what they were.
 R('void main() {\n  vec2 uv = vUv;\n  // zone glitch',
-  'uniform vec3 uG0, uG1, uG2, uGW; uniform float uGA;\nvec3 gradeC(float l) { l = clamp(l, 0.0, 1.25); vec3 c = mix(uG0, uG1, smoothstep(0.0, 0.42, l)); c = mix(c, uG2, smoothstep(0.36, 0.80, l)); c = mix(c, uGW, smoothstep(0.78, 1.02, l)); return mix(vec3(l), c * (0.35 + 0.65 * smoothstep(0.0, 0.06, l)), uGA); }\nvoid main() {\n  vec2 uv = vUv;\n  // zone glitch')
+  'uniform vec3 uG0, uG1, uG2, uGW; uniform float uGA, uRaw, uRip;\nvec3 gradeC(float l) { l = clamp(l, 0.0, 1.25); vec3 c = mix(uG0, uG1, smoothstep(0.0, 0.42, l)); c = mix(c, uG2, smoothstep(0.36, 0.80, l)); c = mix(c, uGW, smoothstep(0.78, 1.02, l)); return mix(vec3(l), c * (0.35 + 0.65 * smoothstep(0.0, 0.06, l)), uGA); }\nvoid main() {\n  vec2 uv = vUv;\n  // zone glitch')
 R('vec3 outc = mix(vec3(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);','vec3 outc = mix(gradeC(max(lum, 0.0)), uRedCol * (0.82 + 0.3 * ra), ra);')
-R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},')
+R('uZoneOut:{value:0},uKick:{value:0},','uZoneOut:{value:0},uKick:{value:0},uG0:{value:new Tt(0,0,0)},uG1:{value:new Tt(.5,.5,.5)},uG2:{value:new Tt(1,1,1)},uGW:{value:new Tt(1,1,1)},uGA:{value:0},uRaw:{value:0},uRip:{value:1},')
 # ---- joining a room says which map this page has loaded; if the room is on the other one the server answers
 # MAPSWITCH:<map> and the page reloads onto it and rejoins (server/src/rooms.js; RSWITCH in 60_net.js)
+# ---- rain on the puddles (96_rain.js has the drops): rings spread from where drops land and bend what the wet roof
+# reflects; puddles are closer to mirrors than they were. One drop per cell per cycle, a new place each time.
+R('vec3 gradeC(float l) {',
+  'vec2 rpH(vec2 p) { p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }\nvec2 ripples(vec2 p, float t) { vec2 g = floor(p); vec2 acc = vec2(0.0);\n  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 cell = g + vec2(float(i), float(j)); vec2 h = rpH(cell); float cyc = t * (0.5 + 0.4 * h.x) + h.y; float ph = fract(cyc);\n    vec2 d = p - (cell + 0.15 + 0.7 * rpH(cell + floor(cyc) * 7.3)); float r = length(d); float w = (r - ph * 1.2) * 24.0; float fall = 1.0 - ph;\n    acc += d / max(r, 0.001) * sin(w) * exp(-w * w * 0.1) * fall * fall; }\n  return acc; }\nvec3 gradeC(float l) {')
+R('vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3), 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt)));',
+  'vec2 rg = ripples(wp.xz * 2.6, uTime) * 0.2 * uRip * (1.0 - smoothstep(18.0, 42.0, pz)); vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3) + rg.x * 16.0, 16.0, cos(rp.x * 2.9 - tt * 0.8) * sin(rp.y * 3.3 + tt) + rg.y * 16.0));')
+R('float fres = 0.16 + 0.84 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);','float fres = 0.24 + 0.76 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);')
+R('col = col * (1.0 - 0.3 * wet) + refl * fres * wet * 1.6;','col = col * (1.0 - 0.5 * wet) + refl * fres * wet * 2.3 + vec3(dot(rg, rg)) * 0.9 * wet;')
 R('this.net.send({t:"join",code:t}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),')
 R('t.on("error",e=>{this.toast(e.msg),this._stat(e.msg,!0)})','t.on("error",e=>{let sw=/^MAPSWITCH:(city|loop)$/.exec(e.msg||"");if(sw&&window.RSWITCH){window.RSWITCH(sw[1],$t("code")&&$t("code").value||this.room&&this.room.code||"");return}if(/not in a room/i.test(e.msg||"")&&this.room){this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online"),this._stat("connection lost too long \\xB7 rejoin with the room code",!0),this.toast(e.msg);return}this.toast(e.msg),this._stat(e.msg,!0)})')
 R('t.on("left",e=>{this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online"),this._stat(e.why==="kicked"?"the host removed you from the room":"you left the room",e.why==="kicked")})','t.on("left",e=>{if(e.why==="switch")return;this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online");let msg=e.why==="kicked"?"the host removed you from the room":e.why==="timeout"?"connection lost too long \\xB7 you were removed from the room":"you left the room";this._stat(msg,e.why==="kicked"||e.why==="timeout")})')
@@ -256,9 +264,68 @@ R('t.on("left",e=>{this.room=null,this.g.net&&this.g.stopNet(),this.g.state="tit
 R('em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.78)) * on * tw','em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.95, 0.70, 0.30)) * on * tw')
 R('vec3(0.42 + 0.5 * skHash(cell + 3.1))) * lit','vec3(1.0, 0.76, 0.36) * (0.42 + 0.5 * skHash(cell + 3.1))) * lit')
 R('float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);',
-  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);')
+  'float ca = clamp(cyn * 3.2, 0.0, 1.0); outc = mix(outc, vec3(0.05, 0.86, 0.96) * (0.7 + 0.45 * ca), ca);\n  float aa = clamp(max(min(col.r, col.g) - col.b, 0.0) * 3.4, 0.0, 1.0); outc = mix(outc, uGW * (0.7 + 0.5 * aa), aa * uGA);\n  if (uRaw > 0.5) outc = col * uExposure * mix(1.0, vig, 0.5);   // a map that keeps its own colours (GLASS CITY)')
+# ---- rifle parts (99_parts.js, client/src/parts.js): the player's own rifle is a copy with their parts' numbers; the
+# bots keep the plain one. Rooms are told which parts you carry when you make or join one.
+R('get weapon(){return this.awm&&this.cur==="rifle"?Vi.awm:Vi[this.cur]}','get weapon(){return this.awm&&this.cur==="rifle"?Vi.awm:this.cur==="rifle"&&this.kitRifle||Vi[this.cur]}')
+R('this.w={rifle:{mag:Vi.rifle.mag,reserve:Vi.rifle.reserve,cool:0}','this.w={rifle:{mag:(this.kitRifle||Vi.rifle).mag,reserve:(this.kitRifle||Vi.rifle).reserve,cool:0}')
+R('this.ads=zr(this.ads+(h?t/.16:-t/.12),0,1)','this.ads=zr(this.ads+(h?t/(this.kitRifle&&this.cur==="rifle"&&this.kitRifle.ads||.16):-t/.12),0,1)')
+R('this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:window.SCPARTS||[0,0,0,0]}),')
+R('this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"}})','this.net.send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"},parts:window.SCPARTS||[0,0,0,0]})')
+# GLASS CITY: a crate or a screen only on a roof of 60 m2 or more (there are hundreds of small ones)
+R('for(let i of r.roofs){if(!i.cells||i.cells.length<16)continue;let n=bA(r,i,new De),s=i.cells.length>=44?2:1,o=[];','for(let i of r.roofs){if(!i.cells||i.cells.length<(SCGLASS?240:16))continue;let n=bA(r,i,new De),s=i.cells.length>=(SCGLASS?800:44)?2:1,o=[];')
+# a bot's feet are on the real floor where a map says its floors are not level (GLASS CITY: client/src/ring.js flatArena floorY)
+R('if(this.pos.y=Gr(this.pos.y,this.roofObj.roofY,Math.min(1,t*12)),this.state==="scan")','if(this.pos.y=Gr(this.pos.y,i.floorY?i.floorY(this.roofObj,this.pos.x,this.pos.z):this.roofObj.roofY,Math.min(1,t*12)),this.state==="scan")')
+# a bot leaving for a safer roof says where it stands: a big flat map (GLASS CITY) judges a way by how far it is to walk (client/src/ring.js flatArena)
+R('let h=i.route(this.roof,u=>i.safeCount(u,s-2.2)>=10);h||(h=i.route(this.roof,u=>i.safeCount(u,s-1)>=1))','let h=i.route(this.roof,u=>i.safeCount(u,s-2.2)>=10,null,this.pos);h||(h=i.route(this.roof,u=>i.safeCount(u,s-1)>=1,null,this.pos))')
+# GLASS CITY: a round's whole way (through panes, off panes) is worked out by client/src/glass.js; and a name for being hit by your own
+R('function xu(r,t,e,i,n,s){let{arena:o,fx:a,audio:c}=r,','function xu(r,t,e,i,n,s){if(r.arena.glass)return r.arena.glass.shot(r,t,e,i,n,s,yu);let{arena:o,fx:a,audio:c}=r,')
+R('i.cause==="rpg"&&!e?"OWN ROCKET":','i.cause==="glass"&&!e?"OWN ROUND":i.cause==="rpg"&&!e?"OWN ROCKET":')
+# GLASS CITY has no rooms yet: what the server is asked for is a city room (60_net.js RNMAP)
+R('this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:','this.net.send({t:"join",code:t,map:RNMAP(),parts:')
+R('map:window.SCMAP||"city"},parts:window.SCPARTS','map:RNMAP()},parts:window.SCPARTS')
+# ---- the menu says WEAPON (finish, scope, parts: 82_workshop.js) and has no STORE
+R('<button data-n="arsenal">ARSENAL</button>','<button data-n="arsenal">WEAPON</button>')
+R('<button data-n="store">${I.cart}STORE</button>','')
+# ---- GLASS CITY: nobody plays on the street; getting from roof to roof is the game (arena JSON `parkour`, 'jump' links without ramps)
+# running builds speed: the longer the sprint, the faster, and the jump at full speed is higher (so it carries further)
+R('this.sprinting=u&&this.grounded;let d=(this.crouch?2.35:(u?7.3:4.5)*(1-.42*this.ads))',
+  'this.sprinting=u&&this.grounded;let pkr=n.data&&n.data.parkour;pkr&&(this.flow=Math.max(0,Math.min(1,(this.flow||0)+(u&&(this.speed>5.5||!this.grounded)?t/pkr.build:-t*2.5))));let d=(this.crouch?2.35:(u?7.3+(pkr?(pkr.sprint-7.3)*this.flow:0):4.5)*(1-.42*this.ads))')
+# a jump pressed at a leap mark, facing the gap, is the leap (nobody has to judge the distance on a phone)
+R('{if(h>.2&&this._tryMantle(!0)||(this.vel.y=7.3,this.grounded=!1,','{if(pkr&&this._leap(1)||h>.2&&this._tryMantle(!0)||(this.vel.y=7.3+(pkr?(pkr.jump-7.3)*this.flow:0),this._jmp=1,this.grounded=!1,')
+# and so is sprinting over one toward the gap
+R('this.prompt=null,this.padLock-=t;let M=1e9;if(w&&this.roof>=0)for(let x of n.roofs[this.roof].links){','this.prompt=null,this.padLock-=t;let M=1e9;if(pkr&&w&&this.roof>=0&&this.sprinting&&this._leap(0))return;if(w&&this.roof>=0)for(let x of n.roofs[this.roof].links){')
+R('text:S.kind==="jump"?"SPRINT UP THE RAMP \\xB7 JUMP AT THE RED LIP":','text:S.kind==="jump"?S.k0?"SPRINT UP THE RAMP \\xB7 JUMP AT THE RED LIP":"SPRINT OR JUMP AT THE ARROWS \\xB7 "+n.roofs[x.to].name:')
+# _leap(pressed): the leap mark under the sniper that points the way they face (and, sprinting, the way they run); the ride is the link's own arc
+R('_ride(t,e){this.mode="link",this.link=t,',
+  '_leap(pr){let ar=this.g.arena,r=ar.roofs[this.roof];if(!r||!pr&&this.padLock>0)return!1;let fx=-Math.sin(this.yaw),fz=-Math.cos(this.yaw),best=null,bs=pr?.45:.7;for(let e of r.links){let l=e.link;if(l.kind!=="jump"||l.k0)continue;let A=e.dir?l.p1:l.p0,B=e.dir?l.p0:l.p1,d=Math.hypot(A.x-this.pos.x,A.z-this.pos.z);if(d>(pr?2:1.35)||Math.abs(A.y-this.pos.y)>.9)continue;let bx=B.x-A.x,bz=B.z-A.z,bl=Math.hypot(bx,bz)||1,c=(bx*fx+bz*fz)/bl;if(!pr&&(this.vel.x*bx+this.vel.z*bz)/bl<5)continue;c>bs&&(bs=c,best=e)}if(!best)return!1;this.jumpBuf=0;this._ride(best.link,best.dir);this.g.audio.jump();return!0}'
+  '_leapLand(l,dir){let A=dir?l.p1:l.p0,B=dir?l.p0:l.p1,dx=B.x-A.x,dz=B.z-A.z,k=1/(Math.hypot(dx,dz)||1);this.padLock=.25;this.landDip=.45;this.g.audio.land(.4);if(this._floor(B.x+dx*k*1.3,B.y,B.z+dz*k*1.3)&&this._floor(B.x+dx*k*2.6,B.y,B.z+dz*k*2.6))this.vel.x=dx*k*8,this.vel.z=dz*k*8;else this.flow=0}'
+  # _floor(x,y,z): is there floor a sniper can stand on there (under the middle, or a hand's width to any side), above the street?
+  '_floor(x,y,z){let ar=this.g.arena,lo=ar.data.dropY+.2,o=this._fo||(this._fo=this.pos.clone()),d=this._fd||(this._fd=this.pos.clone().set(0,-1,0));for(let q of this._fq||(this._fq=[[0,0],[.16,0],[-.16,0],[0,.16],[0,-.16]])){let h=ar.raycast(o.set(x+q[0],y+.3,z+q[1]),d,.76);if(h&&h.face.normal.y>.5&&h.point.y>=lo)return!0}return!1}'
+  # _edge(): nobody leaves a roof by accident. On foot (walking or sprinting, not jumping) a sniper is held at an edge, and where a
+  # floor runs down toward the street. What stays free: a step down of a metre or less; and, at a walk, a drop of up to 2.4 m onto a
+  # lower roof that has room to land on. Anything else off a roof is a jump, a leap mark, a pad, a cable or a ladder. True when the
+  # step was taken back (the sniper stays, and can still slide along the edge).
+  '_edge(){let p=this.pos,ar=this.g.arena,s=this._es||(this._es=p.clone().setY(-1e4));if(this._floor(p.x,p.y,p.z)){s.copy(p);return!1}if(Math.hypot(p.x-s.x,p.z-s.z)>.9||Math.abs(p.y-s.y)>.9)return!1;'
+  'let vx=this.vel.x,vz=this.vel.z,vl=Math.hypot(vx,vz),sp=vl;vl<.2&&(vx=p.x-s.x,vz=p.z-s.z,vl=Math.hypot(vx,vz));vl>.001?(vx/=vl,vz/=vl):vx=vz=0;'
+  'if(vl>.001&&this._floor(p.x+vx*.14,p.y,p.z+vz*.14))return!1;'   # a seam between two panes (under half a metre: a sniper's feet bridge it): the floor carries on a step ahead
+  'let b=ar.raycast(this._fo.set(p.x,p.y+.3,p.z),this._fd,80);if(b&&b.point.y>=ar.data.dropY+.2){let h=p.y-b.point.y,y=b.point.y;if(h<=1)return!1;'
+  'if(h<=2.4&&sp<6){let ri=ar.roofAt(p.x,p.z,y),r=ri>=0?ar.roofs[ri]:null;if(r&&Math.abs(y-r.roofY)<.9&&this._fq.some(q=>ar.walk(r,p.x+q[0]*4,p.z+q[1]*4))&&this._floor(p.x+vx,y,p.z+vz)&&this._floor(p.x+vx*2,y,p.z+vz*2))return!1}}'
+  'if(!this._floor(s.x,s.y,s.z))return!1;'                           # the floor itself is gone (a pane shot out): nothing holds
+  'if(this._floor(p.x,s.y,s.z))p.set(p.x,s.y,s.z),this.vel.z=0;else if(this._floor(s.x,s.y,p.z))p.set(s.x,s.y,p.z),this.vel.x=0;else p.copy(s),this.vel.x=0,this.vel.z=0;s.copy(p);return!0}'
+  '_ride(t,e){this.mode="link",this.link=t,')
+# landing a leap, the sniper is still running
+R('(n.kind==="pad"||n.kind==="zip")&&(this.landDip=.7,this.g.audio.land(.6)))','(n.kind==="pad"||n.kind==="zip")&&(this.landDip=.7,this.g.audio.land(.6)),n.kind==="jump"&&!n.k0&&this._leapLand(n,this.linkDir))')
+# on foot nobody leaves a roof by accident (_edge above); a jump (_jmp, until the sniper lands) is their own affair
+R('if(!w&&this.vel.y<=.5&&this._groundProbe()&&(w=!0),w&&!_){','if(!w&&this.vel.y<=.5&&this._groundProbe()&&(w=!0),pkr&&!this._jmp&&this.vel.y<=.5&&this._edge()&&(w=!0),w&&(this._jmp=0),w&&!_){')
+# letting go of a cable in mid-air is as good as a jump
+R('this.mode="walk",this.link=null,this.vel.multiplyScalar(.85),this.g.audio.setZip(0);return}','this.mode="walk",this.link=null,this._jmp=1,this.vel.multiplyScalar(.85),this.g.audio.setZip(0);return}')
+# the picture widens with the speed
+R('u=Ze(bu+(this.sprinting?5:0),l,','u=Ze(bu+(this.sprinting?5+7*(this.flow||0):0),l,')
 # ---- the module
 ring=open(REPO+'/client/src/ring.js').read().replace('export function ','function ').replace('export const ','const ')
+ring+='\n/* ---------- parts.js (client/src/parts.js, verbatim) ---------- */\n'+open(REPO+'/client/src/parts.js').read().replace('export function ','function ').replace('export const ','const ')
+ring+='\n/* ---------- glass.js (client/src/glass.js, verbatim) ---------- */\n'+open(REPO+'/client/src/glass.js').read().replace('export function ','function ').replace('export const ','const ')
 mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)) if f.endswith('.js'))
 MARK='/* ---------- Google Analytics events'
 assert s.count(MARK)==1

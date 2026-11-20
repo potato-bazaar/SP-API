@@ -106,7 +106,7 @@ class Room {
 
   // ---- match
   roster() {
-    const S = this.settings; const people = [...this.members.values()]; const out = people.map(m => ({ id: m.id, name: m.name, team: m.team }));
+    const S = this.settings; const people = [...this.members.values()]; const out = people.map(m => { if (m.conn && m.conn.parts) m.parts = m.conn.parts; return { id: m.id, name: m.name, team: m.team, parts: m.parts || null }; });   // parts: kept on the member, so a reconnect does not lose them
     const counts = this.teamCounts(); const size = this.teamsOn() ? MODES[S.mode].teamSize : 0;
     for (let i = 0; i < S.bots; i++) {
       let team = 0; if (this.teamsOn()) { team = counts[0] < size && (counts[0] <= counts[1] || counts[1] >= size) ? 0 : 1; if (counts[team] >= size) break; counts[team]++; }

@@ -1,6 +1,7 @@
 // HTTP (serves the game client) + WebSocket (rooms and matches) on one port, plus the same over HTTPS when a
 // certificate is configured (TLS_CERT / TLS_KEY), so the game socket can skip Cloudflare.
 import http from 'node:http';
+import { partsClean } from '../../client/src/parts.js';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -168,8 +169,8 @@ function handle(s, m) {
   if (m.t === 'rtc') { if (s.room) s.room.rtc(s, m); return; }
   if (m.t === 'op') { s.op = m.k; if (s.room) s.room.setOp(s, m.k); return; }
   if (m.t === 'name') { s.name = m.name; if (s.room) s.room.setName(s, m.name); return; }
-  if (m.t === 'create') { if (s.room) s.room.remove(s.id, 'switch'); const r = lobby.create(s, m.settings); return; }
-  if (m.t === 'join') { const r = lobby.find(m.code); if (!r) throw new UserError('No room with that code. Check the letters and try again.'); if (s.room && s.room !== r) s.room.remove(s.id, 'switch'); r.add(s, m.map); return; }
+  if (m.t === 'create') { if (m.parts) s.parts = partsClean(m.parts); if (s.room) s.room.remove(s.id, 'switch'); const r = lobby.create(s, m.settings); return; }
+  if (m.t === 'join') { if (m.parts) s.parts = partsClean(m.parts); const r = lobby.find(m.code); if (!r) throw new UserError('No room with that code. Check the letters and try again.'); if (s.room && s.room !== r) s.room.remove(s.id, 'switch'); r.add(s, m.map); return; }
   const r = s.room; if (!r) throw new UserError('You are not in a room.');
   switch (m.t) {
     case 'leave': r.remove(s.id); break;

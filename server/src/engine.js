@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Arena } from '../../client/src/arena.js';
 import { WEAPONS, fireShot } from '../../client/src/combat.js';
+import { rifleWith } from '../../client/src/parts.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world.js';
 import { MODES } from './rules.js';
@@ -37,7 +38,7 @@ class Human {
   }
   reset() {
     this.hp = 100; this.alive = true; this.yaw = 0; this.pitch = 0; this.crouchK = 0; this.mode = 'walk'; this.speed = 0; this.lastShot = -99; this.revealedUntil = -1;
-    this.outT = 0; this.zoneAcc = 0; this.ammo = { rifle: { mag: WEAPONS.rifle.mag, reserve: WEAPONS.rifle.reserve, ready: 0 }, pistol: { mag: WEAPONS.pistol.mag, reserve: WEAPONS.pistol.reserve, ready: 0 } };
+    this.outT = 0; this.zoneAcc = 0; this.ammo = { rifle: { mag: (this.rifle || WEAPONS.rifle).mag, reserve: (this.rifle || WEAPONS.rifle).reserve, ready: 0 }, pistol: { mag: WEAPONS.pistol.mag, reserve: WEAPONS.pistol.reserve, ready: 0 } };
     this.reloadUntil = 0; this.reloadW = null; this.wpn = 'rifle'; this.ads = 0; this.protectUntil = 0; this.respawnAt = 0; this.deathTime = 0; this.link = -1;
     this.budget = 0; this.lastIn = 0; this.lastSeq = -1; this.valid = new V3(); this.strikes = 0;
     this.kit = freshKit(true); this.meleeReady = 0; this.throwReady = 0; this.feignK = 0; this.lean = 0; this.gasT = null; this.mw = 0;
@@ -80,7 +81,7 @@ export class Match {
     this.humans = []; this.bots = []; const names = CALLSIGNS.slice().sort(() => Math.random() - 0.5); let bi = 0;
     for (const r of roster) {
       if (r.bot) { const b = new Bot(this, bi + 1, names[bi % names.length], null, null); bi++; b.netId = r.id; b.team = r.team; this.bots.push(b); }
-      else { const h = new Human(r.id, r.name, r.team); h.kit = freshKit(true, this.S); this.humans.push(h); }
+      else { const h = new Human(r.id, r.name, r.team); h.kit = freshKit(true, this.S); if (r.parts) { h.rifle = rifleWith(WEAPONS.rifle, r.parts); h.ammo.rifle.mag = h.rifle.mag; h.ammo.rifle.reserve = h.rifle.reserve; } this.humans.push(h); }
     }
     this.actors = [...this.humans, ...this.bots]; this.byId = new Map(this.actors.map(a => [a.netId, a]));
     this.hist = new Map(this.actors.map(a => [a.netId, []]));
@@ -255,7 +256,7 @@ export class Match {
     a.pts = (a.pts || 0) + 150; this.power._pts(a, 150);
   }
   reload(id, w) {
-    const a = this.byId.get(id); if (!a || !a.alive) return; const W = WEAPONS[w]; if (!W) return; const st = a.ammo[w];
+    const a = this.byId.get(id); if (!a || !a.alive) return; const W = w === 'rifle' ? a.rifle || WEAPONS.rifle : WEAPONS[w]; if (!W) return; const st = a.ammo[w];   // a.rifle: this sniper's rifle with their parts (client/src/parts.js)
     if (st.mag >= W.mag || st.reserve <= 0 || a.reloadUntil > this.time) return; a.reloadUntil = this.time + W.reload - 0.15; a.reloadW = w;
   }
   /** a trigger pull. o/d: the client's camera ray; lag: seconds the shooter's view of others is behind the server */
@@ -293,7 +294,7 @@ export class Match {
     this._zone(dt);
     for (const a of this.humans) {
       if (!a.alive) continue;
-      if (a.reloadUntil && this.time >= a.reloadUntil) { const W = WEAPONS[a.reloadW]; const st = a.ammo[a.reloadW]; const take = Math.min(W.mag - st.mag, st.reserve); st.mag += take; st.reserve -= take; a.reloadUntil = 0; this.events.push({ t: 'ammo', id: a.netId, ammo: this._ammo(a) }); }
+      if (a.reloadUntil && this.time >= a.reloadUntil) { const W = a.reloadW === 'rifle' ? a.rifle || WEAPONS.rifle : WEAPONS[a.reloadW]; const st = a.ammo[a.reloadW]; const take = Math.min(W.mag - st.mag, st.reserve); st.mag += take; st.reserve -= take; a.reloadUntil = 0; this.events.push({ t: 'ammo', id: a.netId, ammo: this._ammo(a) }); }
       if (a.pos.y < this.dropY) this.damage(a, 999, null, { cause: 'drop' });
     }
     for (const b of this.bots) { b.update(dt); this.arena.norm(b.pos); if (b.alive && b.pos.y < this.dropY) this.damage(b, 999, null, { cause: 'drop' }); }
