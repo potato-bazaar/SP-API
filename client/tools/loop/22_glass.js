@@ -113,11 +113,59 @@ function GLASS(g){
   {const q=g.gfx,dry=()=>{Wt.uWet.value=0;Wt.uLampOn.value=0;q.post.uBloom.value=Math.min(q.post.uBloom.value,.3)},sq=q.setQuality.bind(q);q.setQuality=t=>{const r=sq(t);dry();return r};dry()}   // a dry plate: no puddles, no lamp pools; and less of the other maps' red haze round anything red
   {const au=g.audio,quiet=()=>{try{au.rain.g.gain.value=0;au.wind.g.gain.value=.03}catch(e){}},amb=au._ambience;amb&&(au._ambience=function(){amb.apply(this,arguments);quiet()});quiet()}
   // words on the menu that belong to the other maps
-  try{const q=s=>document.querySelector(s),live=q(".m2-live");live&&live.lastChild&&(live.lastChild.textContent="GLASS CITY · PROTOTYPE");const d=q(".m2-dist span");d&&(d.textContent="GLASS CITY · PROTOTYPE");const sub=q(".m2-sub");sub&&(sub.textContent="Eight snipers. A city of glass at night. Rounds bounce.");
-    const w=document.createTreeWalker(document.getElementById("m2")||document.body,4);for(let n;n=w.nextNode();)/Stay on the Rooftops/i.test(n.nodeValue)&&(n.nodeValue=n.nodeValue.replace(/Stay on the Rooftops\.?/i,"Rounds bounce off glass."))}catch(e){}
-  // the small map: roofs lie over one another here, so it shows the ones on your level, and the ladders and cables that touch it
+  try{const q=s=>document.querySelector(s),live=q(".m2-live");live&&live.lastChild&&(live.lastChild.textContent="GLASS CITY · PROTOTYPE");const d=q(".m2-dist span");d&&(d.textContent="GLASS CITY · PROTOTYPE");const sub=q(".m2-sub");sub&&(sub.textContent="Eight snipers on the roofs of a city of glass. Rounds bounce. The street is out.");
+    const w=document.createTreeWalker(document.getElementById("m2")||document.body,4);for(let n;n=w.nextNode();)/Stay on the Rooftops/i.test(n.nodeValue)&&(n.nodeValue=n.nodeValue.replace(/Stay on the Rooftops\.?/i,"Stay on the roofs. Rounds bounce."))}catch(e){}
+  // the small map: roofs lie over one another here, so it shows the ones on your level, and the ladders, cables, pads and leaps that touch it
   {const hud=g.hud,draw=hud._map,near=(l,y)=>Math.abs(l.p0.y-y)<2.6||Math.abs(l.p1.y-y)<2.6;
-    hud._map=function(game){const ar=game.arena,R=ar.roofs,L=ar.links,y=game.player.pos.y;ar.roofs=R.filter(r=>Math.abs(r.roofY-y)<2.2);ar.links=L.filter(l=>(l.kind==="zip"||l.kind==="ladder")&&near(l,y));try{draw.call(this,game)}finally{ar.roofs=R;ar.links=L}}}
+    hud._map=function(game){const ar=game.arena,R=ar.roofs,L=ar.links,y=game.player.pos.y;ar.roofs=R.filter(r=>Math.abs(r.roofY-y)<2.2);ar.links=L.filter(l=>(l.kind==="zip"||l.kind==="ladder"||l.kind==="pad"||l.kind==="jump")&&near(l,y));try{draw.call(this,game)}finally{ar.roofs=R;ar.links=L}}}
+  // ---- the ways off a roof, drawn on it. Nobody plays on the street here (arena-glass.json dropY): a ring of chevrons
+  //      where a launch pad throws from (green), chevrons at an edge where a sprint, or a jump, becomes a leap (amber).
+  //      Cables are the game's own cyan ones; the dotted arc over a pad is the game's too.
+  {const A=g.arena,cv=document.createElement("canvas");cv.width=256;cv.height=128;const c=cv.getContext("2d");c.fillStyle="#000";c.fillRect(0,0,256,128);c.strokeStyle="#fff";c.lineJoin="miter";
+    c.lineWidth=7;c.beginPath();c.arc(64,64,54,0,7);c.stroke();c.lineWidth=9;for(let k=0;k<3;k++){const y=82-k*22;c.beginPath();c.moveTo(38,y+14);c.lineTo(64,y-8);c.lineTo(90,y+14);c.stroke()}
+    c.lineWidth=12;for(let k=0;k<3;k++){const y=100-k*36;c.beginPath();c.moveTo(154,y+18);c.lineTo(192,y-14);c.lineTo(230,y+18);c.stroke()}
+    const tex=new rs(cv);tex.colorSpace=Ne;tex.needsUpdate=!0;const P=[],U=[],C=[],Ix=[];
+    // a mark at `at`, pointing at `to`: half as wide as r, len long, starting `back` behind `at`; u0 picks the picture (0 the pad, .5 the leap)
+    const mark=(at,to,r,len,back,u0,col)=>{const d=new I(to.x-at.x,0,to.z-at.z).normalize(),sd=new I(d.z,0,-d.x),y=at.y+.07,o=P.length/3,q=(a,b)=>P.push(at.x+d.x*a+sd.x*b*r,y,at.z+d.z*a+sd.z*b*r);
+      q(-back,-1);q(-back,1);q(len-back,1);q(len-back,-1);U.push(u0,0,u0+.5,0,u0+.5,1,u0,1);for(let k=0;k<4;k++)C.push(col[0],col[1],col[2]);Ix.push(o,o+1,o+2,o,o+2,o+3)};
+    const PAD=[.3,1,.26],LEAP=[1,.7,.1];
+    for(const l of A.links){if(l.kind==="pad")mark(l.p0,l.p1,1.05,2.1,1.05,0,PAD);else if(l.kind==="jump"&&!l.k0){mark(l.p0,l.p1,.8,2.1,1.6,.5,LEAP);l.oneWay||mark(l.p1,l.p0,.8,2.1,1.6,.5,LEAP)}}
+    if(Ix.length){const geo=new se;geo.setAttribute("position",new Ft(new Float32Array(P),3));geo.setAttribute("uv",new Ft(new Float32Array(U),2));geo.setAttribute("color",new Ft(new Float32Array(C),3));geo.setIndex(new Ft(new Uint32Array(Ix),1));
+      const mat=new _e({map:tex,vertexColors:!0,transparent:!0,blending:qi,depthWrite:!1,side:2,fog:!1}),m=new Qt(geo,mat);m.matrixAutoUpdate=!1;m.frustumCulled=!1;m.renderOrder=6;m.name="glass:marks";g.gfx.scene.add(m);
+      const u0=g.update.bind(g);g.update=t=>{mat.color.setScalar(1.05+.35*Math.sin(performance.now()*.006));return u0(t)}}
+    // what the map asks of a sniper, said once at the start of a match (after the game's own greeting)
+    if(A.data.parkour){const st=g.start.bind(g);g.start=function(){const r=st.apply(null,arguments);g.player.flow=0;g._roofTip=g.player.alive?6:-1;return r};
+      const u1=g.update.bind(g);g.update=t=>{const r=u1(t);if(g._roofTip>0&&g.state==="live"&&g.time>g._roofTip){g._roofTip=-1;g.hud.banner("STAY ON THE ROOFS",6,!1,(g.input.touch?"push the stick all the way to run":"hold shift to run")+" · running builds speed · run at the arrows to leap · pads throw · cables carry")}return r}}}
+  // ---- the way in. While a sniper stands outside the ring the halo is closing to, the way off this roof that gets there soonest
+  //      (a pad, a cable, a leap, a ladder) is marked on the screen with how far it is. It is the route a bot would take.
+  {const A=g.arena,el=document.createElement("div");el.id="gl-way";el.style.cssText="position:absolute;left:0;top:0;pointer-events:none;display:none;transform:translate(-50%,-100%);text-align:center;font-weight:700;font-size:12px;line-height:1.2;letter-spacing:.14em;color:#fff;text-shadow:0 0 6px #000,0 0 2px #000;white-space:nowrap;z-index:5";
+    el.innerHTML='<div></div><div style="font-size:15px;line-height:13px"></div>';(document.getElementById("hud")||document.body).appendChild(el);
+    const T=el.firstChild,AR=el.lastChild,KIND={run:["THIS ROOF","#fff"],pad:["LAUNCH PAD","#7dff5a"],zip:["CABLE","#19e6ff"],jump:["LEAP","#ffc21a"],ladder:["LADDER","#fff"],step:["CLIMB","#fff"]},V=new I,F=new I,W0=new I;let at=null,kind=null,route=null,next=0;g.glassWay=()=>({at,kind,route});      // (for tests)
+    const find=()=>{const p=g.player,z=g.zone;at=null;route=null;if(!p.alive||p.mode!=="walk"||g.state!=="live")return;
+      let ri=p.roof;if(ri<0){let bd=36;for(const r of A.roofs){if(Math.abs(r.roofY-p.pos.y)>3||p.pos.x<r.x0-6||p.pos.x>r.x1+6||p.pos.z<r.z0-6||p.pos.z>r.z1+6)continue;const k=A.nearestCell(r,p.pos.x,p.pos.z);if(k<0)continue;
+        const c=A.cellPos(r,k,W0),d=(c.x-p.pos.x)**2+(c.z-p.pos.z)**2;d<bd&&(bd=d,ri=r.i)}if(ri<0)return}                              // standing on something that is no roof: the nearest roof's ways
+      const R=Math.min(z.r,z.nextR!=null?z.nextR:z.r)-2,d0=Math.hypot(p.pos.x-z.cx,p.pos.z-z.cz);if(d0<R-1)return;                    // already where the halo is going
+      const r0=A.roofs[ri];if(A.safeCount(r0,R-2.2)>=6){let bd=1e9;for(const k of r0.cells){const x=r0.ox+(k%r0.nx+.5)*A.cell,zz=r0.oz+((k/r0.nx|0)+.5)*A.cell;if(Math.hypot(x-z.cx,zz-z.cz)>R-2.2)continue;const d=Math.hypot(x-p.pos.x,zz-p.pos.z);d<bd&&(bd=d,at=W0.set(x,r0.roofY,zz))}
+        if(at){kind="run";return}}                                                                                            // this roof reaches in there: along it
+      // a way that stays inside the halo, if the sniper is inside it now; else any way
+      const blk=d0<z.r-1?e=>{const B=e.dir?e.link.p0:e.link.p1;return Math.hypot(B.x-z.cx,B.z-z.cz)>z.r-1}:null,ok=r=>A.safeCount(r,R-2.2)>=10,ok1=r=>A.safeCount(r,R-1)>=1;
+      const rt=blk&&A.route(ri,ok,blk,p.pos)||A.route(ri,ok,null,p.pos)||A.route(ri,ok1,null,p.pos);if(!rt)return;route=rt;
+      const e=rt.find(e=>e.link.kind!=="walk");if(e){at=e.dir?e.link.p1:e.link.p0;kind=e.link.kind}                             // the first pad, cable, leap or ladder on the way
+      else{const w=rt[rt.length-1];at=w.dir?w.link.p0:w.link.p1;kind="run"}};                                                 // or the same floor carries on to where it is safe: along it
+    const u0=g.update.bind(g);g.update=t=>{const r=u0(t);if(g.time>next||g.time<next-1){next=g.time+.4;try{find()}catch(e){at=null}}
+      if(!at){el.style.display!=="none"&&(el.style.display="none");return r}
+      const cam=g.gfx.camera,p=g.player,W=window.innerWidth,H=window.innerHeight;cam.getWorldDirection(F);const behind=(at.x-cam.position.x)*F.x+(at.y+1.5-cam.position.y)*F.y+(at.z-cam.position.z)*F.z<0;
+      V.set(at.x,at.y+1.5,at.z).project(cam);let x=(V.x*.5+.5)*W,y=(-V.y*.5+.5)*H,ar="▼";if(behind){ar=V.x>0?"◀":"▶";x=V.x>0?0:W;y=H*.5}
+      else if(x<70)ar="◀";else if(x>W-70)ar="▶";x=Math.max(70,Math.min(W-70,x));y=Math.max(H*.2,Math.min(H*.84,y));
+      const k=KIND[kind]||["WAY","#fff"];T.textContent="WAY IN · "+k[0]+" · "+Math.round(Math.hypot(at.x-p.pos.x,at.z-p.pos.z))+" M";AR.textContent=ar;T.style.color=AR.style.color=k[1];el.style.display="block";el.style.left=x+"px";el.style.top=y+"px";return r}}
+  // A pane is a sheet with no inside: which way its triangles are wound is the stroke's accident. Whatever a ray meets here faces
+  // the ray, so a floor reads as a floor from above (the game's ground probe, step-up and ledge-climb all ask for an upward normal).
+  {const A=g.arena,rc=A.raycast;A.raycast=function(o,d,m){const h=rc.call(this,o,d,m);h&&h.face&&h.face.normal.dot(d)>0&&h.face.normal.negate();return h}}
+  // A pane reaches a little past the last cell of its roof. A sniper standing on that rim is still on that roof (its cables,
+  // ladders and marks answer): the nearest cell within a metre and a half, on their level.
+  {const A=g.arena,ra=A.roofAt;A.roofAt=function(x,z,y){let i=ra.call(this,x,z,y);if(i>=0||y==null)return i;let bd=2.25;
+    for(const r of this.roofs){if(Math.abs(y-r.roofY)>1.2||x<r.x0-1.5||x>r.x1+1.5||z<r.z0-1.5||z>r.z1+1.5)continue;const k=this.nearestCell(r,x,z);if(k<0)continue;
+      const dx=r.ox+(k%r.nx+.5)*this.cell-x,dz=r.oz+((k/r.nx|0)+.5)*this.cell-z,d=dx*dx+dz*dz;d<bd&&(bd=d,i=r.i)}return i}}
   // ---- glass that rounds bounce off and break (the rules are in client/src/glass.js)
   const ar=g.arena,G=glassInstall(ar,g.city.glassSolid,I),panes=g.city.panes,pg=panes.geometry,ppos=pg.getAttribute("position"),phit=pg.getAttribute("aHit"),pcol=pg.getAttribute("color"),au=g.audio;
   const lis=()=>g.listenerPos||g.gfx.camera.position,vol=p=>Math.max(.04,.7/(1+p.distanceTo(lis())/16)),pan=p=>{try{return g.panOf(p)}catch(e){return 0}};
@@ -148,6 +196,7 @@ function GLASS(g){
     try{g.hud&&by&&by.isPlayer&&g.hud.banner("glass down",1.2,!0)}catch(e){}
     // bots stand where their roof says, not on the mesh: one whose floor has just gone drops to whatever is below, and it hurts
     for(const b of g.bots){if(!b.alive||b.link)continue;if(ar.groundY(b.pos.x,b.pos.z,b.pos.y+.7,1.5)!=null)continue;const h=ar.raycast(V.set(b.pos.x,b.pos.y+.5,b.pos.z),W.set(0,-1,0),90);if(!h)continue;
+      if(ar.data.dropY!=null&&h.point.y<ar.data.dropY){g.damage(b,999,by&&by!==b?by:null,{cause:"drop"});b.alive||(b.fall={vx:0,vy:0,vz:0});continue}   // nothing below but the street: out (the body falls)
       const fall=b.pos.y-h.point.y,vy=Math.sqrt(2*22*Math.max(0,fall));b.pos.y=h.point.y;b.path.length=0;b.plan.length=0;b.state="scan";let rf=ar.roofAt(b.pos.x,b.pos.z,b.pos.y);
       if(rf<0||!ar.walk(ar.roofs[rf],b.pos.x,b.pos.z)){let bd=1e9;for(const r of ar.roofs){if(Math.abs(r.roofY-b.pos.y)>1.2||!r.cells.length)continue;const k=ar.nearestCell(r,b.pos.x,b.pos.z);if(k<0)continue;const q=ar.cellPos(r,k,P),d=Math.hypot(q.x-b.pos.x,q.z-b.pos.z);d<bd&&(bd=d,rf=r.i)}
         if(rf>=0){const r=ar.roofs[rf],q=ar.cellPos(r,ar.nearestCell(r,b.pos.x,b.pos.z),P);b.pos.set(q.x,r.roofY,q.z)}}

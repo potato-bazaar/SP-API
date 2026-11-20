@@ -144,8 +144,48 @@ compared with the picture from there, class of colour by class of colour (black,
 windows).
 
 Every pane is solid: people walk, jump and climb on the real panes, the same capsule physics as on the other maps. The
-towers, the signs, the ribbons of light and their dark copies are solid too. Bots know the floors, steps, ladders and
-cables in `arena-glass.json`: the street inside the halo's first ring (cut into 36 m tiles) and every level floor of
-60 m2 or more above it. A bot's feet follow the real floor (`flatArena` `floorY` in `client/src/ring.js`), it judges a
-way by how far it is to walk (`route`), and the halo closes where the arena says (`GLASS` sets it: the game otherwise
-keeps the halo on the middle of the map).
+towers, the signs, the ribbons of light and their dark copies are solid too. Which way a pane's triangles are wound is
+an accident of its stroke, so on this map whatever a ray meets faces the ray (`GLASS` wraps `arena.raycast`): the
+game's ground probe, step-up and ledge-climb ask for an upward normal.
+
+### Roofs only
+
+Nobody plays on the street. The arena (`pack_glass_arena.py`, whose header says how each thing is worked out) is the
+level floors of 16 m2 or more that lie 1.75 m or more above the plate: about 400 roofs, stacked over one another.
+Below `dropY` (1.5 m) a sniper is out ("THE STREET"); a bot whose pane is shot out over the street falls to it and is
+out too, to the shooter's credit.
+
+Getting from roof to roof is the game, and the arena's links are the ways:
+
+| link | what it is | in the game |
+| --- | --- | --- |
+| `walk`, `step`, `ladder` | the same floor carrying on; a climb of up to 2.3 m; a ladder up a face | as on the other maps |
+| `zip` | a cable to a roof 20 to 100 m away, ridden both ways at 17 m/s | the game's cyan cables, one mesh (`RCABLE`), a mast at each end |
+| `pad` | a launch pad: a throw up or across to a roof 5 to 34 m away | a green ring of chevrons (`glass:marks`), the game's dotted arc |
+| `jump` (no ramps) | a leap across a gap of up to 9 m, level, up to 2.4 m up, or down (one way) | amber chevrons at the edge; sprint over them toward the gap, or press jump on them, and the sniper is thrown across (`_leap`) |
+
+Every arc and cable is checked in the packer against the model (voxels of every solid thing and the rims of every
+floor). Each one was then ridden in a browser against the game's own collision mesh, and ended with the sniper
+standing unhurt on the roof it says it goes to.
+Roofs that cannot be both reached and left get a cable or a pair of pads, or are left out, so the map is one piece.
+
+What the player gets on this map (arena JSON `parkour`; the code is `R()` steps in `patch_game.py`, mirrored in
+`client/src/player.js`):
+
+* **Running builds speed.** A held sprint goes from 7.3 to 10.6 m/s in under a second (`flow`), the picture widens
+  with it, and a jump at full speed is higher, so it carries further.
+* **Leaps.** `_leap`: at a leap mark, sprinting toward the gap or pressing jump rides the link's arc. Landing where
+  there is roof ahead, the sniper is still running.
+* **Nobody leaves a roof by accident.** `_edge`: on foot (walking or sprinting, not jumping) a sniper is held at an
+  edge and where a floor runs down toward the street, and can slide along it. Free: a step down of a metre or less; at a
+  walk, a drop of up to 2.4 m onto a lower roof with room to land on; a seam between panes under half a metre. Any
+  jump is the sniper's own affair, and so is letting go of a cable.
+* **The way in.** While a sniper stands outside the ring the halo is closing to, the way off their roof that gets
+  there soonest is marked on the screen ("WAY IN · LAUNCH PAD · 14 M"): the route a bot would take
+  (`flatArena` `route`), kept inside the halo when the sniper is inside it. `22_glass.js`, `g.glassWay()` for tests.
+
+Bots know the same roofs and links. A bot's feet follow the real floor (`flatArena` `floorY` in `client/src/ring.js`),
+it judges a way by how far it is to walk (`route`), and the halo closes where the arena says: the place in the middle
+block with the most roof round it (`GLASS` sets it: the game otherwise keeps the halo on the middle of the map).
+Eggs are laid on one in four of the larger roofs only, and the cables are one mesh, so the map draws in about 300
+calls.
