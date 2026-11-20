@@ -78,12 +78,12 @@ R('(o.copy(a.pos),o.y+=2.15,o.project(e),','(o.copy(a.pos),o.y+=2.15,SCLOOP&&t.a
 R('let s=Math.atan2(-(n.x-i.pos.x),-(n.z-i.pos.z))-i.yaw;','let RV=e.arena.rel(RQ,i.pos,RYO.set(n.x,i.pos.y,n.z)),s=Math.atan2(-RV.x,-RV.z)-i.yaw;')
 R('$s.copy(t).sub(this.listenerPos);let n=Math.hypot($s.x,$s.z)||1;','this.arena.rel($s,this.listenerPos,t);let n=Math.hypot($s.x,$s.z)||1;')
 # ---- online: say which maps this build has, make rooms on the loaded map, follow a room to its map, learn where the halo closes
-R('send({t:"hello",name:this.name||void 0,token:this.token||void 0,v:1})','send({t:"hello",name:this.name||void 0,token:this.token||void 0,v:1,maps:["city","loop"]})')
+R('send({t:"hello",name:this.name||void 0,token:this.token||void 0,v:1})','send({t:"hello",name:this.name||void 0,token:this.token||void 0,v:1,maps:["city","loop","glass"]})')
 R('send({t:"create",settings:this._lastSettings()','send({t:"create",settings:{...(this._lastSettings()||{}),map:window.SCMAP||"city"}')
 R('t.on("room",e=>{this._room(e);','t.on("room",e=>{if(RMAPSW(e))return;this._room(e);')
 R('t.startNet=function(e,i,n){let s=this.player;','t.startNet=function(e,i,n){let s=this.player;SCLOOP&&i.zc&&this.ringT&&this.ringT.setZone(i.zc[0],i.zc[1]);')
 R('_apply(t,e,i){let n=a=>t[a]+(e[a]-t[a])*i,','_apply(t,e,i){let n=a=>t[a]+(a===1&&RWD?RWD(e[a]-t[a]):e[a]-t[a])*i,')
-R('["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],','["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],["map","map",[["city","SNIPER CITY"],["loop","LOOP CITY"]]],')
+R('["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],','["voice chat","voice",[[!0,"ON"],[!1,"OFF"]]],["map","map",[["city","SNIPER CITY"],["loop","LOOP CITY"],["glass","GLASS CITY"]]],')
 R('district:()=>pan(`<h2>DISTRICT ROTATION</h2><p>One district is live: <b style="color:#fff">Hong Kong \xB7 District 04</b>, 24 rooftops around the angel.</p><p class="note">More districts mean building new maps. None exist yet, so there is nothing to rotate.</p>`),','district:()=>RDIST(pan),')
 # ---- cameras that look at something far away look along the real line to it (kill cam, spectator orbit, cut scenes)
 R('let cam=g.gfx.camera,d=K.to.clone().sub(K.from),len=d.length()||1;','let cam=g.gfx.camera,d=g.arena.rel(new I,K.from,K.to),len=d.length()||1;')
@@ -258,7 +258,7 @@ R('vec3 Nw = normalize(vec3(sin(rp.x * 3.1 + tt) * cos(rp.y * 2.7 - tt * 1.3), 1
 R('float fres = 0.16 + 0.84 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);','float fres = 0.24 + 0.76 * pow(1.0 - max(dot(-V, N), 0.0), 3.0);')
 R('col = col * (1.0 - 0.3 * wet) + refl * fres * wet * 1.6;','col = col * (1.0 - 0.5 * wet) + refl * fres * wet * 2.3 + vec3(dot(rg, rg)) * 0.9 * wet;')
 R('this.net.send({t:"join",code:t}),','this.net.send({t:"join",code:t,map:window.SCMAP||"city"}),')
-R('t.on("error",e=>{this.toast(e.msg),this._stat(e.msg,!0)})','t.on("error",e=>{let sw=/^MAPSWITCH:(city|loop)$/.exec(e.msg||"");if(sw&&window.RSWITCH){window.RSWITCH(sw[1],$t("code")&&$t("code").value||this.room&&this.room.code||"");return}if(/not in a room/i.test(e.msg||"")&&this.room){this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online"),this._stat("connection lost too long \\xB7 rejoin with the room code",!0),this.toast(e.msg);return}this.toast(e.msg),this._stat(e.msg,!0)})')
+R('t.on("error",e=>{this.toast(e.msg),this._stat(e.msg,!0)})','t.on("error",e=>{let sw=/^MAPSWITCH:(city|loop|glass)$/.exec(e.msg||"");if(sw&&window.RSWITCH){window.RSWITCH(sw[1],$t("code")&&$t("code").value||this.room&&this.room.code||"");return}if(/not in a room/i.test(e.msg||"")&&this.room){this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online"),this._stat("connection lost too long \\xB7 rejoin with the room code",!0),this.toast(e.msg);return}this.toast(e.msg),this._stat(e.msg,!0)})')
 R('t.on("left",e=>{this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online"),this._stat(e.why==="kicked"?"the host removed you from the room":"you left the room",e.why==="kicked")})','t.on("left",e=>{if(e.why==="switch")return;this.room=null,this.g.net&&this.g.stopNet(),this.g.state="title",this.g.hud.show("online");let msg=e.why==="kicked"?"the host removed you from the room":e.why==="timeout"?"connection lost too long \\xB7 you were removed from the room":"you left the room";this._stat(msg,e.why==="kicked"||e.why==="timeout")})')
 # lit windows burn warm: the buildings' own and the skyline's. The last pass keeps that warmth (as it keeps red and cyan).
 R('em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.78)) * on * tw','em += (h > 0.975 ? uRedCol * 1.6 : vec3(0.95, 0.70, 0.30)) * on * tw')
@@ -281,7 +281,7 @@ R('let h=i.route(this.roof,u=>i.safeCount(u,s-2.2)>=10);h||(h=i.route(this.roof,
 # GLASS CITY: a round's whole way (through panes, off panes) is worked out by client/src/glass.js; and a name for being hit by your own
 R('function xu(r,t,e,i,n,s){let{arena:o,fx:a,audio:c}=r,','function xu(r,t,e,i,n,s){if(r.arena.glass)return r.arena.glass.shot(r,t,e,i,n,s,yu);let{arena:o,fx:a,audio:c}=r,')
 R('i.cause==="rpg"&&!e?"OWN ROCKET":','i.cause==="glass"&&!e?"OWN ROUND":i.cause==="rpg"&&!e?"OWN ROCKET":')
-# GLASS CITY has no rooms yet: what the server is asked for is a city room (60_net.js RNMAP)
+# GLASS CITY rooms: ask for the map this page loaded (60_net.js RNMAP = city | loop | glass)
 R('this.net.send({t:"join",code:t,map:window.SCMAP||"city",parts:','this.net.send({t:"join",code:t,map:RNMAP(),parts:')
 R('map:window.SCMAP||"city"},parts:window.SCPARTS','map:RNMAP()},parts:window.SCPARTS')
 # ---- the menu says WEAPON (finish, scope, parts: 82_workshop.js) and has no STORE
@@ -330,5 +330,5 @@ mod='\n'.join(open(os.path.join(HERE,f)).read() for f in sorted(os.listdir(HERE)
 MARK='/* ---------- Google Analytics events'
 assert s.count(MARK)==1
 s=s.replace(MARK,'/* ---------- ring.js (client/src/ring.js, verbatim) ---------- */\n'+ring+'\n'+mod+'\n\n'+MARK)
-p=REPO+'/client/dist/game.js'; open(p+'.tmp','w').write(s); os.replace(p+'.tmp',p)
+p=REPO+'/client/dist/game.js'; open(p+'.tmp','w',encoding='utf-8',newline='\n').write(s); os.replace(p+'.tmp',p)
 print('patched',len(s))

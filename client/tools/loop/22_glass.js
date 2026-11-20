@@ -202,4 +202,9 @@ function GLASS(g){
         if(rf>=0){const r=ar.roofs[rf],q=ar.cellPos(r,ar.nearestCell(r,b.pos.x,b.pos.z),P);b.pos.set(q.x,r.roofY,q.z)}}
       rf>=0&&(b.roof=rf);vy>14.5&&g.damage(b,(vy-14.5)*8,by&&by!==b?by:null,{cause:"fall"})}};
   g.glass={pack:g.city.glass,rules:G,look:GLT};
+  // online: apply pane hits the server decided (and panes already gone when you rejoin mid-match)
+  const applyPane=(id,hp)=>{if(!G||id<0||id>=G.n)return;if(hp<=0){if(G.hp[id])G.smash(id,null,null)}else if(G.hp[id]>hp)G.hp[id]=hp};
+  {const wrap=()=>{if(!g._netEvent||g._paneNetHook)return;g._paneNetHook=1;const ne=g._netEvent.bind(g);g._netEvent=e=>{if(e&&e.t==="pane"){applyPane(e.id,e.hp);return}ne(e)}};wrap();const u0=g.update.bind(g);g.update=t=>{wrap();return u0(t)}}
+  {const snap0=g.onNetSnap.bind(g);g.onNetSnap=function(m){const r=snap0.call(this,m);if(m&&m.s&&m.s.panes)for(const id of m.s.panes)applyPane(id,0);return r}}
+  {const start0=g.startNet.bind(g);g.startNet=function(n,m,o){const r=start0.call(this,n,m,o);if(m&&m.snap&&m.snap.panes)for(const id of m.snap.panes)applyPane(id,0);return r}}
 }

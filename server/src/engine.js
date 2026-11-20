@@ -3,10 +3,11 @@
 // their own movement (validated here) and the moment they pull the trigger (lag-compensated here).
 import * as THREE from 'three';
 import { Arena } from '../../client/src/arena.js';
-import { WEAPONS, fireShot } from '../../client/src/combat.js';
+import { WEAPONS, fireShot, rayActors } from '../../client/src/combat.js';
 import { rifleWith } from '../../client/src/parts.js';
 import { Bot, CALLSIGNS } from '../../client/src/ai.js';
 import { simpleHitShapes, leanShapes, lyingShapes } from '../../client/src/world.js';
+import { glassInstall } from '../../client/src/glass.js';
 import { MODES } from './rules.js';
 import { zoneD, ringWalls, doorSpots, DOOR } from '../../client/src/ring.js';
 import { ServerGear, freshKit, roofOf } from './gear.js';
@@ -55,7 +56,12 @@ export class Match {
   constructor(world, settings, roster, emit) {
     this.headless = true; this.S = settings; this.emit = emit; this.arena = new Arena(world.arena, world.bvh);
     const ring = world.ring ? world.RK.ringify(this.arena, world.ring).ring : null;   // LOOP CITY: the arena learns the ring (client/src/ring.js)
-    this.dropY = ring ? -25 : 9.5;                                                    // below this you are gone: the street on the city map, the void under the hull on the ring
+    if (world.glassSolid) {                                                          // GLASS CITY: panes bounce and break (client/src/glass.js)
+      glassInstall(this.arena, world.glassSolid, V3);
+      const A = this.arena, rc = A.raycast.bind(A);                                   // panes have no winding: face whatever met the ray (same wrap as 22_glass.js)
+      A.raycast = (o, d, m) => { const h = rc(o, d, m); if (h && h.face && h.face.normal.dot(d) > 0) h.face.normal.negate(); return h; };
+    }
+    this.dropY = ring ? -25 : (world.arena.dropY != null ? world.arena.dropY : 9.5);  // below this you are gone: the street / the void / glass street at dropY
     this.teams = MODES[settings.mode].teams; this.fx = FX; this.audio = NOOP; this.hud = NOOP; this.player = null; this.listenerPos = new V3();
     this.time = 0; this.weaponsFree = false; this.state = 'live'; this.events = []; this.deferred = null; this.winner = null; this.log = [];
     const L = settings.botSkill; this.botSigma = 1; this.botSigmaPlayer = [2.0, 1.2, 0.75][L]; this.botSigmaBot = 2.0; this.botEye = [0.6, 1, 1.35][L]; this.botAim = [1.35, 1, 0.7][L]; this.botCrowd = [1, 2, 3][L];
@@ -69,11 +75,16 @@ export class Match {
     this.angel = { eye: new V3(this.zone.cx, 71.5, this.zone.cz), state: 'idle', pulseR: 0, pulseOn: false }; this.gazeWarned = -1; this.gazeDone = -1;
     this.fog = !!settings.fog;                       // room rule: bots see far less through it (client/src/ai.js), clients draw it
     // LOOP CITY's breakable walls: the arena's dyn boxes stop shots and sight lines; broken ones are listed in the snapshot
-    this.cover = ring ? ringWalls(this.arena, V3) : []; this.arena.dyn = this.cover.slice(); this.coverBroken = [];
+    this.cover = ring ? ringWalls(this.arena, V3) : []; this.arena.dyn = this.cover.slice(); this.coverBroken = []; this.paneBroken = [];
+    if (this.arena.glass) {   // GLASS CITY: tell every client when a pane cracks or shatters (same id order as the pack)
+      const G = this.arena.glass;
+      G.onHit = (id, hp) => { this.events.push({ t: 'pane', id, hp }); };
+      G.onBreak = (id) => { this.paneBroken.push(id); this.events.push({ t: 'pane', id, hp: 0 }); };
+    }
     // the doors, and the floor of the angel's crown (a box the arena's rays and bodies know about; nothing breaks it)
     this.doors = doorSpots(this.arena, V3); const cy = DOOR.crownY, cr = DOOR.crownR;
     this.crown = { kind: 'crown', hp: Infinity, min: new V3(this.zone.cx - cr, cy - 0.25, this.zone.cz - cr), max: new V3(this.zone.cx + cr, cy, this.zone.cz + cr) }; this.arena.dyn.push(this.crown);
-    this.gearSim = new ServerGear(this);             // gas, smoke, decoys, the hammer, the angel's strikes and shadow roof
+    this.gearSim = new ServerGear(this); this.gear = this.gearSim;   // gas, smoke, decoys, the hammer; .gear alias for glass.shot (client/src/glass.js)
     this.smokeCut = (p, q) => this.gearSim.smokeCut(p, q);   // client/src/ai.js: bots do not see through smoke
     this.power = new ServerPowerups(this);           // points, the attack drone, the missile strike
     this.extras = new ServerExtras(this);            // the solo extras that run online too (the prayer, the air drop and its AWM, the RPG-7)
@@ -275,7 +286,9 @@ export class Match {
     const back = clamp(lag, 0, HISTORY - 0.05); const saved = [];
     if (back > 0.001) for (const o of this.actors) { if (o === a || !o.alive) continue; const pose = this._poseAt(o, this.time - back); if (pose) { saved.push([o, o.pos.clone(), o.crouchK, o.lean, o.feignK, o.yaw]); o.pos.set(pose[1], pose[2], pose[3]); o.crouchK = pose[4]; if (o.human) { o.lean = pose[5]; o.feignK = pose[6]; o.yaw = pose[7]; } } }
     this.deferred = []; this._shotW = W.key;
-    const shoot = () => fireShot(this, a, origin, dir, origin.clone().addScaledVector(dir, 0.8), W);
+    const shoot = () => this.arena.glass
+      ? this.arena.glass.shot(this, a, origin, dir, origin.clone().addScaledVector(dir, 0.8), W, rayActors)   // GLASS CITY: bounce / break panes (client/src/glass.js)
+      : fireShot(this, a, origin, dir, origin.clone().addScaledVector(dir, 0.8), W);
     if (W.pierce) this.extras.pierce(shoot); else shoot();   // the AWM's round goes through walls (solo's pierce)
     for (const [o, p, c, ln, fd, yw] of saved) { o.pos.copy(p); o.crouchK = c; if (o.human) { o.lean = ln; o.feignK = fd; o.yaw = yw; } }
     const pend = this.deferred; this.deferred = null; this._shotW = null;
@@ -374,7 +387,8 @@ export class Match {
       a.push([o.netId, r2(o.pos.x), r2(o.pos.y), r2(o.pos.z), r3(o.yaw), r3(aimY), r3(aimP), r2(o.crouchK), r2(o.speed || 0), mode, flags | (held << 8), Math.max(0, Math.ceil(o.hp)), link, r3(lu), ld, r2(o.lean || 0)]);
     }
     // z[5]: the angel's shadow roof (the client's _netZone reads it); z[7]: the walls that are down (LOOP CITY)
-    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof, ...(this.coverBroken.length ? [null, this.coverBroken] : [])], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null };
+    // panes: GLASS CITY panes that are gone (same ids as the pack), so a late joiner sees the breaks
+    const z = this.zone; return { t: r3(this.time), a, z: [r2(z.r), r2(z.nextR), z.phase, z.shrinking ? 1 : 0, r2(z.toNext), this.gearSim.shadowRoof, ...(this.coverBroken.length ? [null, this.coverBroken] : [])], ang: this.angel.state, d: this.power.rows(), k: this.teams ? [this.teamScore(0), this.teamScore(1)] : null, panes: this.paneBroken.length ? this.paneBroken : undefined };
   }
   drain() { const e = this.events; this.events = []; return e; }
 }

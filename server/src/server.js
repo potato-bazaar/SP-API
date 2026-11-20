@@ -210,5 +210,6 @@ server.listen(PORT, () => log(`Sniper City server on :${PORT}  (ws path /ws)`));
 // LOOP CITY is loaded (and its two big files zipped) a moment after boot, so the first loop room never stalls a match already running;
 // if its data is missing the city still plays
 const loopWarm = setTimeout(() => { try { log('loop world ready in', loadWorld('loop').ms, 'ms'); staticFile('loop.txt'); staticFile('arena-loop.json'); } catch (e) { log('loop world not available:', e && e.message); } }, 1500); loopWarm.unref && loopWarm.unref();
+const glassWarm = setTimeout(() => { try { log('glass world ready in', loadWorld('glass').ms, 'ms'); staticFile('glass.txt'); staticFile('arena-glass.json'); } catch (e) { log('glass world not available:', e && e.message); } }, 2500); glassWarm.unref && glassWarm.unref();
 if (secure) secure.listen(HTTPS_PORT, () => log(`HTTPS on :${HTTPS_PORT}${GAME_WS_URL ? '  (Cloudflare pages send players to ' + GAME_WS_URL + ')' : ''}`));
 export { server, lobby };

@@ -50,7 +50,10 @@ class Room {
         session.send(this.startMsg(true, session.id)); }
       return m; }
     if (this.banned.has(session.id)) throw new UserError('The host removed you from this room.');
-    if (this.settings.map !== 'city' && !(session.maps || []).includes(this.settings.map)) throw new UserError('That room plays on LOOP CITY. Reload the page to get the new map, then join again.');
+    if (this.settings.map !== 'city' && !(session.maps || []).includes(this.settings.map)) {
+      const label = this.settings.map === 'loop' ? 'LOOP CITY' : this.settings.map === 'glass' ? 'GLASS CITY' : 'that map';
+      throw new UserError(`That room plays on ${label}. Reload the page to get the new map, then join again.`);
+    }
     // wrong page loaded: tell the client which map to open (it reloads and rejoins by the room code)
     if (wantMap && wantMap !== this.settings.map) throw new UserError(`MAPSWITCH:${this.settings.map}`);
     if (this.members.size >= this.slots()) throw new UserError('That room is full.');
@@ -90,7 +93,7 @@ class Room {
     this._hostOnly(s); this._lobbyOnly();
     // the map can change in the lobby when everyone's page has it: each page reloads into it and comes back into the room
     if (patch && patch.map && patch.map !== this.settings.map) { const old = [...this.members.values()].filter(m => !(m.maps || ['city']).includes(patch.map)).map(m => m.name);
-      if (old.length) throw new UserError(`${old.join(', ')} must reload the page to get ${patch.map === 'loop' ? 'LOOP CITY' : 'that map'} first.`);
+      if (old.length) throw new UserError(`${old.join(', ')} must reload the page to get ${patch.map === 'loop' ? 'LOOP CITY' : patch.map === 'glass' ? 'GLASS CITY' : 'that map'} first.`);
       for (const m of this.members.values()) m.ready = false; }
     const next = SettingsSchema.parse({ ...this.settings, ...patch });
     if (slotsFor(next) < this.members.size) throw new UserError(`${this.members.size} people are in the room; that mode has ${slotsFor(next)} places.`);

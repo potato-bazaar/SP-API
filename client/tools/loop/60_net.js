@@ -4,18 +4,20 @@ var RWD=null;   // on the ring: the shortest way round between two x (used where
 let _mapSw=0;   // one reload in flight: lobby room broadcasts must not stack location.replace/reload
 function RSWITCH(map,code){
   if(_mapSw)return;_mapSw=1;
-  try{localStorage.setItem("sc.world",map==="loop"?"loop":"city")}catch(e){}
-  const h=code?"#room="+code:location.hash;location.replace(location.pathname+"?map="+(map==="loop"?"loop":"city")+h);
+  const m=map==="loop"?"loop":map==="glass"?"glass":"city";
+  try{localStorage.setItem("sc.world",m)}catch(e){}
+  const h=code?"#room="+code:location.hash;location.replace(location.pathname+"?map="+m+h);
   if(code)setTimeout(()=>location.reload(),60);   // same page, new query: some browsers only change the hash
 }
 // a room on the other map: load that map and come straight back in (the room code rides in the address)
 function RMAPSW(room){const m=room&&room.settings&&room.settings.map||"city";if(m===window.SCMAP)return!1;RSWITCH(m,room.code);return!0}
 window.RSWITCH=RSWITCH;window.RMAPSW=RMAPSW;   // online menus (and MAPSWITCH errors) call these off the window
-// the map a room is asked for. GLASS CITY is played alone until the server knows it: a room made or joined from there is a city room, and the page follows it
-function RNMAP(){return SCGLASS?"city":window.SCMAP||"city"}
+// the map a room is asked for: whatever this page loaded (city, loop, or glass)
+function RNMAP(){return window.SCMAP||"city"}
+window.RNMAP=RNMAP;
 function RDIST(pan){
   const M=window.SCMAP,card=(id,on,h,sub,txt)=>`<div style="border:1px solid ${on?"var(--lime,#c8f31d)":"rgba(242,242,239,.22)"};padding:14px 16px;margin:10px 0"><b style="color:#fff;font-size:18px;letter-spacing:.06em">${h}</b><div style="opacity:.6;font-size:12px;letter-spacing:.14em;margin:2px 0 8px">${sub}</div><p style="margin:0 0 10px">${txt}</p>${on?'<span style="color:var(--lime,#c8f31d);letter-spacing:.14em;font-size:12px">YOU ARE HERE</span>':`<button type="button" data-map="${id}" style="font:inherit;letter-spacing:.14em;padding:9px 16px;background:var(--lime,#c8f31d);color:#050505;border:0;cursor:pointer;font-weight:800">DEPLOY HERE</button>`}</div>`;
-  pan(`<h2>DISTRICT ROTATION</h2>`+card("city",M==="city","SNIPER CITY","HONG KONG · DISTRICT 04","Twenty-four rooftops in the rain around the angel. The street is death.")+(M==="glass"?card("glass",!0,"GLASS CITY","PROTOTYPE · SOLO","A city drawn in light, fought over from its roofs: run, leap, ride the cables, take the launch pads. The street is out. Rounds bounce off the glass. Still being built: one sniper and seven bots, no online rooms yet."):"")+card("loop",M==="loop","LOOP CITY","ORBITAL · RING 01","A city bent into a wheel. The far side hangs over your head: shoot straight up across the hub, ride the hub lines through the middle, fight on the roofs and in the streets. The halo closes somewhere new each match.")+`<p class="note">Custom matches are played on the map you are in. Joining a friend's room on the other map loads it for you.</p>`);
+  pan(`<h2>DISTRICT ROTATION</h2>`+card("city",M==="city","SNIPER CITY","HONG KONG · DISTRICT 04","Twenty-four rooftops in the rain around the angel. The street is death.")+card("glass",M==="glass","GLASS CITY","ROOFS · LIGHT","A city drawn in light, fought over from its roofs: run, leap, ride the cables, take the launch pads. The street is out. Rounds bounce off the glass.")+card("loop",M==="loop","LOOP CITY","ORBITAL · RING 01","A city bent into a wheel. The far side hangs over your head: shoot straight up across the hub, ride the hub lines through the middle, fight on the roofs and in the streets. The halo closes somewhere new each match.")+`<p class="note">Custom matches are played on the map you are in. Joining a friend's room on the other map loads it for you.</p>`);
   const box=document.getElementById("m2-box");box&&box.querySelectorAll("[data-map]").forEach(b=>b.addEventListener("click",()=>RSWITCH(b.dataset.map)));
 }
 function RNET(g){
